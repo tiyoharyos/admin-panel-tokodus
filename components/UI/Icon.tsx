@@ -1,13 +1,19 @@
-'use client'
+import { Icon } from '@iconify/react'
 
-import dynamic from 'next/dynamic'
+interface IconProps {
+  icon: string
+  className?: string
+  width?: string | number
+  height?: string | number
+}
 
-// Dynamically import Iconify to avoid SSR issues
-const IconifyIcon = dynamic(() => import('@iconify/react').then(mod => mod.Icon), {
-  ssr: false,
-  loading: () => <div className="w-5 h-5"></div>
-})
-
-export default function Icon({ icon, className }: { icon: string; className?: string }) {
-  return <IconifyIcon icon={icon} className={className} />
+export default function CustomIcon({ icon, className = '', width = 20, height = 20 }: IconProps) {
+  return (
+    <Icon 
+      icon={icon} 
+      className={className} 
+      width={width} 
+      height={height} 
+    />
+  )
 }
