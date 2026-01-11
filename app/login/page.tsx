@@ -6,59 +6,42 @@ import Link from 'next/link';
 import axios from '../../lib/axios';
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
-import { useToast } from '@/hooks/useToast';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
-  const toast = useToast();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     setLoading(true);
     
     try {
       const res = await axios.post('/Auth/login', form);
       const { access_token } = res.data;
       localStorage.setItem('token', access_token);
-      
-      // Tampilkan notifikasi sukses
-      toast.success('Login berhasil! Mengarahkan ke dashboard...');
-      
-      // Tunggu sebentar sebelum redirect
-      setTimeout(() => {
-        router.push('/dashboard');
-        router.refresh();
-      }, 1500);
-      
+    //   alert('Logged in successfully');
+      router.push('/dashboard');
+      router.refresh();
     } catch (error: any) {
       console.error('Login error:', error);
       
-      // Tampilkan notifikasi error
+      // Ambil pesan error dari response API
       if (error.response) {
+        // Server memberikan response dengan status code error
         const errorMessage = error.response.data?.message || 
                            error.response.data?.error ||
                            'Login failed';
-        
-        if (error.response.status === 401) {
-          toast.error('Email atau password salah');
-        } else if (error.response.status === 403) {
-          toast.error('Akses ditolak. Hubungi administrator');
-        } else if (error.response.status === 422) {
-          toast.error('Format data tidak valid');
-        } else if (error.response.status === 429) {
-          toast.error('Terlalu banyak percobaan. Coba lagi nanti');
-        } else if (error.response.status >= 500) {
-          toast.error('Server error. Silakan coba lagi nanti');
-        } else {
-          toast.error(errorMessage);
-        }
+        setError(errorMessage);
       } else if (error.request) {
-        toast.error('Tidak ada response dari server. Periksa koneksi internet Anda.');
+        // Request dikirim tapi tidak ada response
+        setError('Tidak ada response dari server. Periksa koneksi internet Anda.');
       } else {
-        toast.error('Terjadi kesalahan. Silakan coba lagi.');
+        // Error saat setup request
+        setError('Terjadi kesalahan. Silakan coba lagi.');
       }
     } finally {
       setLoading(false);
@@ -73,6 +56,8 @@ export default function Login() {
 
   const handleInputChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
+    // Clear error ketika user mulai mengetik
+    if (error) setError('');
   };
 
   return (
@@ -108,6 +93,19 @@ export default function Login() {
             <p className="text-gray-500 text-sm font-medium">Sign in to access your dashboard</p>
           </div>
 
+          {/* Error Message - Tampilkan pesan dari API */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl animate-shake">
+              <div className="flex items-start">
+                <Icon icon="solar:danger-circle-bold" className="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+                <div>
+                  <span className="font-semibold text-red-700 text-sm block">Login Gagal</span>
+                  <p className="text-sm text-red-600 mt-0.5">{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Form Fields */}
           <form onSubmit={handleLogin}>
             <div className="space-y-5">
@@ -125,9 +123,11 @@ export default function Login() {
                     value={form.email}
                     onChange={(e) => handleInputChange('email', e.target.value)}
                     onKeyPress={handleKeyPress}
-                    className="w-full pl-12 pr-4 py-3.5 border border-gray-200 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 hover:bg-gray-100 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full pl-12 pr-4 py-3.5 border text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 hover:bg-gray-100 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed ${
+                      error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
+                    }`}
                     placeholder="Masukkan email"
-                    required
+                    
                     disabled={loading}
                   />
                 </div>
@@ -147,9 +147,11 @@ export default function Login() {
                     value={form.password}
                     onChange={(e) => handleInputChange('password', e.target.value)}
                     onKeyPress={handleKeyPress}
-                    className="w-full pl-12 pr-12 py-3.5 text-gray-700 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 hover:bg-gray-100 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`w-full pl-12 pr-12 py-3.5 text-gray-700 border rounded-xl focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200 hover:bg-gray-100 focus:bg-white disabled:opacity-50 disabled:cursor-not-allowed ${
+                      error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
+                    }`}
                     placeholder="Masukkan password"
-                    required
+                
                     disabled={loading}
                   />
                   <button
@@ -237,6 +239,14 @@ export default function Login() {
         }
         .animation-delay-4000 {
           animation-delay: 4s;
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+          20%, 40%, 60%, 80% { transform: translateX(2px); }
+        }
+        .animate-shake {
+          animation: shake 0.5s;
         }
       `}</style>
     </div>
