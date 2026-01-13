@@ -468,14 +468,6 @@ export default function BoxModelsPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
               <Button
-                onClick={fetchBoxModels}
-                variant="ghost"
-                className="bg-white/10 hover:bg-white/20 border-white/20"
-                icon="mdi:refresh"
-              >
-                Refresh
-              </Button>
-              <Button
                 onClick={handleAddClick}
                 variant="success"
                 icon="mdi:plus"
