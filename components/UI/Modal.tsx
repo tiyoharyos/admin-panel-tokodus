@@ -1,5 +1,5 @@
 'use client'
-
+// components/UI/Modal.tsx
 import { useEffect, useRef } from 'react'
 import { Icon } from '@iconify/react'
 

@@ -1,31 +1,32 @@
+// components/UI/ButtonLink.tsx
 'use client'
-// components/UI/Button.tsx
+
+import Link from 'next/link'
 import { Icon } from '@iconify/react'
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface ButtonLinkProps extends React.AnchorHTMLAttributes<HTMLAnchorElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success'
   size?: 'sm' | 'md' | 'lg'
-  loading?: boolean
   icon?: string
   iconPosition?: 'left' | 'right'
   fullWidth?: boolean
   rounded?: 'none' | 'sm' | 'md' | 'lg' | 'full'
+  href: string
 }
 
-export default function Button({
+export default function ButtonLink({
   children,
   variant = 'primary',
   size = 'md',
-  loading = false,
   icon,
   iconPosition = 'left',
   fullWidth = false,
   rounded = 'lg',
+  href,
   className = '',
-  disabled,
   ...props
-}: ButtonProps) {
-  const baseClasses = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed'
+}: ButtonLinkProps) {
+  const baseClasses = 'inline-flex items-center justify-center font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2'
   
   const variantClasses = {
     primary: 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 focus:ring-blue-500',
@@ -51,7 +52,8 @@ export default function Button({
   }
 
   return (
-    <button
+    <Link
+      href={href}
       className={`
         ${baseClasses}
         ${variantClasses[variant]}
@@ -60,19 +62,15 @@ export default function Button({
         ${fullWidth ? 'w-full' : ''}
         ${className}
       `}
-      disabled={disabled || loading}
       {...props}
     >
-      {loading && (
-        <Icon icon="mdi:loading" className="animate-spin w-4 h-4 mr-2" />
-      )}
-      {!loading && icon && iconPosition === 'left' && (
+      {icon && iconPosition === 'left' && (
         <Icon icon={icon} className="w-4 h-4 mr-2" />
       )}
       {children}
-      {!loading && icon && iconPosition === 'right' && (
+      {icon && iconPosition === 'right' && (
         <Icon icon={icon} className="w-4 h-4 ml-2" />
       )}
-    </button>
+    </Link>
   )
 }

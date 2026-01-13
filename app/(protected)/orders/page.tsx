@@ -1,142 +1,107 @@
-'use client'
 // app/(protected)/orders/page.jsx
+'use client'
+
 import { useState, useEffect } from 'react'
-import axios from '../../../lib/axios' // Import axios Anda
+import Card from '@/components/UI/Card'
+import Button from '@/components/UI/Button'
+import Badge from '@/components/UI/Badge'
+import Input from '@/components/UI/Input'
+import Select from '@/components/UI/Select'
+import Modal from '@/components/UI/Modal'
+import CustomIcon from '@/components/UI/Icon'
+
+const mockOrders = [
+  {
+    id: '1',
+    order_code: 'TOK-2024-001',
+    customer_name: 'MBR',
+    brand: 'MBR',
+    category: 'Duplek Medium Duplek',
+    quantity: 1000,
+    total_price: 4850000,
+    status: 'completed',
+    created_at: '2024-09-23',
+    due_date: '2024-10-01',
+    payment_status: 'paid',
+    notes: 'Prioritas tinggi'
+  },
+  {
+    id: '2',
+    order_code: 'TOK-2024-002',
+    customer_name: 'ABC Corp',
+    brand: 'ABC',
+    category: 'Kardus Karton',
+    quantity: 500,
+    total_price: 2500000,
+    status: 'processing',
+    created_at: '2024-09-24',
+    due_date: '2024-10-05',
+    payment_status: 'unpaid',
+    notes: 'Butuh desain khusus'
+  },
+  {
+    id: '3',
+    order_code: 'TOK-2024-003',
+    customer_name: 'XYZ Ltd',
+    brand: 'XYZ',
+    category: 'Plastik Packaging',
+    quantity: 2000,
+    total_price: 7500000,
+    status: 'pending',
+    created_at: '2024-09-25',
+    due_date: '2024-10-10',
+    payment_status: 'unpaid',
+    notes: 'Bulk order'
+  },
+  {
+    id: '4',
+    order_code: 'TOK-2024-004',
+    customer_name: 'PT Maju Jaya',
+    brand: 'MJ',
+    category: 'Corrugated Box',
+    quantity: 1500,
+    total_price: 6250000,
+    status: 'shipped',
+    created_at: '2024-09-20',
+    due_date: '2024-09-30',
+    payment_status: 'paid',
+    notes: 'Sudah dikirim'
+  },
+  {
+    id: '5',
+    order_code: 'TOK-2024-005',
+    customer_name: 'CV Sentosa',
+    brand: 'SENTOSA',
+    category: 'Folding Carton',
+    quantity: 800,
+    total_price: 3200000,
+    status: 'cancelled',
+    created_at: '2024-09-18',
+    due_date: '2024-09-28',
+    payment_status: 'refunded',
+    notes: 'Dibatalkan customer'
+  }
+]
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [orders, setOrders] = useState(mockOrders)
+  const [loading, setLoading] = useState(false)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [selectedOrder, setSelectedOrder] = useState(null)
-  const [isModalOpen, setIsModalOpen] = useState(false)
-  const [error, setError] = useState(null)
-
-  useEffect(() => {
-    fetchOrders()
-  }, [])
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      
-      // Ganti fetch dengan axios
-      const response = await axios.get('/orders') // Sesuaikan endpoint
-      
-      // Log response untuk debugging
-      console.log('API Response:', response.data)
-      
-      if (response.data.status && Array.isArray(response.data.data)) {
-        // Transform data API ke format yang diharapkan component
-        const transformedOrders = response.data.data.map((order) => ({
-          id: order.id?.toString() || '',
-          order_code: order.order_code || order.orderCode || `ORD-${Date.now()}`,
-          customer_name: order.customer_name || order.customerName || 'N/A',
-          brand: order.brand || 'N/A',
-          category: order.category || 'N/A',
-          quantity: order.quantity || 0,
-          total_price: order.total_price || order.totalPrice || 0,
-          status: order.status || 'pending',
-          created_at: order.created_at || order.createdAt || new Date().toISOString().split('T')[0],
-          due_date: order.due_date || order.dueDate || new Date().toISOString().split('T')[0],
-          customer_id: order.customer_id,
-          product_id: order.product_id,
-          notes: order.notes,
-          payment_status: order.payment_status
-        }))
-        setOrders(transformedOrders)
-      } else {
-        // Fallback jika format respons tidak sesuai
-        console.log('Invalid API response format, using mock data')
-        setOrders(getMockOrders())
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error)
-      setError('Gagal memuat data pesanan. Silakan coba lagi.')
-      // Fallback ke mock data
-      setOrders(getMockOrders())
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Fungsi untuk mock data
-  const getMockOrders = () => {
-    return [
-      {
-        id: '1',
-        order_code: 'TOK-2024-001',
-        customer_name: 'MBR',
-        brand: 'MBR',
-        category: 'Duplek Medium Duplek',
-        quantity: 1000,
-        total_price: 4850000,
-        status: 'completed',
-        created_at: '2024-09-23',
-        due_date: '2024-10-01',
-        payment_status: 'paid'
-      },
-      {
-        id: '2',
-        order_code: 'TOK-2024-002',
-        customer_name: 'ABC Corp',
-        brand: 'ABC',
-        category: 'Kardus Karton',
-        quantity: 500,
-        total_price: 2500000,
-        status: 'processing',
-        created_at: '2024-09-24',
-        due_date: '2024-10-05',
-        payment_status: 'unpaid'
-      },
-      {
-        id: '3',
-        order_code: 'TOK-2024-003',
-        customer_name: 'XYZ Ltd',
-        brand: 'XYZ',
-        category: 'Plastik Packaging',
-        quantity: 2000,
-        total_price: 7500000,
-        status: 'pending',
-        created_at: '2024-09-25',
-        due_date: '2024-10-10',
-        payment_status: 'unpaid'
-      },
-
-    ]
-  }
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
       order.order_code?.toLowerCase().includes(search.toLowerCase()) ||
       order.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-      order.brand?.toLowerCase().includes(search.toLowerCase()) ||
-      order.category?.toLowerCase().includes(search.toLowerCase())
+      order.brand?.toLowerCase().includes(search.toLowerCase())
     
     const matchesStatus = statusFilter === 'all' || order.status === statusFilter
     
     return matchesSearch && matchesStatus
   })
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      processing: 'bg-blue-100 text-blue-800',
-      completed: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-      paid: 'bg-green-100 text-green-800',
-      unpaid: 'bg-red-100 text-red-800',
-      shipped: 'bg-indigo-100 text-indigo-800',
-      refunded: 'bg-purple-100 text-purple-800'
-    }
-    return colors[status] || 'bg-gray-100 text-gray-800'
-  }
-
-  const handleViewDetails = (order) => {
-    setSelectedOrder(order)
-    setIsModalOpen(true)
-  }
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -159,18 +124,52 @@ export default function OrdersPage() {
     }
   }
 
-  // Handle create new order
+  const getStatusVariant = (status) => {
+    switch(status) {
+      case 'completed': return 'success'
+      case 'processing': return 'primary'
+      case 'pending': return 'warning'
+      case 'shipped': return 'info'
+      case 'cancelled': return 'danger'
+      default: return 'gray'
+    }
+  }
+
+  const getPaymentStatusVariant = (status) => {
+    switch(status) {
+      case 'paid': return 'success'
+      case 'unpaid': return 'danger'
+      case 'refunded': return 'warning'
+      default: return 'gray'
+    }
+  }
+
+  const handleViewDetails = (order) => {
+    setSelectedOrder(order)
+    setIsViewModalOpen(true)
+  }
+
   const handleCreateOrder = () => {
-    // Implement create order logic here
-    console.log('Create new order clicked')
-    // setIsModalOpen(true) untuk modal create order
+    setIsCreateModalOpen(true)
+  }
+
+  const handleDeleteOrder = (id) => {
+    if (window.confirm('Apakah Anda yakin ingin menghapus pesanan ini?')) {
+      setOrders(orders.filter(order => order.id !== id))
+    }
+  }
+
+  const handleUpdateStatus = (id, newStatus) => {
+    setOrders(orders.map(order => 
+      order.id === id ? { ...order, status: newStatus } : order
+    ))
   }
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <CustomIcon icon="mdi:loading" className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Memuat data pesanan...</p>
         </div>
       </div>
@@ -178,224 +177,349 @@ export default function OrdersPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-          <p className="text-gray-600">Kelola dan lacak pesanan pelanggan</p>
-        </div>
-        <button 
-          onClick={handleCreateOrder}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-indigo-700 transition duration-200 flex items-center"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Pesanan Baru
-        </button>
-      </div>
-
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {error}
-          </div>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="bg-white rounded-xl shadow p-4">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari berdasarkan kode, customer, brand, atau kategori..."
-                className="w-full pl-10 text-black py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
+    <div className="space-y-6 p-4 md:p-6">
+      {/* Header */}
+      <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
+              <CustomIcon icon="mdi:clipboard-list-outline" className="w-8 h-8" />
+              Orders Management
+            </h1>
+            <p className="opacity-90 mt-1">Kelola dan lacak pesanan pelanggan</p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <Badge variant="info" icon="mdi:package-variant">
+                Total: {orders.length} Orders
+              </Badge>
+              <Badge variant="success" icon="mdi:cash-check">
+                Paid: {orders.filter(o => o.payment_status === 'paid').length}
+              </Badge>
             </div>
           </div>
-          <select
+          <Button
+            onClick={handleCreateOrder}
+            variant="success"
+            icon="mdi:plus"
+            className="w-full md:w-auto"
+          >
+            New Order
+          </Button>
+        </div>
+      </Card>
+
+      {/* Filters */}
+      <Card>
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <Input
+              leftIcon="mdi:magnify"
+              placeholder="Search orders by code, customer, or brand..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-4 text-black py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            options={[
+              { value: 'all', label: 'All Status' },
+              { value: 'pending', label: 'Pending' },
+              { value: 'processing', label: 'Processing' },
+              { value: 'completed', label: 'Completed' },
+              { value: 'shipped', label: 'Shipped' },
+              { value: 'cancelled', label: 'Cancelled' }
+            ]}
+            className="w-full md:w-48"
+          />
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSearch('')
+              setStatusFilter('all')
+            }}
+            icon="mdi:filter-remove"
           >
-            <option value="all">Semua Status</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-            <option value="paid">Paid</option>
-            <option value="unpaid">Unpaid</option>
-            <option value="shipped">Shipped</option>
-          </select>
-          <button
-            onClick={fetchOrders}
-            className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition duration-200 flex items-center"
-          >
-            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Refresh
-          </button>
+            Clear Filters
+          </Button>
         </div>
+      </Card>
+
+      {/* Orders Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredOrders.map((order) => (
+          <Card key={order.id} hoverable className="overflow-hidden">
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-600 flex items-center gap-2">
+                    <CustomIcon icon="mdi:ticket-confirmation" />
+                    {order.order_code}
+                  </h3>
+                  <p className="text-sm text-gray-500 mt-1">{formatDate(order.created_at)}</p>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <Badge variant={getStatusVariant(order.status)}>
+                    {order.status}
+                  </Badge>
+                  <Badge variant={getPaymentStatusVariant(order.payment_status)} size="sm">
+                    {order.payment_status}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-3 mb-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Customer:</span>
+                  <span className="font-medium">{order.customer_name}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Brand:</span>
+                  <span className="font-medium">{order.brand}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Category:</span>
+                  <span className="font-medium">{order.category}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Quantity:</span>
+                  <span className="font-medium">{order.quantity.toLocaleString()} pcs</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Total Price:</span>
+                  <span className="font-bold text-green-600">{formatCurrency(order.total_price)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Due Date:</span>
+                  <span className={`font-medium ${new Date(order.due_date) < new Date() ? 'text-red-600' : 'text-gray-900'}`}>
+                    {formatDate(order.due_date)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Notes */}
+              {order.notes && (
+                <div className="mb-6 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
+                  <p className="text-sm text-yellow-800 flex items-start gap-2">
+                    <CustomIcon icon="mdi:note-text" className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                    <span>{order.notes}</span>
+                  </p>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex justify-between pt-4 border-t border-gray-100">
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleViewDetails(order)}
+                    icon="mdi:eye"
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => alert(`Edit order ${order.id}`)}
+                    icon="mdi:pencil"
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => alert(`Print order ${order.id}`)}
+                    icon="mdi:printer"
+                  >
+                    Print
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleDeleteOrder(order.id)}
+                  icon="mdi:delete"
+                  className="text-red-600 hover:text-red-700"
+                >
+                  Delete
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-xl shadow overflow-hidden">
-        {filteredOrders.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <svg className="w-12 h-12 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
-            <p className="mb-2">Tidak ada pesanan ditemukan</p>
-            <p className="text-sm text-gray-400">Coba ubah filter pencarian atau refresh data</p>
+      {/* Empty State */}
+      {filteredOrders.length === 0 && (
+        <Card className="text-center py-12">
+          <div className="w-16 h-16 flex items-center justify-center bg-gray-100 rounded-full mx-auto mb-4">
+            <CustomIcon icon="mdi:package-variant-remove" className="w-8 h-8 text-gray-400" />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Kode Order
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Brand & Kategori
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Quantity
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Total
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Due Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Aksi
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.map((order) => (
-                  <tr key={order.id} className="hover:bg-gray-50 transition duration-150">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-semibold text-blue-600">{order.order_code}</div>
-                      <div className="text-xs text-gray-500">
-                        {formatDate(order.created_at)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{order.customer_name}</div>
-                      {order.customer_id && (
-                        <div className="text-xs text-gray-500">ID: {order.customer_id}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-medium text-gray-900">{order.brand}</div>
-                      <div className="text-sm text-gray-500">{order.category}</div>
-                      {order.product_id && (
-                        <div className="text-xs text-gray-400">Prod: {order.product_id}</div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {order.quantity.toLocaleString()} pcs
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-bold text-gray-900">
-                        {formatCurrency(order.total_price)}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
-                      {order.payment_status && (
-                        <div className="mt-1">
-                          <span className={`px-2 py-0.5 text-xs rounded-full ${getStatusColor(order.payment_status)}`}>
-                            {order.payment_status}
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {formatDate(order.due_date)}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(order.due_date) > new Date() ? 'Aktif' : 'Jatuh tempo'}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center space-x-3">
-                        <button 
-                          onClick={() => handleViewDetails(order)}
-                          className="text-blue-600 hover:text-blue-900 transition duration-200"
-                          title="Lihat Detail"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                        <button 
-                          className="text-green-600 hover:text-green-900 transition duration-200"
-                          title="Edit"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
-                        <button 
-                          className="text-red-600 hover:text-red-900 transition duration-200"
-                          title="Hapus"
-                        >
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
+          <p className="text-gray-500 mb-6">Try adjusting your search or filter criteria.</p>
+          <Button onClick={handleCreateOrder} variant="primary" icon="mdi:plus">
+            Create New Order
+          </Button>
+        </Card>
+      )}
 
       {/* Summary */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <div className="flex items-center justify-between">
+      <Card>
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="text-sm text-gray-600">
-            Menampilkan <span className="font-semibold">{filteredOrders.length}</span> dari <span className="font-semibold">{orders.length}</span> pesanan
+            Showing <span className="font-semibold">{filteredOrders.length}</span> of <span className="font-semibold">{orders.length}</span> orders
           </div>
           <div className="text-sm text-gray-600">
-            Total nilai: <span className="font-bold text-green-600">
+            Total Value: <span className="font-bold text-green-600">
               {formatCurrency(filteredOrders.reduce((sum, order) => sum + order.total_price, 0))}
             </span>
           </div>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" icon="mdi:export">
+              Export
+            </Button>
+            <Button variant="outline" size="sm" icon="mdi:printer">
+              Print List
+            </Button>
+          </div>
         </div>
-      </div>
+      </Card>
+
+      {/* View Order Details Modal */}
+      <Modal
+        isOpen={isViewModalOpen}
+        onClose={() => setIsViewModalOpen(false)}
+        title="Order Details"
+        size="lg"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
+              Close
+            </Button>
+            <Button variant="primary" onClick={() => alert('Edit order')}>
+              Edit Order
+            </Button>
+          </div>
+        }
+      >
+        {selectedOrder && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Order Code</h4>
+                <p className="text-gray-900 font-semibold">{selectedOrder.order_code}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Order Status</h4>
+                <Badge variant={getStatusVariant(selectedOrder.status)}>
+                  {selectedOrder.status}
+                </Badge>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Customer</h4>
+                <p className="text-gray-900">{selectedOrder.customer_name}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Brand</h4>
+                <p className="text-gray-900">{selectedOrder.brand}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Category</h4>
+                <p className="text-gray-900">{selectedOrder.category}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Quantity</h4>
+                <p className="text-gray-900">{selectedOrder.quantity.toLocaleString()} pcs</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Created Date</h4>
+                <p className="text-gray-900">{formatDate(selectedOrder.created_at)}</p>
+              </div>
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Due Date</h4>
+                <p className={`font-medium ${new Date(selectedOrder.due_date) < new Date() ? 'text-red-600' : 'text-gray-900'}`}>
+                  {formatDate(selectedOrder.due_date)}
+                </p>
+              </div>
+              <div className="md:col-span-2">
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Total Price</h4>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(selectedOrder.total_price)}</p>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-medium text-gray-500 mb-1">Payment Status</h4>
+              <Badge variant={getPaymentStatusVariant(selectedOrder.payment_status)}>
+                {selectedOrder.payment_status}
+              </Badge>
+            </div>
+
+            {selectedOrder.notes && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500 mb-1">Notes</h4>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-gray-700">{selectedOrder.notes}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </Modal>
+
+      {/* Create Order Modal */}
+      <Modal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        title="Create New Order"
+        size="lg"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={() => alert('Order created')}>
+              Create Order
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Customer Name *" placeholder="Enter customer name" />
+            <Input label="Brand *" placeholder="Enter brand name" />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Select
+              label="Category *"
+              options={[
+                { value: 'duplek', label: 'Duplek Medium Duplek' },
+                { value: 'kardus', label: 'Kardus Karton' },
+                { value: 'plastik', label: 'Plastik Packaging' },
+                { value: 'corrugated', label: 'Corrugated Box' },
+                { value: 'folding', label: 'Folding Carton' }
+              ]}
+            />
+            <Input label="Quantity *" type="number" placeholder="Enter quantity" />
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input label="Due Date *" type="date" />
+            <Input label="Total Price" type="number" placeholder="Enter total price" />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Notes
+            </label>
+            <textarea
+              rows={3}
+              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Add any notes or special instructions..."
+            />
+          </div>
+        </div>
+      </Modal>
     </div>
   )
 }

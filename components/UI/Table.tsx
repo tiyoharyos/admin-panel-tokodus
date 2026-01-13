@@ -1,3 +1,4 @@
+// components/UI/Table.tsx
 'use client'
 
 interface TableProps {

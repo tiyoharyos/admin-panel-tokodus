@@ -1,5 +1,5 @@
 'use client'
-
+// components/UI/Badge.tsx
 import { Icon } from '@iconify/react'
 
 interface BadgeProps {

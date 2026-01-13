@@ -1,5 +1,5 @@
 'use client'
-
+// app/(protected)/reports/page.jsx
 import { useState, useEffect } from 'react'
 
 // Mock data

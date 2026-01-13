@@ -1,6 +1,6 @@
-'use client'; 
+'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import axios from '../../lib/axios';
@@ -12,7 +12,23 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
+
+  // Load saved credentials on component mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('rememberedEmail');
+    const savedPassword = localStorage.getItem('rememberedPassword');
+    const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
+
+    if (savedRememberMe && savedEmail && savedPassword) {
+      setForm({
+        email: savedEmail,
+        password: savedPassword
+      });
+      setRememberMe(true);
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,24 +39,32 @@ export default function Login() {
       const res = await axios.post('/Auth/login', form);
       const { access_token } = res.data;
       localStorage.setItem('token', access_token);
-    //   alert('Logged in successfully');
+      
+      // Save credentials if "Remember Me" is checked
+      if (rememberMe) {
+        localStorage.setItem('rememberedEmail', form.email);
+        localStorage.setItem('rememberedPassword', form.password);
+        localStorage.setItem('rememberMe', 'true');
+      } else {
+        // Clear saved credentials if not checked
+        localStorage.removeItem('rememberedEmail');
+        localStorage.removeItem('rememberedPassword');
+        localStorage.setItem('rememberMe', 'false');
+      }
+      
       router.push('/dashboard');
       router.refresh();
     } catch (error: any) {
       console.error('Login error:', error);
       
-      // Ambil pesan error dari response API
       if (error.response) {
-        // Server memberikan response dengan status code error
         const errorMessage = error.response.data?.message || 
                            error.response.data?.error ||
                            'Login failed';
         setError(errorMessage);
       } else if (error.request) {
-        // Request dikirim tapi tidak ada response
         setError('Tidak ada response dari server. Periksa koneksi internet Anda.');
       } else {
-        // Error saat setup request
         setError('Terjadi kesalahan. Silakan coba lagi.');
       }
     } finally {
@@ -56,8 +80,27 @@ export default function Login() {
 
   const handleInputChange = (field: string, value: string) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    // Clear error ketika user mulai mengetik
     if (error) setError('');
+  };
+
+  const handleRememberMeChange = (checked: boolean) => {
+    setRememberMe(checked);
+    
+    // If user unchecks "Remember Me", remove saved credentials immediately
+    if (!checked) {
+      localStorage.removeItem('rememberedEmail');
+      localStorage.removeItem('rememberedPassword');
+    }
+  };
+
+  // Function to clear saved credentials
+  const clearSavedCredentials = () => {
+    localStorage.removeItem('rememberedEmail');
+    localStorage.removeItem('rememberedPassword');
+    localStorage.setItem('rememberMe', 'false');
+    setForm({ email: '', password: '' });
+    setRememberMe(false);
+    alert('Kredensial yang disimpan telah dihapus.');
   };
 
   return (
@@ -93,7 +136,7 @@ export default function Login() {
             <p className="text-gray-500 text-sm font-medium">Sign in to access your dashboard</p>
           </div>
 
-          {/* Error Message - Tampilkan pesan dari API */}
+          {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl animate-shake">
               <div className="flex items-start">
@@ -127,8 +170,8 @@ export default function Login() {
                       error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
                     }`}
                     placeholder="Masukkan email"
-                    
                     disabled={loading}
+                    required
                   />
                 </div>
               </div>
@@ -151,8 +194,8 @@ export default function Login() {
                       error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'
                     }`}
                     placeholder="Masukkan password"
-                
                     disabled={loading}
+                    required
                   />
                   <button
                     type="button"
@@ -166,6 +209,49 @@ export default function Login() {
                     />
                   </button>
                 </div>
+              </div>
+
+              {/* Remember Me and Forgot Password Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      id="remember-me"
+                      checked={rememberMe}
+                      onChange={(e) => handleRememberMeChange(e.target.checked)}
+                      disabled={loading}
+                      className="sr-only"
+                    />
+                    <label
+                      htmlFor="remember-me"
+                      className={`flex items-center cursor-pointer ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                      <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-all duration-200 ${
+                        rememberMe 
+                          ? 'bg-blue-500 border-blue-500' 
+                          : 'bg-white border-gray-300'
+                      }`}>
+                        {rememberMe && (
+                          <Icon icon="solar:check-bold" className="w-3.5 h-3.5 text-white" />
+                        )}
+                      </div>
+                      <span className="text-sm text-gray-700 font-medium select-none">
+                        Ingat Saya
+                      </span>
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Optional: Forgot Password Link */}
+                <button
+                  type="button"
+                  onClick={() => alert('Fitur lupa password belum tersedia. Hubungi administrator.')}
+                  className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
+                  disabled={loading}
+                >
+                  Lupa Password?
+                </button>
               </div>
 
               {/* Submit Button */}
@@ -193,29 +279,19 @@ export default function Login() {
             </div>
           </form>
 
-          {/* Register Link */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              Don&apos;t have an account?{' '}
-              <Link 
-                href="/register" 
-                className="font-semibold text-blue-600 hover:text-blue-700 transition-colors duration-200"
-              >
-                Register here
-              </Link>
-            </p>
-          </div>
+          {/* Additional Info */}
+          <div className="mt-8 pt-6 border-t border-gray-100">
+            <div className="text-center">
+              <div className="flex items-center justify-center text-xs text-gray-500 mb-2">
+                <Icon icon="solar:shield-check-bold-duotone" className="w-4 h-4 mr-1.5 text-gray-400" />
+                <p>Hubungi administrator untuk mendapatkan akses</p>
+              </div>
 
-          {/* Footer */}
-          <div className="mt-8 text-center">
-            <div className="flex items-center justify-center text-xs text-gray-500">
-              <Icon icon="solar:shield-check-bold-duotone" className="w-4 h-4 mr-1.5 text-gray-400" />
-              <p>Hubungi administrator untuk mendapatkan akses</p>
             </div>
           </div>
         </div>
 
-        {/* Additional Info */}
+        {/* Footer */}
         <div className="mt-6 text-center">
           <p className="text-xs text-white/70 font-medium">
             Powered by Tokodus Admin Platform

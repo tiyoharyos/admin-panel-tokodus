@@ -1,3 +1,4 @@
+// app/(protected)/price-settings/page.tsx
 'use client'
 
 import { useState } from 'react'

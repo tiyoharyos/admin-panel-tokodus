@@ -1,5 +1,5 @@
 import { Icon } from '@iconify/react'
-
+// components/UI/Icon.tsx
 interface IconProps {
   icon: string
   className?: string
