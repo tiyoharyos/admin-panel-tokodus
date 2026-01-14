@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import axios from '../../lib/axios';
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
+import Swal from 'sweetalert2';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
@@ -15,58 +15,67 @@ export default function Login() {
   const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
 
-  // Load saved credentials on component mount
   useEffect(() => {
     const savedEmail = localStorage.getItem('rememberedEmail');
     const savedPassword = localStorage.getItem('rememberedPassword');
     const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
 
     if (savedRememberMe && savedEmail && savedPassword) {
-      setForm({
-        email: savedEmail,
-        password: savedPassword
-      });
+      setForm({ email: savedEmail, password: savedPassword });
       setRememberMe(true);
     }
   }, []);
+
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
-    
+
     try {
       const res = await axios.post('/Auth/login', form);
       const { access_token } = res.data;
+
       localStorage.setItem('token', access_token);
-      
-      // Save credentials if "Remember Me" is checked
+
       if (rememberMe) {
         localStorage.setItem('rememberedEmail', form.email);
         localStorage.setItem('rememberedPassword', form.password);
         localStorage.setItem('rememberMe', 'true');
       } else {
-        // Clear saved credentials if not checked
         localStorage.removeItem('rememberedEmail');
         localStorage.removeItem('rememberedPassword');
         localStorage.setItem('rememberMe', 'false');
       }
-      
+
+
+      await Swal.fire({
+        icon: 'success',
+        title: 'Login Berhasil',
+        text: 'Selamat datang kembali!',
+        showConfirmButton: false,
+        timer: 1500,
+        backdrop: true
+      });
+
       router.push('/dashboard');
       router.refresh();
-    } catch (error: any) {
-      console.error('Login error:', error);
-      
-      if (error.response) {
-        const errorMessage = error.response.data?.message || 
-                           error.response.data?.error ||
-                           'Login failed';
-        setError(errorMessage);
-      } else if (error.request) {
-        setError('Tidak ada response dari server. Periksa koneksi internet Anda.');
-      } else {
-        setError('Terjadi kesalahan. Silakan coba lagi.');
-      }
+
+    } catch (err: any) {
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        'Login gagal. Periksa email & password.';
+
+      setError(message);
+
+      Swal.fire({
+        icon: 'error',
+        title: 'Login Gagal',
+        text: message,
+        confirmButtonText: 'Coba Lagi'
+      });
+
     } finally {
       setLoading(false);
     }
@@ -85,32 +94,15 @@ export default function Login() {
 
   const handleRememberMeChange = (checked: boolean) => {
     setRememberMe(checked);
-    
-    // If user unchecks "Remember Me", remove saved credentials immediately
     if (!checked) {
       localStorage.removeItem('rememberedEmail');
       localStorage.removeItem('rememberedPassword');
     }
   };
 
-  // Function to clear saved credentials
-  const clearSavedCredentials = () => {
-    localStorage.removeItem('rememberedEmail');
-    localStorage.removeItem('rememberedPassword');
-    localStorage.setItem('rememberMe', 'false');
-    setForm({ email: '', password: '' });
-    setRememberMe(false);
-    alert('Kredensial yang disimpan telah dihapus.');
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a3a7d 0%, #1f4390 50%, #2557b8 100%)' }}>
-      {/* Decorative background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-300 rounded-full mix-blend-overlay filter blur-3xl opacity-20 animate-blob"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-300 rounded-full mix-blend-overlay filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
-        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-purple-300 rounded-full mix-blend-overlay filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
-      </div>
+
 
       <div className="w-full max-w-md relative z-10">
         <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
@@ -300,16 +292,8 @@ export default function Login() {
       </div>
 
       {/* Inline CSS Animations */}
-      <style jsx>{`
-        @keyframes blob {
-          0% { transform: translate(0px, 0px) scale(1); }
-          33% { transform: translate(30px, -50px) scale(1.1); }
-          66% { transform: translate(-20px, 20px) scale(0.9); }
-          100% { transform: translate(0px, 0px) scale(1); }
-        }
-        .animate-blob {
-          animation: blob 7s infinite;
-        }
+      <style>{`
+
         .animation-delay-2000 {
           animation-delay: 2s;
         }

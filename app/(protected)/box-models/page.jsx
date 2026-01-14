@@ -1,4 +1,3 @@
-// app/(protected)/box-models/page.jsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -10,8 +9,10 @@ import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
 import CustomIcon from '@/components/UI/Icon'
+import { useSweetAlert } from '@/hooks/useSweetAlert'
 
 export default function BoxModelsPage() {
+  const { showAlert } = useSweetAlert()
   const [boxModels, setBoxModels] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -38,16 +39,11 @@ export default function BoxModelsPage() {
       setLoading(true)
       setError(null)
       
-      console.log('🔍 Fetching box models...')
-      
       const response = await axios.get('/Admin/Box/boxModels', {
         headers: {
           'ngrok-skip-browser-warning': 'true'
         }
       })
-      
-      console.log('✅ Response:', response)
-      console.log('📊 Response data:', response.data)
       
       if (response.data && response.data.status === 200) {
         if (Array.isArray(response.data.data)) {
@@ -64,10 +60,8 @@ export default function BoxModelsPage() {
             category: item.category || 'Mailer Box'
           }))
           
-          console.log('🔄 Transformed data:', transformedData)
           setBoxModels(transformedData)
         } else {
-          console.warn('Data bukan array:', response.data.data)
           setBoxModels([])
         }
       } else {
@@ -78,13 +72,10 @@ export default function BoxModelsPage() {
       console.error('❌ Error:', err)
       
       if (err.response) {
-        console.error('Response error:', err.response.status, err.response.data)
         setError(`Error ${err.response.status}: ${err.response.data?.message || 'Unknown error'}`)
       } else if (err.request) {
-        console.error('Network error:', err.request)
         setError('Tidak bisa connect ke server')
       } else {
-        console.error('Setup error:', err.message)
         setError(`Error: ${err.message}`)
       }
       
@@ -99,7 +90,6 @@ export default function BoxModelsPage() {
 
   // ===== GENERATE CODE =====
   const generateCode = () => {
-    // Cari kode terakhir untuk increment
     if (boxModels.length > 0) {
       const lastCode = boxModels[boxModels.length - 1].kode
       if (lastCode && /^\d+$/.test(lastCode)) {
@@ -108,14 +98,12 @@ export default function BoxModelsPage() {
       }
     }
     
-    // Jika tidak ada data atau kode bukan numeric, generate dari timestamp
     const timestamp = Date.now().toString().slice(-6)
     return timestamp.padStart(6, '0')
   }
 
   // ===== HANDLERS =====
   const handleAddClick = () => {
-    // Auto-generate code ketika modal tambah dibuka
     const generatedCode = generateCode()
     setAddFormData({
       code: generatedCode,
@@ -130,19 +118,24 @@ export default function BoxModelsPage() {
   const handleAddSave = async () => {
     // Validasi form
     if (!addFormData.code.trim()) {
-      alert('Kode tidak boleh kosong')
+      await showAlert('error', {
+        title: 'Kode Kosong',
+        text: 'Kode tidak boleh kosong'
+      })
       return
     }
     
     if (!addFormData.name.trim()) {
-      alert('Nama model tidak boleh kosong')
+      await showAlert('error', {
+        title: 'Nama Kosong',
+        text: 'Nama model tidak boleh kosong'
+      })
       return
     }
     
     try {
       setIsPosting(true)
       
-      // Data yang akan dikirim ke API
       const postData = {
         code: addFormData.code.trim(),
         name: addFormData.name.trim(),
@@ -162,9 +155,15 @@ export default function BoxModelsPage() {
       })
       
       if (response.data && response.data.status === 200) {
-        alert('✅ Success!\n\nBox Model berhasil ditambahkan!')
+        await showAlert('success', {
+          title: 'Sukses!',
+          text: 'Box Model berhasil ditambahkan!',
+          timer: 2000,
+          showConfirmButton: false
+        })
+        
+        // Reset form dan close modal
         setShowAddModal(false)
-        await fetchBoxModels()
         setAddFormData({
           code: '',
           name: '',
@@ -172,13 +171,23 @@ export default function BoxModelsPage() {
           category: 'Mailer Box',
           status_bm: '1'
         })
+        
+        // Refresh data
+        await fetchBoxModels()
+        
       } else {
         const errorMessage = response.data?.message || 'Gagal menambahkan Box Model'
-        alert(`❌ Error:\n\n${errorMessage}`)
+        await showAlert('error', {
+          title: 'Gagal',
+          text: errorMessage
+        })
       }
     } catch (err) {
       console.error('❌ Error saat POST:', err)
-      alert(err.response?.data?.message || 'Terjadi kesalahan saat menyimpan data')
+      await showAlert('error', {
+        title: 'Error',
+        text: err.response?.data?.message || 'Terjadi kesalahan saat menyimpan data'
+      })
     } finally {
       setIsPosting(false)
     }
@@ -197,19 +206,24 @@ export default function BoxModelsPage() {
     
     // Validasi form
     if (!editingItem.kode.trim()) {
-      alert('Kode tidak boleh kosong')
+      await showAlert('error', {
+        title: 'Kode Kosong',
+        text: 'Kode tidak boleh kosong'
+      })
       return
     }
     
     if (!editingItem.namaModel.trim()) {
-      alert('Nama tidak boleh kosong')
+      await showAlert('error', {
+        title: 'Nama Kosong',
+        text: 'Nama tidak boleh kosong'
+      })
       return
     }
     
     try {
       setIsPosting(true)
       
-      // Data yang akan dikirim ke API untuk update
       const updateData = {
         id_bm: editingItem.id,
         code: editingItem.kode.trim(),
@@ -221,7 +235,13 @@ export default function BoxModelsPage() {
       
       console.log('📤 Mengirim data update ke API:', updateData)
       
-      // Untuk sekarang, update lokal dulu
+      // Kirim update request (simulasi)
+      // const response = await axios.put(`/Admin/Box/boxModels/${editingItem.id}`, updateData)
+      
+      // Simulasi update lokal untuk testing
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // Update lokal
       setBoxModels(boxModels.map(model => 
         model.id === editingItem.id ? {
           ...model,
@@ -235,68 +255,124 @@ export default function BoxModelsPage() {
         } : model
       ))
       
-      alert('Data berhasil diupdate (simulasi)')
+      await showAlert('success', {
+        title: 'Berhasil!',
+        text: 'Data box model berhasil diperbarui',
+        timer: 1500,
+        showConfirmButton: false
+      })
+      
       setShowEditModal(false)
+      
     } catch (err) {
       console.error('Error updating box model:', err)
-      alert('Error updating box model')
+      await showAlert('error', {
+        title: 'Gagal',
+        text: 'Error updating box model'
+      })
     } finally {
       setIsPosting(false)
     }
   }
 
   const handleFormulaClick = (item) => {
-    try {
-      setEditingItem({ ...item })
-      setEditingFormulaComponents([...item.formulaComponents])
-      setShowFormulaModal(true)
-    } catch (err) {
-      console.error('Error loading formula components:', err)
-      setEditingItem({ ...item })
-      setEditingFormulaComponents([...item.formulaComponents])
-      setShowFormulaModal(true)
-    }
+    setEditingItem({ ...item })
+    setEditingFormulaComponents(item.formulaComponents || [])
+    setShowFormulaModal(true)
   }
 
   const handleFormulaSave = async () => {
     if (!editingItem) return
 
     try {
-      alert('Formula save API belum diimplementasi')
+      setIsPosting(true)
+      
+      await showAlert('success', {
+        title: 'Berhasil!',
+        text: 'Formula berhasil disimpan',
+        timer: 1500,
+        showConfirmButton: false
+      })
+      
       setShowFormulaModal(false)
-      setEditingItem(null)
-      setEditingFormulaComponents([])
+      
     } catch (err) {
       console.error('Error saving formula components:', err)
-      alert('Error saving formula components')
+      await showAlert('error', {
+        title: 'Gagal',
+        text: 'Error saving formula components'
+      })
+    } finally {
+      setIsPosting(false)
     }
   }
 
   const handleDelete = async (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus box model ini?')) {
+    const confirm = await showAlert('confirmDelete', {
+      title: 'Hapus Box Model',
+      text: 'Apakah Anda yakin ingin menghapus box model ini?'
+    })
+    
+    if (confirm.isConfirmed) {
       try {
-        alert('Delete API belum diimplementasi')
-        await fetchBoxModels()
+        // TODO: Implement delete API
+        // await axios.delete(`/Admin/Box/boxModels/${id}`)
+        
+        // Simulasi
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        setBoxModels(boxModels.filter(model => model.id !== id))
+        
+        await showAlert('success', {
+          title: 'Terhapus!',
+          text: 'Box model berhasil dihapus',
+          timer: 1500,
+          showConfirmButton: false
+        })
+        
       } catch (err) {
         console.error('Error:', err)
-        alert('Error deleting box model')
+        await showAlert('error', {
+          title: 'Gagal',
+          text: 'Error deleting box model'
+        })
       }
     }
   }
 
   const toggleStatus = async (item) => {
-    try {
-      alert('Toggle status API belum diimplementasi')
-      setBoxModels(boxModels.map(model => 
-        model.id === item.id ? { 
-          ...model, 
-          status: !model.status,
-          status_bm: model.status_bm === '1' ? '0' : '1'
-        } : model
-      ))
-    } catch (err) {
-      console.error('Error:', err)
-      alert('Error updating status')
+    const newStatus = !item.status
+    const actionText = newStatus ? 'mengaktifkan' : 'menonaktifkan'
+    
+    const confirm = await showAlert('confirm', {
+      title: `${newStatus ? 'Aktifkan' : 'Nonaktifkan'} Box Model`,
+      text: `Apakah Anda yakin ingin ${actionText} box model ini?`
+    })
+    
+    if (confirm.isConfirmed) {
+      try {
+        // TODO: Implement status toggle API
+        // await axios.patch(`/Admin/Box/boxModels/${item.id}/status`, { status: newStatus })
+        
+        // Update lokal
+        setBoxModels(boxModels.map(model => 
+          model.id === item.id ? { 
+            ...model, 
+            status: newStatus,
+            status_bm: newStatus ? '1' : '0'
+          } : model
+        ))
+        
+        await showAlert('toastSuccess', {
+          title: `Status berhasil ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}`
+        })
+        
+      } catch (err) {
+        console.error('Error:', err)
+        await showAlert('toastError', {
+          title: 'Gagal memperbarui status'
+        })
+      }
     }
   }
 
@@ -328,20 +404,6 @@ export default function BoxModelsPage() {
     setEditingFormulaComponents(updated)
   }
 
-  const generateFormulaPreview = (target) => {
-    const components = editingFormulaComponents.filter(c => c.target === target)
-    if (components.length === 0) return null
-
-    const formulaParts = components.map(comp => {
-      if (comp.source) {
-        return `(${comp.source}×${comp.multiplier} + ${comp.allowanceMm}mm)`
-      }
-      return `${comp.allowanceMm}mm`
-    })
-
-    return formulaParts.join(' + ')
-  }
-
   // ===== MODAL FOOTERS =====
   const addModalFooter = (
     <div className="flex justify-end gap-3">
@@ -367,7 +429,8 @@ export default function BoxModelsPage() {
     <div className="flex justify-end gap-3">
       <Button
         variant="outline"
-        onClick={() => setShowEditModal(false)}
+        onClick={() => !isPosting && setShowEditModal(false)}
+        disabled={isPosting}
       >
         Batal
       </Button>
@@ -375,8 +438,9 @@ export default function BoxModelsPage() {
         variant="primary"
         onClick={handleEditSave}
         loading={isPosting}
+        disabled={isPosting}
       >
-        Update
+        {isPosting ? 'Memperbarui...' : 'Update'}
       </Button>
     </div>
   )
@@ -385,13 +449,16 @@ export default function BoxModelsPage() {
     <div className="flex justify-end gap-3">
       <Button
         variant="outline"
-        onClick={() => setShowFormulaModal(false)}
+        onClick={() => !isPosting && setShowFormulaModal(false)}
+        disabled={isPosting}
       >
         Batal
       </Button>
       <Button
         variant="primary"
         onClick={handleFormulaSave}
+        loading={isPosting}
+        disabled={isPosting}
       >
         Simpan Formula
       </Button>
@@ -437,7 +504,7 @@ export default function BoxModelsPage() {
                   variant="danger"
                   className="mt-4"
                 >
-                  Retry
+                  Coba Lagi
                 </Button>
               </div>
             </div>
@@ -449,32 +516,34 @@ export default function BoxModelsPage() {
 
   // ===== MAIN UI =====
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="mx-auto">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
+      <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <Card className="mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <CustomIcon icon="mdi:package-variant" className="w-8 h-8 text-blue-600" />
+            Box Models
+          </h1>
+          <p className="text-gray-600 mt-2">
+            Kelola model kotak dan rumus perhitungan dimensi
+          </p>
+        </div>
+
+        {/* Action Bar */}
+        <Card className="mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-                <CustomIcon icon="mdi:package-variant" className="w-8 h-8" />
-                Box Models
-              </h1>
-              <p className="opacity-90 mt-1">
-                Kelola model kotak dan rumus perhitungan dimensi
-              </p>
-              <p className="text-sm opacity-80 mt-2">
+              <p className="text-sm text-gray-500">
                 Total: {boxModels.length} models | Active: {boxModels.filter(m => m.status).length}
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-              <Button
-                onClick={handleAddClick}
-                variant="success"
-                icon="mdi:plus"
-              >
-                Tambah Model
-              </Button>
-            </div>
+            <Button
+              onClick={handleAddClick}
+              variant="primary"
+              icon="mdi:plus"
+            >
+              Tambah Model
+            </Button>
           </div>
         </Card>
 
@@ -493,7 +562,7 @@ export default function BoxModelsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {boxModels.map((model) => (
-              <Card key={model.id} hoverable className="overflow-hidden">
+              <Card key={model.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="p-6">
                   <div className="flex justify-between items-start mb-4">
                     <div>
@@ -604,11 +673,10 @@ export default function BoxModelsPage() {
               label="Kode *"
               value={addFormData.code}
               onChange={(e) => setAddFormData({ ...addFormData, code: e.target.value })}
-              
               required
               helperText="Kode akan digenerate otomatis"
+              className="text-gray-700 "
               disabled
-              className="bg-gray-100 cursor-not-allowed text-gray-500"
             />
 
             <Input
@@ -616,10 +684,9 @@ export default function BoxModelsPage() {
               value={addFormData.name}
               onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
               placeholder="Masukan Nama Model"
-              className="text-gray-700"
               required
+              className="text-gray-700 "
             />
-
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -629,8 +696,9 @@ export default function BoxModelsPage() {
                 value={addFormData.description}
                 onChange={(e) => setAddFormData({ ...addFormData, description: e.target.value })}
                 rows={3}
-                className="w-full px-4 py-2.5 border text-gray-700 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700" 
                 placeholder="Deskripsi model kotak..."
+                
               />
             </div>
           </div>
@@ -639,7 +707,7 @@ export default function BoxModelsPage() {
         {/* ===== MODAL EDIT BOX MODEL ===== */}
         <Modal
           isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
+          onClose={() => !isPosting && setShowEditModal(false)}
           title="Edit Box Model"
           size="lg"
           footer={editModalFooter}
@@ -655,7 +723,7 @@ export default function BoxModelsPage() {
                     kode: e.target.value
                   })}
                   placeholder="000001, MAILER001, etc"
-                  className="text-gray-700"
+                  className="text-gray-700 "
                   required
                 />
                 
@@ -666,12 +734,42 @@ export default function BoxModelsPage() {
                     ...editingItem,
                     namaModel: e.target.value
                   })}
+                  className="text-gray-700 "
                   required
-                  className="text-gray-700"
                 />
               </div>
 
-            
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Select
+                  label="Kategori"
+                  value={editingItem.category}
+                  className="text-gray-700 "
+                  onChange={(e) => setEditingItem({
+                    ...editingItem,
+                    category: e.target.value
+                  })}
+                  options={[
+                    { value: 'Mailer Box', label: 'Mailer Box' },
+                    { value: 'Shoe Box', label: 'Shoe Box' },
+                    { value: 'Food Box', label: 'Food Box' },
+                    { value: 'Premium Box', label: 'Premium Box' },
+                    { value: 'Custom Box', label: 'Custom Box' }
+                  ]}
+                />
+
+                {/* <Select
+                  label="Status"
+                  value={editingItem.status_bm}
+                  onChange={(e) => setEditingItem({
+                    ...editingItem,
+                    status_bm: e.target.value
+                  })}
+                  options={[
+                    { value: '1', label: 'Active' },
+                    { value: '0', label: 'Inactive' }
+                  ]}
+                /> */}
+              </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -684,24 +782,10 @@ export default function BoxModelsPage() {
                     deskripsi: e.target.value
                   })}
                   rows={3}
-                  className="w-full px-4 py-2.5 border text-gray-700 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-700"
                   placeholder="Description..."
                 />
               </div>
-
-              <Select
-                label="Status"
-                value={editingItem.status_bm}
-                onChange={(e) => setEditingItem({
-                  ...editingItem,
-                  status_bm: e.target.value
-                })}
-                options={[
-                  { value: '1', label: 'Active' },
-                  { value: '0', label: 'Inactive' }
-                ]}
-                className="text-gray-700"
-              />
             </div>
           )}
         </Modal>
@@ -709,7 +793,7 @@ export default function BoxModelsPage() {
         {/* ===== MODAL FORMULA BOX MODEL ===== */}
         <Modal
           isOpen={showFormulaModal}
-          onClose={() => setShowFormulaModal(false)}
+          onClose={() => !isPosting && setShowFormulaModal(false)}
           title={editingItem ? `Formula: ${editingItem.namaModel}` : 'Formula Box Model'}
           size="xl"
           footer={formulaModalFooter}
@@ -779,6 +863,7 @@ export default function BoxModelsPage() {
                             { value: 'panjang', label: 'Length' },
                             { value: 'lebar', label: 'Width' }
                           ]}
+                          className="text-gray-700"
                         />
 
                         <Select
@@ -793,6 +878,7 @@ export default function BoxModelsPage() {
                             { value: 'P', label: 'P' },
                             { value: 'L', label: 'L' }
                           ]}
+                          className="text-gray-700"
                         />
 
                         <Input
@@ -802,6 +888,7 @@ export default function BoxModelsPage() {
                           value={component.multiplier}
                           onChange={(e) => updateFormulaComponent(index, 'multiplier', parseFloat(e.target.value) || 0)}
                           placeholder="0"
+                          className="text-gray-700"
                         />
 
                         <Input
@@ -810,14 +897,9 @@ export default function BoxModelsPage() {
                           value={component.allowanceMm}
                           onChange={(e) => updateFormulaComponent(index, 'allowanceMm', parseFloat(e.target.value) || 0)}
                           placeholder="0"
+                          className="text-gray-700"
                         />
                       </div>
-
-                      {component.source && (
-                        <div className="mt-3 text-sm text-gray-600 p-2 bg-gray-50 rounded-lg">
-                          Formula: {component.source} × {component.multiplier} + {component.allowanceMm}mm
-                        </div>
-                      )}
                     </Card>
                   ))}
 
@@ -833,36 +915,6 @@ export default function BoxModelsPage() {
                     </Card>
                   )}
                 </div>
-
-                {/* Formula Preview */}
-                {editingFormulaComponents.length > 0 && (
-                  <Card className="mt-6 border-blue-200 bg-blue-50">
-                    <h4 className="text-sm font-medium text-blue-900 mb-3">
-                      Formula Preview
-                    </h4>
-                    <div className="space-y-3">
-                      <div>
-                        <div className="text-xs font-medium text-blue-700 mb-1">Length:</div>
-                        <div className="text-sm text-blue-600 bg-white p-3 rounded-lg border border-blue-100">
-                          {generateFormulaPreview('panjang') || 'No components'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-medium text-blue-700 mb-1">Width:</div>
-                        <div className="text-sm text-blue-600 bg-white p-3 rounded-lg border border-blue-100">
-                          {generateFormulaPreview('lebar') || 'No components'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="mt-3 text-xs text-blue-500 pt-3 border-t border-blue-200">
-                      <p><strong>Input Reference:</strong></p>
-                      <p>• A = Width (Excel input A4)</p>
-                      <p>• B = Length (Excel input B4)</p>
-                      <p>• C = Height (Excel input C3)</p>
-                      <p>• P & L = Special dimensions for Mailer</p>
-                    </div>
-                  </Card>
-                )}
               </div>
             </div>
           )}

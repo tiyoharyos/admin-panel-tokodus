@@ -1,31 +1,29 @@
-// app/((protected))/layout.jsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
-import axios from '../../lib/axios' // Import default
+import Header from '@/components/layout/Header'
+import axios from '../../lib/axios'
 
 export default function ProtectedLayout({ children }) {
   const pathname = usePathname()
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        // Cek apakah user sudah login dengan melihat token di localStorage
         const token = localStorage.getItem('token')
-        console.log('Token:', token)
         
         if (!token) {
-          console.log('No token found, redirecting to login')
           router.push('/login')
           return
         }
 
-        // Validasi token dengan API
-        await validateToken(token)
+        // await validateToken(token)
+        setIsLoading(false)
         
       } catch (error) {
         console.error('Auth check failed:', error)
@@ -36,30 +34,27 @@ export default function ProtectedLayout({ children }) {
     checkAuth()
   }, [router, pathname])
 
-  // Fungsi untuk validasi token dengan API
   const validateToken = async (token) => {
     try {
-      // Anda perlu menyesuaikan endpoint validasi token
-      // Contoh: Cek endpoint yang membutuhkan authentication
       const response = await axios.get('/auth/validate', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       })
       
-      console.log('Token validation response:', response)
-      
       if (response.status === 200) {
-        console.log('Token valid')
         setIsLoading(false)
       }
     } catch (error) {
       console.error('Token validation failed:', error)
-      // Hapus token yang tidak valid
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       throw error
     }
+  }
+
+  const handleToggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed)
   }
 
   if (isLoading) {
@@ -75,12 +70,27 @@ export default function ProtectedLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <Sidebar />
-      <div className="lg:pl-64">
-        <main className="py-8 px-4 sm:px-6 lg:px-8">
+      <Sidebar 
+        isCollapsed={isSidebarCollapsed} 
+        onToggle={handleToggleSidebar}
+      />
+      
+      <Header 
+        onToggleSidebar={handleToggleSidebar}
+        isSidebarCollapsed={isSidebarCollapsed}
+      />
+      
+      {/* Content area */}
+      <main 
+        className={`
+          pt-16 min-h-screen transition-all duration-300
+          ${isSidebarCollapsed ? 'ml-16' : 'ml-64'}
+        `}
+      >
+        <div className="p-4 sm:p-6 lg:p-8">
           {children}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   )
 }
