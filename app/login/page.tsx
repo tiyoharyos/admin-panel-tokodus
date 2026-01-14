@@ -27,6 +27,7 @@ export default function Login() {
   }, []);
 
 
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -163,7 +164,7 @@ export default function Login() {
                     }`}
                     placeholder="Masukkan email"
                     disabled={loading}
-                    required
+                    
                   />
                 </div>
               </div>
@@ -187,7 +188,7 @@ export default function Login() {
                     }`}
                     placeholder="Masukkan password"
                     disabled={loading}
-                    required
+                    
                   />
                   <button
                     type="button"
@@ -201,49 +202,6 @@ export default function Login() {
                     />
                   </button>
                 </div>
-              </div>
-
-              {/* Remember Me and Forgot Password Row */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      id="remember-me"
-                      checked={rememberMe}
-                      onChange={(e) => handleRememberMeChange(e.target.checked)}
-                      disabled={loading}
-                      className="sr-only"
-                    />
-                    <label
-                      htmlFor="remember-me"
-                      className={`flex items-center cursor-pointer ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                      <div className={`w-5 h-5 rounded border mr-3 flex items-center justify-center transition-all duration-200 ${
-                        rememberMe 
-                          ? 'bg-blue-500 border-blue-500' 
-                          : 'bg-white border-gray-300'
-                      }`}>
-                        {rememberMe && (
-                          <Icon icon="solar:check-bold" className="w-3.5 h-3.5 text-white" />
-                        )}
-                      </div>
-                      <span className="text-sm text-gray-700 font-medium select-none">
-                        Ingat Saya
-                      </span>
-                    </label>
-                  </div>
-                </div>
-                
-                {/* Optional: Forgot Password Link */}
-                <button
-                  type="button"
-                  onClick={() => alert('Fitur lupa password belum tersedia. Hubungi administrator.')}
-                  className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200"
-                  disabled={loading}
-                >
-                  Lupa Password?
-                </button>
               </div>
 
               {/* Submit Button */}
@@ -292,8 +250,8 @@ export default function Login() {
       </div>
 
       {/* Inline CSS Animations */}
-      <style>{`
-
+      <style jsx>{`
+  
         .animation-delay-2000 {
           animation-delay: 2s;
         }
