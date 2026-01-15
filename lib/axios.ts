@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: 'https://jealously-tribunicial-emmett.ngrok-free.dev/Api_TokoDus',
+  baseURL: 'http://192.168.18.14:8080/Api_TokoDus/',
   withCredentials: false,
 });
 

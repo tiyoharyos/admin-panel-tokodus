@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
+import Link from 'next/link'
 import CustomIcon from '../UI/Icon'
 import { useRouter } from 'next/navigation'
 import Swal from 'sweetalert2'
@@ -108,7 +108,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
             className="flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-all duration-200"
           >
             <div className="text-right hidden sm:block">
-              <p className="text-sm font-semibold text-gray-900">
+              <p className="text-sm font-semibold text-gray-900 ">
                 {currentUser?.username}
               </p>
               <p className="text-xs text-gray-500">
@@ -132,8 +132,25 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
               <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
               <div className="absolute right-0 mt-3 w-72 bg-white rounded-xl shadow-2xl border border-gray-200 z-50">
                 <div className="px-5 py-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-                  <p className="text-sm font-semibold">{currentUser?.username}</p>
+                  <p className="text-sm font-semibold text-gray-900">{currentUser?.username}</p>
                   <p className="text-xs text-gray-600">{currentUser?.email}</p>
+                </div>
+                <div className="py-2">
+                  <Link
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
+                    href="/profile"
+                  >
+                    <CustomIcon icon="mdi:account-cog" className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    <span className="group-hover:text-gray-900 transition-colors">Profile Settings</span>
+                  </Link>
+                  
+                  {/* <button
+                    className="w-full flex items-center gap-3 px-5 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors group"
+                  >
+                    <CustomIcon icon="mdi:bell" className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                    <span className="group-hover:text-gray-900 transition-colors">Notifications</span>
+                    <span className="ml-auto px-2 py-0.5 text-xs font-medium bg-red-500 text-white rounded-full">3</span>
+                  </button> */}
                 </div>
 
                 <div className="border-t p-2">

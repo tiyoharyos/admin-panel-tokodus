@@ -93,13 +93,8 @@ export default function Login() {
     if (error) setError('');
   };
 
-  const handleRememberMeChange = (checked: boolean) => {
-    setRememberMe(checked);
-    if (!checked) {
-      localStorage.removeItem('rememberedEmail');
-      localStorage.removeItem('rememberedPassword');
-    }
-  };
+  
+
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a3a7d 0%, #1f4390 50%, #2557b8 100%)' }}>
