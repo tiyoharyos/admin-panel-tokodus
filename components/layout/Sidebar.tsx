@@ -65,6 +65,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       subItems: [
         { name: 'Box Models', path: '/box-models' },
         { name: 'Price Settings', path: '/price-settings' },
+        { name: 'Material Formulas', path: '/material-formulas' },
+        { name: 'Print Settings', path: '/print-settings' },
+        { name: 'Sheet Settings', path: '/sheet-settings' },
       ]
     },
   ]
@@ -90,9 +93,6 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       }
     })
 
-    if (!submenuMatched) {
-      setOpenSubmenu(null)
-    }
   }, [pathname, isActive])
 
   useEffect(() => {

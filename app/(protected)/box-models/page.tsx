@@ -768,29 +768,6 @@ export default function BoxModelsPage() {
     })
   }
 
-  const generateFormulaPreview = (target) => {
-    const components = editingFormulaComponents.filter(c => c.target === target)
-    if (components.length === 0) return 'Belum ada formula'
-
-    const formulaParts = components.map(comp => {
-      if (comp.source && comp.source !== '') {
-        return `(${comp.source} × ${comp.multiplier})`
-      }
-      return `${comp.allowance_mm}mm`
-    })
-
-    const allowanceTotal = components.reduce((sum, comp) => sum + (parseFloat(comp.allowance_mm) || 0), 0)
-    
-    let formula = formulaParts.join(' + ')
-    if (allowanceTotal > 0 && formulaParts.length > 0) {
-      formula += ` + ${allowanceTotal}mm`
-    } else if (allowanceTotal > 0) {
-      formula = `${allowanceTotal}mm`
-    }
-
-    return formula || 'Belum ada formula'
-  }
-
   // MODIFIKASI: Fungsi untuk render formula display di card
   const renderFormulaOnCard = (formulaComponents, target) => {
     if (!formulaComponents || formulaComponents.length === 0) {
@@ -979,12 +956,6 @@ export default function BoxModelsPage() {
                       }>
                         {model.category || 'Tidak Berkategori'}
                       </Badge>
-                      <Badge 
-                        variant={model.hasFormula ? 'success' : 'warning'} 
-                        className="ml-2"
-                      >
-                        {model.hasFormula ? 'Ada Formula' : 'Belum Ada Formula'}
-                      </Badge>
                       <h3 className="text-lg font-semibold text-gray-900 mt-2">
                         {model.namaModel}
                       </h3>
@@ -1117,7 +1088,7 @@ export default function BoxModelsPage() {
           isOpen={showEditModal}
           onClose={() => setShowEditModal(false)}
           title="Edit Box Model"
-          size="2xl"
+          size="xl"
           footer={editModalFooter}
         >
           {editingItem && (

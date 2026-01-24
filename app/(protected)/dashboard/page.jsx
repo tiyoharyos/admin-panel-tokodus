@@ -2,11 +2,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation' // Tambahkan useRouter
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import StatsCard from '@/components/UI/StatsCard'
 import Badge from '@/components/UI/Badge'
 import CustomIcon from '@/components/UI/Icon'
+import SweetAlert from '@/components/UI/SweetAlert'
 
 const mockData = {
   stats: {
@@ -37,6 +39,7 @@ const mockData = {
 }
 
 export default function DashboardPage() {
+  const router = useRouter() // Inisialisasi router
   const [data, setData] = useState(mockData)
   const [loading, setLoading] = useState(false)
   const [timeRange, setTimeRange] = useState('month')
@@ -60,13 +63,37 @@ export default function DashboardPage() {
     }
   }
 
-  const handleRefresh = () => {
-    setLoading(true)
-    setTimeout(() => {
-      setData(mockData)
-      setLoading(false)
-    }, 1000)
+
+  // Fungsi untuk view all orders
+  const handleViewAllOrders = () => {
+    router.push('/orders')
   }
+
+  // Fungsi untuk view all materials
+  const handleViewAllMaterials = () => {
+    router.push('/materials')
+  }
+
+  // Fungsi untuk quick actions
+  const handleQuickAction = (action) => {
+    switch(action) {
+      case 'design-input':
+        router.push('/design-input')
+        SweetAlert.info('Coming Soon', 'Design Input feature will be available soon!')
+        break
+      case 'production':
+        router.push('/production')
+        SweetAlert.info('Coming Soon', 'Production feature will be available soon!')
+        break
+      case 'reports':
+        router.push('/reports')
+        SweetAlert.info('Coming Soon', 'Reports feature will be available soon!')
+        break
+      default:
+        break
+    }
+  }
+
 
   if (loading) {
     return (
@@ -100,18 +127,6 @@ export default function DashboardPage() {
                 {data.stats.completedOrders} Orders Selesai
               </Badge>
             </div>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-         
-            <Button 
-              onClick={handleRefresh}
-              variant="ghost"
-              className="bg-white/10 hover:bg-white/20 border-white/20 text-white"
-              icon="mdi:refresh"
-              loading={loading}
-            >
-              Refresh
-            </Button>
           </div>
         </div>
       </Card>
@@ -170,9 +185,6 @@ export default function DashboardPage() {
                 {data.stats.pendingOrders} pending orders
               </p>
             </div>
-            <Button variant="primary" size="sm" icon="mdi:plus">
-              New Order
-            </Button>
           </div>
           
           <div className="space-y-3">
@@ -200,7 +212,12 @@ export default function DashboardPage() {
           </div>
           
           <div className="mt-6 pt-4 border-t border-gray-100">
-            <Button variant="ghost" fullWidth icon="mdi:arrow-right">
+            <Button 
+              variant="ghost" 
+              fullWidth 
+              icon="mdi:arrow-right" 
+              onClick={handleViewAllOrders} // Tambahkan onClick
+            >
               View All Orders
             </Button>
           </div>
@@ -218,9 +235,6 @@ export default function DashboardPage() {
                 {data.stats.lowStockMaterials} items need attention
               </p>
             </div>
-            <Button variant="primary" size="sm" icon="mdi:package-variant-plus">
-              Reorder
-            </Button>
           </div>
           
           {data.lowStockMaterials.length > 0 ? (
@@ -263,7 +277,12 @@ export default function DashboardPage() {
           )}
           
           <div className="mt-6 pt-4 border-t border-gray-100">
-            <Button variant="ghost" fullWidth icon="mdi:arrow-right">
+            <Button 
+              variant="ghost" 
+              fullWidth 
+              icon="mdi:arrow-right"
+              onClick={handleViewAllMaterials} // Tambahkan onClick
+            >
               View All Materials
             </Button>
           </div>
@@ -350,7 +369,10 @@ export default function DashboardPage() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer">
+        <Card 
+          className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => handleQuickAction('new-order')}
+        >
           <div className="w-12 h-12 flex items-center justify-center bg-blue-100 rounded-full mx-auto mb-3">
             <CustomIcon icon="mdi:plus-circle" className="w-6 h-6 text-blue-600" />
           </div>
@@ -358,7 +380,10 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-500 mt-1">Create new order</p>
         </Card>
         
-        <Card className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer">
+        <Card 
+          className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => handleQuickAction('design-input')}
+        >
           <div className="w-12 h-12 flex items-center justify-center bg-green-100 rounded-full mx-auto mb-3">
             <CustomIcon icon="mdi:file-document-edit" className="w-6 h-6 text-green-600" />
           </div>
@@ -366,7 +391,10 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-500 mt-1">Create design</p>
         </Card>
         
-        <Card className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer">
+        <Card 
+          className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => handleQuickAction('production')}
+        >
           <div className="w-12 h-12 flex items-center justify-center bg-orange-100 rounded-full mx-auto mb-3">
             <CustomIcon icon="mdi:printer" className="w-6 h-6 text-orange-600" />
           </div>
@@ -374,7 +402,10 @@ export default function DashboardPage() {
           <p className="text-xs text-gray-500 mt-1">Start production</p>
         </Card>
         
-        <Card className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer">
+        <Card 
+          className="text-center p-4 hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => handleQuickAction('reports')}
+        >
           <div className="w-12 h-12 flex items-center justify-center bg-purple-100 rounded-full mx-auto mb-3">
             <CustomIcon icon="mdi:chart-box" className="w-6 h-6 text-purple-600" />
           </div>

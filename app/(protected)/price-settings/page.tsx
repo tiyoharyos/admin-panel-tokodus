@@ -9,6 +9,7 @@ import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
 import CustomIcon from '@/components/UI/Icon'
+import SweetAlert from '@/components/UI/SweetAlert'
 
 const mockPriceSettings = [
   {
@@ -100,17 +101,7 @@ export default function PriceSettingsPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-
-  const filteredPriceSettings = priceSettings.filter(item => {
-    const matchesSearch = 
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.category.toLowerCase().includes(search.toLowerCase())
-    
-    const matchesStatus = statusFilter === 'all' || item.status === statusFilter
-    const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter
-    
-    return matchesSearch && matchesStatus && matchesCategory
-  })
+  const [isPosting, setIsPosting] = useState(false)
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('id-ID', {
@@ -123,6 +114,91 @@ export default function PriceSettingsPage() {
   const calculateMargin = (hargaJual, hargaModal) => {
     return ((hargaJual - hargaModal) / hargaModal * 100).toFixed(1)
   }
+
+  const handleDelete = async (id, name) => {
+    const result = await SweetAlert.confirmDelete()
+    
+    if (result.isConfirmed) {
+      try {
+        // Simulasi API call
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        setPriceSettings(priceSettings.filter(item => item.id !== id))
+        SweetAlert.success('Deleted!', `Price setting "${name}" has been deleted.`)
+      } catch (error) {
+        SweetAlert.error('Error!', 'Failed to delete price setting')
+      }
+    }
+  }
+
+  const handleToggleStatus = async (item) => {
+    const result = await SweetAlert.confirmAction(
+      'Change Status?',
+      `Are you sure you want to ${item.status === 'active' ? 'deactivate' : 'activate'} this price setting?`
+    )
+    
+    if (result.isConfirmed) {
+      const newStatus = item.status === 'active' ? 'inactive' : 'active'
+      
+      setPriceSettings(priceSettings.map(p => 
+        p.id === item.id ? { ...p, status: newStatus } : p
+      ))
+      
+      SweetAlert.success('Success!', `Price setting status changed to ${newStatus}`)
+    }
+  }
+
+  const handleSavePrice = async (formData) => {
+    try {
+      setIsPosting(true)
+      
+      if (selectedPrice) {
+        // Update existing
+        const updatedPrice = {
+          ...selectedPrice,
+          ...formData,
+          margin: calculateMargin(formData.hargaJual, formData.hargaModal)
+        }
+        
+        setPriceSettings(priceSettings.map(item => 
+          item.id === selectedPrice.id ? updatedPrice : item
+        ))
+        
+        SweetAlert.success('Updated!', 'Price setting updated successfully!')
+      } else {
+        // Create new
+        const newItem = {
+          id: Math.max(...priceSettings.map(p => p.id)) + 1,
+          ...formData,
+          margin: calculateMargin(formData.hargaJual, formData.hargaModal),
+          status: 'active'
+        }
+        
+        setPriceSettings([...priceSettings, newItem])
+        SweetAlert.success('Created!', 'New price setting created successfully!')
+      }
+      
+      setIsEditModalOpen(false)
+      setIsCreateModalOpen(false)
+      setSelectedPrice(null)
+      
+    } catch (error) {
+      SweetAlert.error('Error!', 'Failed to save price setting')
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  const filteredPriceSettings = priceSettings.filter(item => {
+    const matchesSearch = 
+      item.name.toLowerCase().includes(search.toLowerCase()) ||
+      item.category.toLowerCase().includes(search.toLowerCase())
+    
+    const matchesStatus = statusFilter === 'all' || item.status === statusFilter
+    const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter
+    
+    return matchesSearch && matchesStatus && matchesCategory
+  })
 
   const getMarginColor = (margin) => {
     if (margin >= 60) return 'text-green-600'
@@ -160,42 +236,6 @@ export default function PriceSettingsPage() {
     setIsCreateModalOpen(true)
   }
 
-  const handleDelete = (id) => {
-    if (window.confirm('Are you sure you want to delete this price setting?')) {
-      setPriceSettings(priceSettings.filter(item => item.id !== id))
-    }
-  }
-
-  const handleToggleStatus = (id) => {
-    setPriceSettings(priceSettings.map(item => 
-      item.id === id ? { ...item, status: item.status === 'active' ? 'inactive' : 'active' } : item
-    ))
-  }
-
-  const handleSavePrice = (formData) => {
-    if (selectedPrice) {
-      // Update existing
-      setPriceSettings(priceSettings.map(item => 
-        item.id === selectedPrice.id ? {
-          ...item,
-          ...formData,
-          margin: calculateMargin(formData.hargaJual, formData.hargaModal)
-        } : item
-      ))
-      setIsEditModalOpen(false)
-    } else {
-      // Create new
-      const newItem = {
-        id: Math.max(...priceSettings.map(p => p.id)) + 1,
-        ...formData,
-        margin: calculateMargin(formData.hargaJual, formData.hargaModal),
-        status: 'active'
-      }
-      setPriceSettings([...priceSettings, newItem])
-      setIsCreateModalOpen(false)
-    }
-    setSelectedPrice(null)
-  }
 
   return (
     <div className="space-y-6 p-4 md:p-6">
@@ -221,7 +261,10 @@ export default function PriceSettingsPage() {
             </div>
           </div>
           <Button
-            onClick={handleCreate}
+            onClick={() => {
+              setSelectedPrice(null)
+              setIsCreateModalOpen(true)
+            }}
             variant="success"
             icon="mdi:plus"
             className="w-full md:w-auto"
