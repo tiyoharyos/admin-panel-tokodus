@@ -80,11 +80,11 @@ export default function ProtectedLayout({ children }) {
         isSidebarCollapsed={isSidebarCollapsed}
       />
       
-      {/* Content area */}
+      {/* Content area - disesuaikan dengan ukuran sidebar baru */}
       <main 
         className={`
           pt-16 min-h-screen transition-all duration-300
-          ${isSidebarCollapsed ? 'ml-16' : 'ml-64'}
+          ${isSidebarCollapsed ? 'ml-20' : 'ml-64'} // Diubah dari ml-16 menjadi ml-20 untuk collapsed
         `}
       >
         <div className="p-4 sm:p-6 lg:p-8">

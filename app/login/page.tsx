@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from '../../lib/axios';
+import axios from '@/lib/axios';
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
 import Swal from 'sweetalert2';

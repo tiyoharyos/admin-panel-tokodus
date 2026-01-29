@@ -9,52 +9,54 @@ import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
 import CustomIcon from '@/components/UI/Icon'
+import SweetAlert from '@/components/UI/SweetAlert'
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 
 const mockOrders = [
   {
-    id: '1',
+    id: 'TOK-001',
     order_code: 'TOK-2024-001',
-    customer_name: 'MBR',
-    brand: 'MBR',
-    category: 'Duplek Medium Duplek',
+    customer_name: 'PT Sinar Jaya',
+    brand: 'Brand A',
+    category: 'Kardus Box 20x20',
     quantity: 1000,
-    total_price: 4850000,
+    total_price: 12500000,
     status: 'completed',
-    created_at: '2024-09-23',
-    due_date: '2024-10-01',
+    created_at: '2024-01-15',
+    due_date: '2024-01-20',
     payment_status: 'paid',
     notes: 'Prioritas tinggi'
   },
   {
-    id: '2',
+    id: 'TOK-002',
     order_code: 'TOK-2024-002',
-    customer_name: 'ABC Corp',
-    brand: 'ABC',
-    category: 'Kardus Karton',
+    customer_name: 'CV Maju Bersama',
+    brand: 'Brand B',
+    category: 'Paper Bag Premium',
     quantity: 500,
-    total_price: 2500000,
+    total_price: 8500000,
     status: 'processing',
-    created_at: '2024-09-24',
-    due_date: '2024-10-05',
+    created_at: '2024-01-14',
+    due_date: '2024-01-18',
     payment_status: 'unpaid',
     notes: 'Butuh desain khusus'
   },
   {
-    id: '3',
+    id: 'TOK-003',
     order_code: 'TOK-2024-003',
-    customer_name: 'XYZ Ltd',
-    brand: 'XYZ',
-    category: 'Plastik Packaging',
+    customer_name: 'UD Berkah',
+    brand: 'Brand C',
+    category: 'Sticker Vinyl',
     quantity: 2000,
-    total_price: 7500000,
+    total_price: 5500000,
     status: 'pending',
-    created_at: '2024-09-25',
-    due_date: '2024-10-10',
+    created_at: '2024-01-14',
+    due_date: '2024-01-17',
     payment_status: 'unpaid',
     notes: 'Bulk order'
   },
   {
-    id: '4',
+    id: 'TOK-004',
     order_code: 'TOK-2024-004',
     customer_name: 'PT Maju Jaya',
     brand: 'MJ',
@@ -62,13 +64,13 @@ const mockOrders = [
     quantity: 1500,
     total_price: 6250000,
     status: 'shipped',
-    created_at: '2024-09-20',
-    due_date: '2024-09-30',
+    created_at: '2024-01-20',
+    due_date: '2024-01-30',
     payment_status: 'paid',
     notes: 'Sudah dikirim'
   },
   {
-    id: '5',
+    id: 'TOK-005',
     order_code: 'TOK-2024-005',
     customer_name: 'CV Sentosa',
     brand: 'SENTOSA',
@@ -76,8 +78,8 @@ const mockOrders = [
     quantity: 800,
     total_price: 3200000,
     status: 'cancelled',
-    created_at: '2024-09-18',
-    due_date: '2024-09-28',
+    created_at: '2024-01-18',
+    due_date: '2024-01-28',
     payment_status: 'refunded',
     notes: 'Dibatalkan customer'
   }
@@ -91,6 +93,14 @@ export default function OrdersPage() {
   const [selectedOrder, setSelectedOrder] = useState(null)
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [newOrderData, setNewOrderData] = useState({
+    customer_name: '',
+    brand: '',
+    category: '',
+    quantity: 1,
+    status: 'pending',
+    notes: ''
+  })
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
@@ -135,6 +145,17 @@ export default function OrdersPage() {
     }
   }
 
+  const getStatusIcon = (status) => {
+    switch(status) {
+      case 'completed': return 'mdi:check-circle'
+      case 'processing': return 'mdi:progress-clock'
+      case 'pending': return 'mdi:clock-outline'
+      case 'shipped': return 'mdi:truck-delivery'
+      case 'cancelled': return 'mdi:cancel'
+      default: return 'mdi:circle'
+    }
+  }
+
   const getPaymentStatusVariant = (status) => {
     switch(status) {
       case 'paid': return 'success'
@@ -149,20 +170,128 @@ export default function OrdersPage() {
     setIsViewModalOpen(true)
   }
 
-  const handleCreateOrder = () => {
-    setIsCreateModalOpen(true)
-  }
-
-  const handleDeleteOrder = (id) => {
-    if (window.confirm('Apakah Anda yakin ingin menghapus pesanan ini?')) {
-      setOrders(orders.filter(order => order.id !== id))
+  const handleDeleteOrder = async (id) => {
+    const result = await SweetAlert.confirm(
+      'Delete Order',
+      'Are you sure you want to delete this order? This action cannot be undone.'
+    )
+    
+    if (result.isConfirmed) {
+      try {
+        setLoading(true)
+        // Simulasi API call
+        await new Promise(resolve => setTimeout(resolve, 1000))
+        
+        setOrders(orders.filter(order => order.id !== id))
+        SweetAlert.success('Success!', 'Order has been deleted successfully.')
+      } catch (error) {
+        SweetAlert.error('Error!', 'Failed to delete order. Please try again.')
+      } finally {
+        setLoading(false)
+      }
     }
   }
 
-  const handleUpdateStatus = (id, newStatus) => {
-    setOrders(orders.map(order => 
-      order.id === id ? { ...order, status: newStatus } : order
-    ))
+  const handleUpdateStatus = async (id, newStatus) => {
+    try {
+      setLoading(true)
+      // Simulasi API call
+      await new Promise(resolve => setTimeout(resolve, 800))
+      
+      setOrders(orders.map(order => 
+        order.id === id ? { ...order, status: newStatus } : order
+      ))
+      
+      SweetAlert.success('Success!', `Order status updated to ${newStatus}.`)
+    } catch (error) {
+      SweetAlert.error('Error!', 'Failed to update order status.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleNewOrderSubmit = async () => {
+    try {
+      // Validasi form
+      if (!newOrderData.customer_name || !newOrderData.brand || !newOrderData.category) {
+        SweetAlert.error('Error!', 'Please fill in all required fields.')
+        return
+      }
+
+      setLoading(true)
+      
+      // Simulasi delay API
+      await new Promise(resolve => setTimeout(resolve, 1500))
+      
+      // Generate new order data
+      const newId = `TOK-00${orders.length + 1}`
+      const newOrderCode = `TOK-2024-00${orders.length + 1}`
+      
+      const newOrder = {
+        id: newId,
+        order_code: newOrderCode,
+        customer_name: newOrderData.customer_name,
+        brand: newOrderData.brand,
+        category: newOrderData.category,
+        quantity: parseInt(newOrderData.quantity),
+        status: newOrderData.status,
+        total_price: calculatePrice(newOrderData.category, newOrderData.quantity),
+        created_at: new Date().toISOString().split('T')[0],
+        due_date: getDueDate(),
+        payment_status: 'unpaid',
+        notes: newOrderData.notes
+      }
+      
+      // Add new order
+      setOrders([newOrder, ...orders])
+      
+      // Reset form
+      setNewOrderData({
+        customer_name: '',
+        brand: '',
+        category: '',
+        quantity: 1,
+        status: 'pending',
+        notes: ''
+      })
+      
+      // Tutup modal
+      setIsCreateModalOpen(false)
+      
+      // Tampilkan SweetAlert sukses
+      SweetAlert.success('Success!', `Order ${newOrderCode} has been created successfully!`)
+      
+    } catch (error) {
+      console.error('Error creating order:', error)
+      SweetAlert.error('Error!', 'Failed to create new order. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const calculatePrice = (category, quantity) => {
+    const basePrices = {
+      'Kardus Box 20x20': 12500,
+      'Paper Bag Premium': 17000,
+      'Sticker Vinyl': 2750,
+      'Corrugated Box': 9500,
+      'Folding Carton': 7500,
+      'Duplek Medium': 8000
+    }
+    return (basePrices[category] || 10000) * quantity
+  }
+
+  const getDueDate = () => {
+    const date = new Date()
+    date.setDate(date.getDate() + 7)
+    return date.toISOString().split('T')[0]
+  }
+
+  const handleInputChange = (field, value) => {
+    setNewOrderData(prev => ({
+      ...prev,
+      [field]: value
+    }))
   }
 
   if (loading) {
@@ -179,33 +308,62 @@ export default function OrdersPage() {
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
-      <Card className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <CustomIcon icon="mdi:clipboard-list-outline" className="w-8 h-8" />
-              Orders Management
-            </h1>
-            <p className="opacity-90 mt-1">Kelola dan lacak pesanan pelanggan</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <Badge variant="info" icon="mdi:package-variant">
-                Total: {orders.length} Orders
-              </Badge>
-              <Badge variant="success" icon="mdi:cash-check">
-                Paid: {orders.filter(o => o.payment_status === 'paid').length}
-              </Badge>
-            </div>
-          </div>
-          <Button
-            onClick={handleCreateOrder}
-            variant="success"
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <CustomIcon icon="mdi:clipboard-list-outline" className="text-blue-600" />
+            Orders Management
+          </h1>
+          <p className="text-gray-600 mt-1">Kelola dan lacak pesanan pelanggan</p>
+        </div>
+        
+        <div className="flex items-center space-x-2">
+          <Button 
+            variant="primary" 
+            size="sm"
             icon="mdi:plus"
+            onClick={() => setIsCreateModalOpen(true)}
             className="w-full md:w-auto"
           >
             New Order
           </Button>
+          <Button 
+            variant="outline" 
+            size="sm"
+            icon="mdi:export"
+          >
+            Export
+          </Button>
         </div>
-      </Card>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600">Total Orders</p>
+            <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+          </div>
+        </Card>
+        
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600">Total Revenue</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {formatCurrency(orders.reduce((sum, order) => sum + order.total_price, 0))}
+            </p>
+          </div>
+        </Card>
+        
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600">Completed Orders</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {orders.filter(o => o.status === 'completed').length}
+            </p>
+          </div>
+        </Card>
+      </div>
 
       {/* Filters */}
       <Card>
@@ -244,110 +402,80 @@ export default function OrdersPage() {
         </div>
       </Card>
 
-      {/* Orders Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {filteredOrders.map((order) => (
-          <Card key={order.id} hoverable className="overflow-hidden">
-            <div className="p-6">
-              <div className="flex justify-between items-start mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-600 flex items-center gap-2">
-                    <CustomIcon icon="mdi:ticket-confirmation" />
-                    {order.order_code}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">{formatDate(order.created_at)}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
+      {/* Orders Table */}
+      <Card>
+        <div className="overflow-x-auto">
+          <Table
+            headers={['Order Code', 'Customer', 'Brand', 'Category', 'Quantity', 'Amount', 'Status', 'Due Date', 'Actions']}
+            striped
+            hoverable
+          >
+            {filteredOrders.map((order) => (
+              <TableRow key={order.id} hoverable>
+                <TableCell>
+                  <div className="font-medium text-blue-600">{order.order_code}</div>
+                  <div className="text-xs text-gray-500">{formatDate(order.created_at)}</div>
+                </TableCell>
+                <TableCell>
+                  <div className="font-medium text-gray-900">{order.customer_name}</div>
+                </TableCell>
+                <TableCell>
+                  <Badge variant="gray" size="sm">{order.brand}</Badge>
+                </TableCell>
+                <TableCell>{order.category}</TableCell>
+                <TableCell>
+                  <div className="font-medium">{order.quantity.toLocaleString()}</div>
+                </TableCell>
+                <TableCell className="font-medium text-green-600">
+                  {formatCurrency(order.total_price)}
+                </TableCell>
+                <TableCell>
                   <Badge variant={getStatusVariant(order.status)}>
+                    <CustomIcon icon={getStatusIcon(order.status)} className="w-3 h-3 mr-1" />
                     {order.status}
                   </Badge>
-                  <Badge variant={getPaymentStatusVariant(order.payment_status)} size="sm">
-                    {order.payment_status}
-                  </Badge>
-                </div>
-              </div>
-
-              <div className="space-y-3 mb-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Customer:</span>
-                  <span className="font-medium">{order.customer_name}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Brand:</span>
-                  <span className="font-medium">{order.brand}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Category:</span>
-                  <span className="font-medium">{order.category}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Quantity:</span>
-                  <span className="font-medium">{order.quantity.toLocaleString()} pcs</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Total Price:</span>
-                  <span className="font-bold text-green-600">{formatCurrency(order.total_price)}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600">Due Date:</span>
-                  <span className={`font-medium ${new Date(order.due_date) < new Date() ? 'text-red-600' : 'text-gray-900'}`}>
+                </TableCell>
+                <TableCell>
+                  <div className={`font-medium ${
+                    new Date(order.due_date) < new Date() ? 'text-red-600' : 'text-gray-900'
+                  }`}>
                     {formatDate(order.due_date)}
-                  </span>
-                </div>
-              </div>
-
-              {/* Notes */}
-              {order.notes && (
-                <div className="mb-6 p-3 bg-yellow-50 border border-yellow-100 rounded-lg">
-                  <p className="text-sm text-yellow-800 flex items-start gap-2">
-                    <CustomIcon icon="mdi:note-text" className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                    <span>{order.notes}</span>
-                  </p>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex justify-between pt-4 border-t border-gray-100">
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleViewDetails(order)}
-                    icon="mdi:eye"
-                  >
-                    View
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => alert(`Edit order ${order.id}`)}
-                    icon="mdi:pencil"
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => alert(`Print order ${order.id}`)}
-                    icon="mdi:printer"
-                  >
-                    Print
-                  </Button>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDeleteOrder(order.id)}
-                  icon="mdi:delete"
-                  className="text-red-600 hover:text-red-700"
-                >
-                  Delete
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex space-x-2">
+                    <Button 
+                      size="xs" 
+                      variant="ghost"
+                      icon="mdi:eye"
+                      onClick={() => handleViewDetails(order)}
+                    >
+                      View
+                    </Button>
+                    <Button 
+                      size="xs" 
+                      variant="ghost"
+                      icon="mdi:pencil"
+                      onClick={() => alert(`Edit order ${order.id}`)}
+                    >
+                      Edit
+                    </Button>
+                    <Button 
+                      size="xs" 
+                      variant="ghost"
+                      icon="mdi:delete"
+                      className="text-red-600 hover:text-red-700"
+                      onClick={() => handleDeleteOrder(order.id)}
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </Table>
+        </div>
+      </Card>
 
       {/* Empty State */}
       {filteredOrders.length === 0 && (
@@ -357,33 +485,11 @@ export default function OrdersPage() {
           </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
           <p className="text-gray-500 mb-6">Try adjusting your search or filter criteria.</p>
-          <Button onClick={handleCreateOrder} variant="primary" icon="mdi:plus">
+          <Button onClick={() => setIsCreateModalOpen(true)} variant="primary" icon="mdi:plus">
             Create New Order
           </Button>
         </Card>
       )}
-
-      {/* Summary */}
-      <Card>
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-sm text-gray-600">
-            Showing <span className="font-semibold">{filteredOrders.length}</span> of <span className="font-semibold">{orders.length}</span> orders
-          </div>
-          <div className="text-sm text-gray-600">
-            Total Value: <span className="font-bold text-green-600">
-              {formatCurrency(filteredOrders.reduce((sum, order) => sum + order.total_price, 0))}
-            </span>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" icon="mdi:export">
-              Export
-            </Button>
-            <Button variant="outline" size="sm" icon="mdi:printer">
-              Print List
-            </Button>
-          </div>
-        </div>
-      </Card>
 
       {/* View Order Details Modal */}
       <Modal
@@ -466,7 +572,7 @@ export default function OrdersPage() {
         )}
       </Modal>
 
-      {/* Create Order Modal */}
+      {/* Create Order Modal - SAMA dengan di Dashboard */}
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
@@ -474,49 +580,129 @@ export default function OrdersPage() {
         size="lg"
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => setIsCreateModalOpen(false)}
+              disabled={loading}
+            >
               Cancel
             </Button>
-            <Button variant="primary" onClick={() => alert('Order created')}>
+            <Button 
+              variant="primary" 
+              onClick={handleNewOrderSubmit}
+              loading={loading}
+              icon="mdi:check"
+            >
               Create Order
             </Button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Customer Name *" placeholder="Enter customer name" />
-            <Input label="Brand *" placeholder="Enter brand name" />
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Input
+                label="Customer Name *"
+                placeholder="Enter customer name"
+                value={newOrderData.customer_name}
+                onChange={(e) => handleInputChange('customer_name', e.target.value)}
+                leftIcon="mdi:account"
+              />
+            </div>
+            
+            <div>
+              <Input
+                label="Brand *"
+                placeholder="Enter brand name"
+                value={newOrderData.brand}
+                onChange={(e) => handleInputChange('brand', e.target.value)}
+                leftIcon="mdi:tag"
+              />
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Category *"
-              options={[
-                { value: 'duplek', label: 'Duplek Medium Duplek' },
-                { value: 'kardus', label: 'Kardus Karton' },
-                { value: 'plastik', label: 'Plastik Packaging' },
-                { value: 'corrugated', label: 'Corrugated Box' },
-                { value: 'folding', label: 'Folding Carton' }
-              ]}
-            />
-            <Input label="Quantity *" type="number" placeholder="Enter quantity" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Select
+                label="Category *"
+                value={newOrderData.category}
+                onChange={(e) => handleInputChange('category', e.target.value)}
+                options={[
+                  { value: '', label: 'Select category' },
+                  { value: 'Kardus Box 20x20', label: 'Kardus Box 20x20' },
+                  { value: 'Paper Bag Premium', label: 'Paper Bag Premium' },
+                  { value: 'Sticker Vinyl', label: 'Sticker Vinyl' },
+                  { value: 'Duplek Medium', label: 'Duplek Medium' },
+                  { value: 'Karton Box', label: 'Karton Box' }
+                ]}
+              />
+            </div>
+            
+            <div>
+              <Input
+                label="Quantity *"
+                type="number"
+                placeholder="Enter quantity"
+                value={newOrderData.quantity}
+                onChange={(e) => handleInputChange('quantity', e.target.value)}
+                leftIcon="mdi:numeric"
+                min="1"
+              />
+            </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input label="Due Date *" type="date" />
-            <Input label="Total Price" type="number" placeholder="Enter total price" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Select
+                label="Status *"
+                value={newOrderData.status}
+                onChange={(e) => handleInputChange('status', e.target.value)}
+                options={[
+                  { value: 'pending', label: 'Pending' },
+                  { value: 'processing', label: 'Processing' },
+                  { value: 'completed', label: 'Completed' },
+                  { value: 'shipped', label: 'Shipped' }
+                ]}
+              />
+            </div>
+            
+            <div className="md:col-span-2">
+              <Input
+                label="Notes"
+                placeholder="Add any notes or special instructions..."
+                value={newOrderData.notes}
+                onChange={(e) => handleInputChange('notes', e.target.value)}
+                leftIcon="mdi:note-text"
+                multiline
+                rows={3}
+              />
+            </div>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              rows={3}
-              className="w-full px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Add any notes or special instructions..."
-            />
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-700 mb-2">
+              <CustomIcon icon="mdi:information" className="w-5 h-5" />
+              <span className="font-medium">Order Information</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-600">Order Code:</span>
+                <span className="ml-2 font-medium">TOK-2024-00{orders.length + 1}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Created Date:</span>
+                <span className="ml-2 font-medium">{new Date().toLocaleDateString('id-ID')}</span>
+              </div>
+              <div>
+                <span className="text-gray-600">Estimated Price:</span>
+                <span className="ml-2 font-medium text-green-600">
+                  {newOrderData.category && newOrderData.quantity ? 
+                    formatCurrency(calculatePrice(newOrderData.category, newOrderData.quantity)) : 
+                    'IDR 0'
+                  }
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </Modal>

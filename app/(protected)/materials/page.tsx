@@ -352,7 +352,7 @@ export default function MaterialsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Min Stock:</span>
-                    <span className="font-medium">{material.minStock} {material.unit}</span>
+                    <span className="text-gray-400">{material.minStock} {material.unit}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Price:</span>
@@ -360,24 +360,24 @@ export default function MaterialsPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-600">Supplier:</span>
-                    <span className="font-medium">{material.supplier}</span>
+                    <span className="text-gray-400">{material.supplier}</span>
                   </div>
                   {material.fluteType !== 'N/A' && (
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Flute Type:</span>
-                      <span className="font-medium">{material.fluteType}</span>
+                      <span className="text-gray-400">{material.fluteType}</span>
                     </div>
                   )}
                   {material.gramasi !== 'N/A' && (
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Gramasi:</span>
-                      <span className="font-medium">{material.gramasi} GSM</span>
+                      <span className="text-gray-400">{material.gramasi} GSM</span>
                     </div>
                   )}
                   {material.ukuran !== 'N/A' && (
                     <div className="flex items-center justify-between">
                       <span className="text-gray-600">Size:</span>
-                      <span className="font-medium">{material.ukuran}</span>
+                      <span className="text-gray-400">{material.ukuran}</span>
                     </div>
                   )}
                 </div>

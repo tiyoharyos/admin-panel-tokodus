@@ -10,7 +10,8 @@ type NavItem = {
   name: string;
   icon: string;
   path?: string;
-  subItems?: { name: string; path: string }[];
+  badge?: number;
+  subItems?: { name: string; path: string; badge?: number }[];
 };
 
 interface SidebarProps {
@@ -27,7 +28,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  // Navigation items
+  // Navigation items asli Tokodus (tidak diubah)
   const navItems: NavItem[] = [
     { 
       icon: 'mdi:view-dashboard',
@@ -37,7 +38,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     { 
       icon: 'mdi:file-document-multiple',
       name: 'Orders', 
-      path: '/orders'
+      path: '/orders',
     },
     { 
       icon: 'mdi:draw',
@@ -47,12 +48,12 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     { 
       icon: 'mdi:package-variant',
       name: 'Materials', 
-      path: '/materials'
+      path: '/materials',
     },
     { 
       icon: 'mdi:factory',
       name: 'Production', 
-      path: '/production'
+      path: '/production',
     },
     { 
       icon: 'mdi:chart-bar',
@@ -69,7 +70,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         { name: 'Print Settings', path: '/print-settings' },
         { name: 'Sheet Settings', path: '/sheet-settings' },
       ]
-    },
+    }
   ]
 
   const isActive = useCallback((path: string) => {
@@ -92,7 +93,6 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         })
       }
     })
-
   }, [pathname, isActive])
 
   useEffect(() => {
@@ -124,7 +124,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   }
 
   const renderMenuItems = () => (
-    <ul className="flex flex-col gap-1">
+    <ul className="space-y-1">
       {navItems.map((nav, index) => {
         const hasSubItems = nav.subItems && nav.subItems.length > 0
         const isItemActive = nav.path ? isActive(nav.path) : false
@@ -135,56 +135,75 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             {hasSubItems ? (
               <button
                 onClick={() => handleSubmenuToggle(index)}
-                className={`w-full flex items-center rounded-xl transition-all duration-200 group relative overflow-hidden
-                  ${isCollapsed ? 'px-0 py-3 justify-center' : 'px-4 py-3'}
-                  ${isSubmenuOpen
-                    ? 'bg-blue-800 text-white shadow-lg shadow-blue-900/50'
-                    : 'text-blue-100 hover:bg-blue-800/60 hover:text-white'
+                className={`
+                  w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200
+                  ${isCollapsed ? 'justify-center px-2' : 'justify-between'}
+                  ${isSubmenuOpen || isItemActive
+                    ? 'bg-blue-50 text-blue-600'
+                    : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                   }
                 `}
                 title={isCollapsed ? nav.name : ''}
               >
-                {isSubmenuOpen && !isCollapsed && (
-                  <span className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-r"></span>
-                )}
-                <span className={`flex-shrink-0 ${isSubmenuOpen ? 'text-white' : 'text-blue-200 group-hover:text-white'}`}>
-                  <CustomIcon icon={nav.icon} className="w-5 h-5" />
-                </span>
+                <div className="flex items-center gap-3">
+                  <CustomIcon 
+                    icon={nav.icon} 
+                    className={`w-5 h-5 ${
+                      isSubmenuOpen || isItemActive ? 'text-blue-600' : 'text-gray-500'
+                    }`} 
+                  />
+                  {!isCollapsed && (
+                    <span>{nav.name}</span>
+                  )}
+                </div>
+                
                 {!isCollapsed && (
-                  <>
-                    <span className="ml-3 flex-1 text-left text-sm font-medium whitespace-nowrap">{nav.name}</span>
+                  <div className="flex items-center gap-2">
+                    {nav.badge && (
+                      <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-600 rounded-full">
+                        {nav.badge}
+                      </span>
+                    )}
                     <CustomIcon 
                       icon={isSubmenuOpen ? 'mdi:chevron-up' : 'mdi:chevron-down'}
-                      className={`ml-auto w-5 h-5 transition-transform duration-200 ${
-                        isSubmenuOpen 
-                          ? 'rotate-180 text-white' 
-                          : 'text-blue-200 group-hover:text-white'
-                      }`}
+                      className="w-4 h-4 text-gray-400"
                     />
-                  </>
+                  </div>
                 )}
               </button>
             ) : (
               nav.path && (
                 <Link
                   href={nav.path}
-                  className={`flex items-center rounded-xl transition-all duration-200 group relative overflow-hidden
-                    ${isCollapsed ? 'px-0 py-3 justify-center' : 'px-4 py-3'}
+                  className={`
+                    w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-all duration-200 relative
+                    ${isCollapsed ? 'justify-center px-2' : ''}
                     ${isItemActive
-                      ? 'bg-blue-800 text-white shadow-lg shadow-blue-900/50'
-                      : 'text-blue-100 hover:bg-blue-800/60 hover:text-white'
+                      ? 'bg-blue-50 text-blue-600'
+                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
                     }
                   `}
                   title={isCollapsed ? nav.name : ''}
                 >
                   {isItemActive && !isCollapsed && (
-                    <span className="absolute left-0 top-0 bottom-0 w-1 bg-blue-400 rounded-r"></span>
+                    <span className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-blue-600 rounded-r"></span>
                   )}
-                  <span className={`flex-shrink-0 ${isItemActive ? 'text-white' : 'text-blue-200 group-hover:text-white'}`}>
-                    <CustomIcon icon={nav.icon} className="w-5 h-5" />
-                  </span>
-                  {!isCollapsed && (
-                    <span className="ml-3 text-sm font-medium whitespace-nowrap">{nav.name}</span>
+                  <div className="flex items-center gap-3">
+                    <CustomIcon 
+                      icon={nav.icon} 
+                      className={`w-5 h-5 ${
+                        isItemActive ? 'text-blue-600' : 'text-gray-500'
+                      }`} 
+                    />
+                    {!isCollapsed && (
+                      <span>{nav.name}</span>
+                    )}
+                  </div>
+                  
+                  {!isCollapsed && nav.badge && (
+                    <span className="ml-auto px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-600 rounded-full">
+                      {nav.badge}
+                    </span>
                   )}
                 </Link>
               )
@@ -196,14 +215,14 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 ref={(el) => {
                   subMenuRefs.current[`main-${index}`] = el
                 }}
-                className="overflow-hidden transition-all duration-300"
+                className="overflow-hidden transition-all duration-300 ml-11"
                 style={{
                   height: isSubmenuOpen
                     ? `${subMenuHeight[`main-${index}`] || 0}px`
                     : '0px'
                 }}
               >
-                <ul className="mt-1 space-y-1 ml-9">
+                <ul className="space-y-1 py-2">
                   {nav.subItems?.map((subItem) => {
                     const isSubItemActive = isActive(subItem.path)
                     return (
@@ -211,17 +230,19 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                         <Link
                           href={subItem.path}
                           className={`
-                            flex items-center px-3 py-2.5 text-sm rounded-lg transition-all duration-200 whitespace-nowrap group relative
+                            flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors
                             ${isSubItemActive
-                              ? 'bg-blue-700/80 text-white font-medium shadow-md'
-                              : 'text-blue-200 hover:bg-blue-800/60 hover:text-white'
+                              ? 'bg-blue-50 text-blue-600 font-medium'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                             }
                           `}
                         >
-                          {isSubItemActive && (
-                            <span className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-400 rounded-r"></span>
+                          <span>{subItem.name}</span>
+                          {subItem.badge && (
+                            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-600 rounded-full">
+                              {subItem.badge}
+                            </span>
                           )}
-                          <span className="ml-1">{subItem.name}</span>
                         </Link>
                       </li>
                     )
@@ -238,43 +259,61 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   return (
     <aside
       className={`
-        fixed inset-y-0 left-0 z-40 bg-gradient-to-b from-blue-900 to-indigo-900 
-        transition-all duration-300 ease-in-out shadow-xl
-        ${isCollapsed ? 'w-16' : 'w-64'}
+        fixed inset-y-0 left-0 z-40 bg-white border-r border-gray-200
+        transition-all duration-300 ease-in-out flex flex-col
+        ${isCollapsed ? 'w-20' : 'w-64'}
       `}
     >
-      <div className="flex flex-col h-full">
-        {/* Logo */}
-        <div className={`flex items-center h-16 border-b border-blue-800/50 transition-all duration-300 bg-blue-900/30
-          ${isCollapsed ? 'justify-center px-2' : 'px-4'}
-        `}>
-          {isCollapsed ? (
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg ring-2 ring-blue-500/30">
-              <span className="text-white font-bold text-xl">T</span>
+      {/* Logo dengan logo Tokodus */}
+      <div className={`
+        flex items-center h-16 border-b border-gray-200 transition-all duration-300 bg-white
+        ${isCollapsed ? 'justify-center px-2' : 'px-4'}
+      `}>
+        {isCollapsed ? (
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-xl">T</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold">T</span>
             </div>
-          ) : (
-            <Image 
-              src="/material/Tokodus__1_-removebg-preview.webp" 
-              alt="Tokodus"
-              width={140}
-              height={40}
-              className="h-10 w-auto object-contain"
-              priority
-            />
+            <h1 className="text-xl font-bold text-gray-900">Tokodus</h1>
+          </div>
+        )}
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 px-2 py-4 overflow-y-auto">
+        <div className="mb-6">
+          {!isCollapsed && (
+            <div className="px-3 mb-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Main Menu
+              </p>
+            </div>
+          )}
+          {renderMenuItems()}
+        </div>
+      </nav>
+
+      {/* Profile Section dengan email admin Tokodus */}
+      <div className={`
+        border-t border-gray-200 p-4 transition-all duration-300 bg-white
+        ${isCollapsed ? 'px-2' : 'px-4'}
+      `}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center">
+            <CustomIcon icon="mdi:account" className="text-white w-5 h-5" />
+          </div>
+          
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">Admin Tokodus</p>
+              <p className="text-xs text-gray-500 truncate">admin@tokodus.com</p>
+            </div>
           )}
         </div>
-
-        {/* Navigation */}
-        <nav className="flex-1 px-2 py-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          <div className="mb-6">
-            {!isCollapsed && (
-              <h2 className="mb-4 px-2 text-xs font-semibold uppercase tracking-wider text-blue-300/80">
-                Main Menu
-              </h2>
-            )}
-            {renderMenuItems()}
-          </div>
-        </nav>
       </div>
     </aside>
   )

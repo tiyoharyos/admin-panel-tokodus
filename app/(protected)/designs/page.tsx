@@ -206,6 +206,7 @@ export default function DesignsPage() {
           <Select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
+            className='text-gray-500'
             options={[
               { value: 'all', label: 'All Status' },
               { value: 'draft', label: 'Draft' },
@@ -217,6 +218,7 @@ export default function DesignsPage() {
           <Select
             value={materialFilter}
             onChange={(e) => setMaterialFilter(e.target.value)}
+            className='text-gray-500'
             options={[
               { value: 'all', label: 'All Materials' },
               { value: 'Duplek + Kraft', label: 'Duplek + Kraft' },
