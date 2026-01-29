@@ -49,86 +49,89 @@ export default function BoxModelsPage() {
       
       if (response.data && response.data.status === 200) {
         if (Array.isArray(response.data.data)) {
-          const boxModelsWithFormulas = await Promise.all(
-            response.data.data.map(async (item) => {
-              try {
-                let formulaComponents = []
-                let hasFormula = false
-                
-                try {
-                  const formulaResponse = await axios.get(`/Admin/Box/boxFormulaComponentsJoinBox/${item.id_bm}`, {
-                    headers: {
-                      'ngrok-skip-browser-warning': 'true'
-                    }
-                  })
-                  
-                  if (formulaResponse.data && formulaResponse.data.status === 200 && formulaResponse.data.data) {
-                    const formulaData = formulaResponse.data.data
-                    hasFormula = true
-                    
-                    if (Array.isArray(formulaData) && formulaData.length > 0) {
-                      formulaComponents = formulaData.map(comp => ({
-                        id: comp.id_bfc?.toString(),
-                        target: comp.target || 'panjang',
-                        source: comp.source || 'P',
-                        multiplier: comp.multiplier || 0,
-                        allowance_mm: comp.allowance_mm || 0,
-                        sort_order: comp.sort_order || 1
-                      }))
-                    } else if (formulaData && typeof formulaData === 'object' && formulaData.id_bfc) {
-                      formulaComponents = [{
-                        id: formulaData.id_bfc?.toString(),
-                        target: formulaData.target || 'panjang',
-                        source: formulaData.source || 'P',
-                        multiplier: formulaData.multiplier || 0,
-                        allowance_mm: formulaData.allowance_mm || 0,
-                        sort_order: formulaData.sort_order || 1
-                      }]
-                      hasFormula = true
-                    }
-                  }
-                } catch (formulaErr) {
-                  if (formulaErr.response?.status === 404 || formulaErr.response?.status === 400) {
-                    hasFormula = false
-                  } else {
-                    console.error(`Error fetching formula for box ${item.id_bm}:`, formulaErr)
-                    hasFormula = false
-                  }
-                }
-                
-                return {
-                  id: item.id_bm?.toString() || '',
-                  kode: item.code || '',
-                  namaModel: item.name || '',
-                  deskripsi: item.description || '',
-                  status: item.status_bm === '1' || item.status_bm === 1,
-                  status_bm: item.status_bm?.toString(),
-                  createdAt: item.created_at || new Date().toISOString().split('T')[0],
-                  updatedAt: item.updated_at || new Date().toISOString().split('T')[0],
-                  formulaComponents: formulaComponents,
-                  hasFormula: hasFormula,
-                  category: item.category || 'Mailer Box'
-                }
-              } catch (err) {
-                console.error(`Error processing box ${item.id_bm}:`, err)
-                return {
-                  id: item.id_bm?.toString() || '',
-                  kode: item.code || '',
-                  namaModel: item.name || '',
-                  deskripsi: item.description || '',
-                  status: item.status_bm === '1' || item.status_bm === 1,
-                  status_bm: item.status_bm?.toString(),
-                  createdAt: item.created_at || new Date().toISOString().split('T')[0],
-                  updatedAt: item.updated_at || new Date().toISOString().split('T')[0],
-                  formulaComponents: [],
-                  hasFormula: false,
-                  category: item.category || 'Mailer Box'
-                }
-              }
-            })
-          )
+          const processedBoxModels = []
           
-          setBoxModels(boxModelsWithFormulas)
+          // Gunakan loop biasa untuk menghindari Promise.all yang fail semua
+          for (const item of response.data.data) {
+            try {
+              let formulaComponents = []
+              let hasFormula = false
+              
+              try {
+                // PERBAIKAN: Simpan response ke variabel dengan nama yang benar
+                const formulaResponse = await axios.get(`/Admin/Box/boxFormulaComponentsJoinBox/${item.id_bm}`, {
+                  headers: {
+                    'ngrok-skip-browser-warning': 'true'
+                  }
+                })
+                
+                console.log(`Formula response for ${item.id_bm}:`, formulaResponse.data)
+                
+                if (formulaResponse.data && formulaResponse.data.status === 200 && formulaResponse.data.data) {
+                  const formulaData = formulaResponse.data.data
+                  hasFormula = true
+                  
+                  if (Array.isArray(formulaData.formula)) {
+                    formulaComponents = formulaData.formula.map(comp => ({
+                      id: comp.id_bfc?.toString(),
+                      target: comp.target || 'panjang',
+                      source: comp.source || 'P',
+                      multiplier: parseFloat(comp.multiplier) || 0,
+                      allowance_mm: parseFloat(comp.allowance_mm) || 0,
+                      sort_order: parseInt(comp.sort_order) || 1
+                    }))
+                  } else if (formulaData.formula && typeof formulaData.formula === 'object') {
+                    // Jika formula adalah object tunggal
+                    const comp = formulaData.formula
+                    formulaComponents = [{
+                      id: comp.id_bfc?.toString(),
+                      target: comp.target || 'panjang',
+                      source: comp.source || 'P',
+                      multiplier: parseFloat(comp.multiplier) || 0,
+                      allowance_mm: parseFloat(comp.allowance_mm) || 0,
+                      sort_order: parseInt(comp.sort_order) || 1
+                    }]
+                  }
+                }
+              } catch (formulaErr) {
+                console.log(`No formula for box ${item.id_bm}:`, formulaErr.message)
+                hasFormula = false
+              }
+              
+              processedBoxModels.push({
+                id: item.id_bm?.toString() || '',
+                kode: item.code || '',
+                namaModel: item.name || '',
+                deskripsi: item.description || '',
+                status: item.status_bm === '1' || item.status_bm === 1,
+                status_bm: item.status_bm?.toString(),
+                createdAt: item.created_at || new Date().toISOString().split('T')[0],
+                updatedAt: item.updated_at || new Date().toISOString().split('T')[0],
+                formulaComponents: formulaComponents,
+                hasFormula: hasFormula,
+                category: item.category || 'Mailer Box'
+              })
+              
+            } catch (itemErr) {
+              console.error(`Error processing box ${item.id_bm}:`, itemErr)
+              // Tetap tambahkan item tanpa formula
+              processedBoxModels.push({
+                id: item.id_bm?.toString() || '',
+                kode: item.code || '',
+                namaModel: item.name || '',
+                deskripsi: item.description || '',
+                status: item.status_bm === '1' || item.status_bm === 1,
+                status_bm: item.status_bm?.toString(),
+                createdAt: item.created_at || new Date().toISOString().split('T')[0],
+                updatedAt: item.updated_at || new Date().toISOString().split('T')[0],
+                formulaComponents: [],
+                hasFormula: false,
+                category: item.category || 'Mailer Box'
+              })
+            }
+          }
+          
+          setBoxModels(processedBoxModels)
         } else {
           setBoxModels([])
         }
@@ -162,6 +165,22 @@ export default function BoxModelsPage() {
     return timestamp.padStart(6, '0')
   }
 
+  // ===== RESET STATE FUNCTIONS =====
+  const resetEditState = () => {
+    setEditingItem(null)
+    setEditingFormulaComponents([])
+  }
+
+  const resetAddState = () => {
+    setAddFormData({
+      code: '',
+      name: '',
+      description: '',
+      category: 'Mailer Box',
+      status_bm: '1'
+    })
+  }
+
   // ===== HANDLERS =====
   const handleAddClick = () => {
     const generatedCode = generateCode()
@@ -186,13 +205,18 @@ export default function BoxModelsPage() {
       return
     }
     
+    if (!addFormData.description.trim()) {
+      SweetAlert.error('Validasi Error', 'Deskripsi tidak boleh kosong')
+      return
+    }
+    
     try {
       setIsPosting(true)
       
       const postData = {
         code: addFormData.code.trim(),
         name: addFormData.name.trim(),
-        description: addFormData.description.trim() || '',
+        description: addFormData.description.trim(),
         category: addFormData.category.trim(),
         status_bm: addFormData.status_bm
       }
@@ -207,14 +231,8 @@ export default function BoxModelsPage() {
       if (response.data && response.data.status === 200) {
         SweetAlert.success('Berhasil!', 'Box Model berhasil ditambahkan!')
         setShowAddModal(false)
+        resetAddState()
         await fetchBoxModels()
-        setAddFormData({
-          code: '',
-          name: '',
-          description: '',
-          category: 'Mailer Box',
-          status_bm: '1'
-        })
       } else {
         const errorMessage = response.data?.message || 'Gagal menambahkan Box Model'
         SweetAlert.error('Gagal!', errorMessage)
@@ -235,31 +253,37 @@ export default function BoxModelsPage() {
         }
       })
       
+      console.log('Edit formula response:', formulaResponse.data)
+      
       let formulaComponents = []
+      let hasFormula = false
       
       if (formulaResponse.data && formulaResponse.data.status === 200 && formulaResponse.data.data) {
         const data = formulaResponse.data.data
         
-        if (Array.isArray(data)) {
-          formulaComponents = data.map(comp => ({
+        if (Array.isArray(data.formula)) {
+          formulaComponents = data.formula.map(comp => ({
             id: comp.id_bfc?.toString(),
-            box_model_id: comp.box_model_id,
+            box_model_id: item.id,
             target: comp.target || 'panjang',
             source: comp.source || 'P',
             multiplier: parseFloat(comp.multiplier) || 0,
             allowance_mm: parseFloat(comp.allowance_mm) || 0,
             sort_order: parseInt(comp.sort_order) || 1
           }))
-        } else if (data && typeof data === 'object') {
+          hasFormula = formulaComponents.length > 0
+        } else if (data.formula && typeof data.formula === 'object') {
+          const comp = data.formula
           formulaComponents = [{
-            id: data.id_bfc?.toString(),
-            box_model_id: data.box_model_id,
-            target: data.target || 'panjang',
-            source: data.source || 'P',
-            multiplier: parseFloat(data.multiplier) || 0,
-            allowance_mm: parseFloat(data.allowance_mm) || 0,
-            sort_order: parseInt(data.sort_order) || 1
+            id: comp.id_bfc?.toString(),
+            box_model_id: item.id,
+            target: comp.target || 'panjang',
+            source: comp.source || 'P',
+            multiplier: parseFloat(comp.multiplier) || 0,
+            allowance_mm: parseFloat(comp.allowance_mm) || 0,
+            sort_order: parseInt(comp.sort_order) || 1
           }]
+          hasFormula = true
         }
       }
       
@@ -267,7 +291,7 @@ export default function BoxModelsPage() {
         ...item,
         status_bm: item.status ? '1' : '0',
         formulaComponents: formulaComponents,
-        hasFormula: formulaComponents.length > 0
+        hasFormula: hasFormula
       })
       
       setShowEditModal(true)
@@ -292,16 +316,27 @@ export default function BoxModelsPage() {
         }
       })
       
+      console.log('Formula check response:', response.data)
+      
       if (response.data && response.data.status === 200 && response.data.data) {
-        SweetAlert.confirmAction(
-          'Formula Sudah Ada',
-          'Box model ini sudah memiliki formula. Untuk mengedit formula, silakan gunakan menu Edit.'
-        ).then((result) => {
-          if (result.isConfirmed) {
-            handleEditClick(item)
-          }
-          setShowFormulaModal(false)
-        })
+        const formulaData = response.data.data
+        const hasExistingFormula = Array.isArray(formulaData.formula) && formulaData.formula.length > 0
+        
+        if (hasExistingFormula) {
+          SweetAlert.confirmAction(
+            'Formula Sudah Ada',
+            'Box model ini sudah memiliki formula. Untuk mengedit formula, silakan gunakan menu Edit.'
+          ).then((result) => {
+            if (result.isConfirmed) {
+              handleEditClick(item)
+            }
+            setShowFormulaModal(false)
+          })
+        } else {
+          setEditingItem(item)
+          setEditingFormulaComponents([])
+          setShowFormulaModal(true)
+        }
       } else {
         setEditingItem(item)
         setEditingFormulaComponents([])
@@ -320,87 +355,185 @@ export default function BoxModelsPage() {
     }
   }
 
+  // ===== HANDLE EDIT SAVE (DENGAN API boxModelsFormulaEdit) =====
   const handleEditSave = async () => {
     if (!editingItem) return
     
+    // Validasi field wajib sesuai backend
     if (!editingItem.kode.trim()) {
       SweetAlert.error('Validasi Error', 'Kode tidak boleh kosong')
       return
     }
     
     if (!editingItem.namaModel.trim()) {
-      SweetAlert.error('Validasi Error', 'Nama tidak boleh kosong')
+      SweetAlert.error('Validasi Error', 'Nama model tidak boleh kosong')
       return
+    }
+    
+    if (!editingItem.deskripsi?.trim()) {
+      SweetAlert.error('Validasi Error', 'Deskripsi tidak boleh kosong')
+      return
+    }
+    
+    // Validasi formula components jika ada
+    if (editingItem.formulaComponents && editingItem.formulaComponents.length > 0) {
+      const invalidComponents = []
+      
+      editingItem.formulaComponents.forEach((comp, index) => {
+        if (!comp.target || !['panjang', 'lebar'].includes(comp.target)) {
+          invalidComponents.push(`Component ${index + 1}: Target harus "panjang" atau "lebar"`)
+        }
+        
+        if (!comp.source || !['P', 'L', 'T'].includes(comp.source)) {
+          invalidComponents.push(`Component ${index + 1}: Source harus "P", "L", atau "T"`)
+        }
+        
+        if (comp.multiplier === '' || comp.multiplier === null || comp.multiplier === undefined) {
+          invalidComponents.push(`Component ${index + 1}: Multiplier tidak boleh kosong`)
+        }
+        
+        if (isNaN(parseFloat(comp.multiplier))) {
+          invalidComponents.push(`Component ${index + 1}: Multiplier harus angka`)
+        }
+      })
+      
+      if (invalidComponents.length > 0) {
+        SweetAlert.error('Validasi Formula Error', 
+          invalidComponents.slice(0, 3).join('<br>') + 
+          (invalidComponents.length > 3 ? `<br>... dan ${invalidComponents.length - 3} error lainnya` : '')
+        )
+        return
+      }
     }
     
     try {
       setIsPosting(true)
       
-      const updateData = {
-        id_bm: editingItem.id,
+      // 1. Siapkan data box model sesuai format backend
+      const boxModelData = {
         code: editingItem.kode.trim(),
         name: editingItem.namaModel.trim(),
-        description: editingItem.deskripsi?.trim() || '',
-        status_bm: editingItem.status_bm,
-        category: editingItem.category || 'Mailer Box'
+        description: editingItem.deskripsi.trim(),
       }
       
-      const response = await axios.put(`/Admin/Box/boxModelsEdit/${editingItem.id}`, updateData, {
+      // 2. Siapkan array formula
+      const formulaData = []
+      
+      if (editingItem.formulaComponents && editingItem.formulaComponents.length > 0) {
+        editingItem.formulaComponents.forEach(comp => {
+          // Hanya tambahkan jika data valid
+          if (comp.target && comp.source && comp.multiplier !== undefined) {
+            formulaData.push({
+              target: comp.target,
+              source: comp.source,
+              multiplier: parseFloat(comp.multiplier).toString(),
+              allowance_mm: comp.allowance_mm !== undefined ? parseFloat(comp.allowance_mm).toString() : '0',
+              sort_order: comp.sort_order ? parseInt(comp.sort_order).toString() : '1'
+            })
+          }
+        })
+      }
+      
+      // 3. Data yang akan dikirim ke API boxModelsFormulaEdit
+      const requestData = {
+        code: boxModelData.code,
+        name: boxModelData.name,
+        description: boxModelData.description,
+        formula: formulaData
+      }
+      
+      console.log('📤 Data dikirim ke API boxModelsFormulaEdit:', {
+        id: editingItem.id,
+        data: requestData
+      })
+      
+      // 4. Kirim PUT request ke endpoint boxModelsFormulaEdit
+      const response = await axios.put(`/Admin/Box/boxModelsFormulaEdit/${editingItem.id}`, requestData, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
-        } 
+        }
       })
       
+      console.log('📥 Response dari API boxModelsFormulaEdit:', response.data)
+      
       if (response.data && response.data.status === 200) {
-        if (editingItem.formulaComponents && editingItem.formulaComponents.length > 0) {
-          let formulaSuccessCount = 0
-          
-          for (const component of editingItem.formulaComponents) {
-            const postData = {
-              box_model_id: editingItem.id.toString(),
-              target: component.target,
-              source: component.source,
-              multiplier: component.multiplier.toString(),
-              allowance_mm: component.allowance_mm?.toString() || '',
-              sort_order: component.sort_order?.toString() || '1'
+        // 5. Update status dan category terpisah (jika diperlukan)
+        try {
+          if (editingItem.status_bm || editingItem.category) {
+            const statusCategoryData = {}
+            
+            // Hanya tambahkan field jika ada
+            if (editingItem.status_bm) {
+              statusCategoryData.status_bm = editingItem.status_bm
             }
             
-            try {
-              if (component.id && !component.id.startsWith('COMP')) {
-                try {
-                  const updateResponse = await axios.put(`/Admin/Box/boxFormulaComponentsEdit/${component.id}`, postData)
-                  if (updateResponse.data?.status === 200) {
-                    formulaSuccessCount++
-                  }
-                } catch (updateErr) {
-                  const createResponse = await axios.post('/Admin/Box/boxFormulaComponents', postData)
-                  if (createResponse.data?.status === 201) {
-                    formulaSuccessCount++
-                  }
+            if (editingItem.category) {
+              statusCategoryData.category = editingItem.category
+            }
+            
+            // Gunakan API boxModelsEdit untuk update status dan category
+            if (Object.keys(statusCategoryData).length > 0) {
+              await axios.put(`/Admin/Box/boxModelsEdit/${editingItem.id}`, statusCategoryData, {
+                headers: {
+                  'Content-Type': 'application/json',
+                  'ngrok-skip-browser-warning': 'true'
                 }
-              } else {
-                const createResponse = await axios.post('/Admin/Box/boxFormulaComponents', postData)
-                if (createResponse.data?.status === 201) {
-                  formulaSuccessCount++
-                }
-              }
-            } catch (formulaErr) {
-              console.error('❌ Error saving formula component:', formulaErr)
+              })
+              console.log('✅ Status & Category berhasil diupdate')
             }
           }
+        } catch (statusErr) {
+          console.warn('⚠️ Gagal update status/category:', statusErr)
+          // Lanjutkan karena data utama sudah berhasil disimpan
         }
         
-        SweetAlert.success('Berhasil!', 'Box Model berhasil diupdate!')
-        await fetchBoxModels()
+        // 6. Tampilkan success message
+        SweetAlert.success('Berhasil!', 'Box Model dan Formula berhasil diperbarui!')
+        
+        // 7. Refresh data dengan error handling
+        try {
+          await fetchBoxModels()
+        } catch (fetchErr) {
+          console.error('⚠️ Error refreshing data:', fetchErr)
+          SweetAlert.info('Info', 'Data berhasil disimpan, refresh halaman untuk melihat perubahan terbaru.')
+        }
+        
+        // 8. Reset state dan close modal
         setShowEditModal(false)
+        resetEditState()
+        
       } else {
-        SweetAlert.error('Gagal!', response.data?.message || 'Gagal mengupdate Box Model')
+        // Handle response error
+        const errorMsg = response.data?.message || 
+                        response.data?.error || 
+                        'Gagal mengupdate data'
+        
+        SweetAlert.error('Gagal!', errorMsg)
       }
       
     } catch (err) {
-      console.error('❌ Error updating box model:', err)
-      SweetAlert.error('Error!', err.response?.data?.message || 'Terjadi kesalahan saat mengupdate data')
+      console.error('❌ Error updating box model and formula:', err)
+      
+      // Tampilkan error yang lebih spesifik
+      let errorMessage = 'Terjadi kesalahan saat mengupdate data'
+      
+      if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err.response?.data?.error) {
+        errorMessage = err.response.data.error
+      } else if (err.message) {
+        errorMessage = err.message
+      }
+      
+      // Tampilkan detail validasi error jika ada
+      if (err.response?.data?.errors) {
+        const validationErrors = Object.values(err.response.data.errors).flat().join(', ')
+        errorMessage += `: ${validationErrors}`
+      }
+      
+      SweetAlert.error('Error!', errorMessage)
+      
     } finally {
       setIsPosting(false)
     }
@@ -474,7 +607,11 @@ export default function BoxModelsPage() {
         SweetAlert.success('Berhasil!', `${successCount} komponen formula berhasil disimpan!`)
         
         setTimeout(async () => {
-          await fetchBoxModels()
+          try {
+            await fetchBoxModels()
+          } catch (fetchErr) {
+            console.error('Error refreshing data:', fetchErr)
+          }
           setShowFormulaModal(false)
         }, 1000)
         
@@ -643,21 +780,27 @@ export default function BoxModelsPage() {
     })
   }
 
-  const renderFormulaOnCard = (formulaComponents, target) => {
-    if (!formulaComponents || formulaComponents.length === 0) {
-      return 'Tidak ada formula'
+  // ===== MODAL CLOSE HANDLERS =====
+  const handleCloseAddModal = () => {
+    if (!isPosting) {
+      setShowAddModal(false)
+      resetAddState()
     }
+  }
 
-    const targetComponents = formulaComponents.filter(c => c.target === target)
-    if (targetComponents.length === 0) {
-      return 'Tidak ada formula'
+  const handleCloseEditModal = () => {
+    if (!isPosting) {
+      setShowEditModal(false)
+      resetEditState()
     }
+  }
 
-    return targetComponents.map(comp => {
-      const base = comp.source ? `${comp.source} × ${comp.multiplier}` : ''
-      const allowance = comp.allowance_mm ? ` + ${comp.allowance_mm}mm` : ''
-      return base + allowance
-    }).join(' + ')
+  const handleCloseFormulaModal = () => {
+    if (!isPosting) {
+      setShowFormulaModal(false)
+      setEditingItem(null)
+      setEditingFormulaComponents([])
+    }
   }
 
   // ===== MODAL FOOTERS =====
@@ -665,7 +808,7 @@ export default function BoxModelsPage() {
     <div className="flex justify-end gap-3">
       <Button
         variant="outline"
-        onClick={() => !isPosting && setShowAddModal(false)}
+        onClick={handleCloseAddModal}
         disabled={isPosting}
       >
         Batal
@@ -685,7 +828,7 @@ export default function BoxModelsPage() {
     <div className="flex justify-end gap-3">
       <Button
         variant="outline"
-        onClick={() => setShowEditModal(false)}
+        onClick={handleCloseEditModal}
         disabled={isPosting}
       >
         Batal
@@ -705,7 +848,7 @@ export default function BoxModelsPage() {
     <div className="flex justify-end gap-3">
       <Button
         variant="outline"
-        onClick={() => setShowFormulaModal(false)}
+        onClick={handleCloseFormulaModal}
         disabled={isPosting}
       >
         Batal
@@ -769,7 +912,7 @@ export default function BoxModelsPage() {
     )
   }
 
-  // ===== MAIN UI dengan gaya dashboard =====
+  // ===== MAIN UI =====
   return (
     <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
@@ -868,7 +1011,7 @@ export default function BoxModelsPage() {
           </div>
         </div>
         
-        {/* Menggunakan komponen Table */}
+        {/* Table */}
         <Table
           headers={['Kode', 'Nama Model', 'Kategori', 'Status', 'Formula', 'Actions']}
           striped
@@ -966,7 +1109,7 @@ export default function BoxModelsPage() {
       {/* ===== MODAL TAMBAH BOX MODEL ===== */}
       <Modal
         isOpen={showAddModal}
-        onClose={() => !isPosting && setShowAddModal(false)}
+        onClose={handleCloseAddModal}
         title="Tambah Box Model Baru"
         size="md"
         footer={addModalFooter}
@@ -993,7 +1136,7 @@ export default function BoxModelsPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Deskripsi
+              Deskripsi *
             </label>
             <textarea
               value={addFormData.description}
@@ -1001,6 +1144,7 @@ export default function BoxModelsPage() {
               rows={3}
               className="w-full px-4 py-2.5 border text-gray-700 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               placeholder="Deskripsi model kotak..."
+              required
             />
           </div>
         </div>
@@ -1009,7 +1153,7 @@ export default function BoxModelsPage() {
       {/* ===== MODAL EDIT BOX MODEL ===== */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
+        onClose={handleCloseEditModal}
         title="Edit Box Model"
         size="xl"
         footer={editModalFooter}
@@ -1018,7 +1162,11 @@ export default function BoxModelsPage() {
           <div className="space-y-6">
             {/* Basic Info Section */}
             <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Informasi Dasar</h3>
+              <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+                <CustomIcon icon="mdi:information-outline" className="w-5 h-5" />
+                Informasi Dasar
+              </h3>
+              
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Kode *"
@@ -1027,10 +1175,10 @@ export default function BoxModelsPage() {
                     ...editingItem,
                     kode: e.target.value
                   })}
-                  placeholder="000001, MAILER001, etc"
-                  className="bg-gray-100 cursor-not-allowed text-gray-700"
+                  placeholder="Contoh: 000001, MAILER001"
+                  className="bg-gray-100 text-gray-700"
                   required
-                  disabled
+                  disabled={isPosting}
                 />
                 
                 <Input
@@ -1040,33 +1188,44 @@ export default function BoxModelsPage() {
                     ...editingItem,
                     namaModel: e.target.value
                   })}
+                  placeholder="Masukkan nama model"
                   required
-                  className="text-gray-700"
+                  className='text-gray-700'
+                  disabled={isPosting}
                 />
               </div>
 
+              {/* Deskripsi - Wajib diisi */}
               <div className="mt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Deskripsi
+                  Deskripsi *
                 </label>
                 <textarea
-                  value={editingItem.deskripsi}
+                  value={editingItem.deskripsi || ''}
                   onChange={(e) => setEditingItem({
                     ...editingItem,
                     deskripsi: e.target.value
                   })}
                   rows={3}
-                  className="w-full px-4 py-2.5 border text-gray-700 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Deskripsi..."
+                  className="w-full px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Masukkan deskripsi box model..."
+                  disabled={isPosting}
+                  required
                 />
+                <p className="text-xs text-gray-500 mt-1">
+                  Deskripsi wajib diisi sesuai dengan validasi backend
+                </p>
               </div>
+
+          
             </div>
 
             {/* Formula Section */}
             <div className="border-t pt-6">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <CustomIcon icon="mdi:calculator" className="w-5 h-5" />
                     Formula Components
                   </h3>
                   <p className="text-sm text-gray-500 mt-1">
@@ -1074,46 +1233,42 @@ export default function BoxModelsPage() {
                       'Edit formula perhitungan untuk Panjang dan Lebar' : 
                       'Belum ada formula untuk box model ini'}
                   </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    <strong>Ket:</strong> Source harus P (Panjang), L (Lebar), atau T (Tinggi)
-                  </p>
+                  <div className="text-xs text-gray-400 mt-1 space-y-1">
+                    <p><strong>Ket:</strong> Source harus P (Panjang), L (Lebar), atau T (Tinggi)</p>
+                    <p><strong>Note:</strong> Semua formula lama akan dihapus dan diganti dengan yang baru</p>
+                  </div>
                 </div>
-                {editingItem.hasFormula ? (
-                  <Button
-                    type="button"
-                    onClick={addEditFormulaComponent}
-                    variant="success"
-                    icon="mdi:plus"
-                  >
-                    Tambah Component
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      setShowEditModal(false)
-                      setEditingItem(editingItem)
-                      setEditingFormulaComponents([])
-                      setShowFormulaModal(true)
-                    }}
-                    variant="primary"
-                    icon="mdi:calculator-plus"
-                  >
-                    Buat Formula
-                  </Button>
-                )}
+                
+                <Button
+                  type="button"
+                  onClick={addEditFormulaComponent}
+                  variant="success"
+                  icon="mdi:plus"
+                  disabled={isPosting}
+                >
+                  Tambah Component
+                </Button>
               </div>
 
               {/* Formula Components List */}
               <div className="space-y-4">
-                {editingItem.hasFormula && editingItem.formulaComponents && editingItem.formulaComponents.length > 0 ? (
+                {editingItem.formulaComponents && editingItem.formulaComponents.length > 0 ? (
                   editingItem.formulaComponents.map((component, index) => (
-                    <Card key={index} className="p-4">
+                    <Card key={component.id || `comp-${index}`} className="p-4 border-l-4 border-blue-500">
                       <div className="flex justify-between items-center mb-4">
-                        <div className="text-sm font-medium text-gray-700">
-                          Component #{index + 1}
+                        <div className="flex items-center gap-2">
+                          <div className="text-sm font-medium text-gray-700">
+                            Component #{index + 1}
+                          </div>
                           {component.id && !component.id.startsWith('COMP') && (
-                            <span className="text-xs text-green-600 ml-2">(Saved)</span>
+                            <Badge variant="success" size="sm">
+                              Existing
+                            </Badge>
+                          )}
+                          {component.id && component.id.startsWith('COMP') && (
+                            <Badge variant="info" size="sm">
+                              New
+                            </Badge>
                           )}
                         </div>
                         <Button
@@ -1122,7 +1277,8 @@ export default function BoxModelsPage() {
                           variant="ghost"
                           size="sm"
                           className="text-red-500 hover:text-red-700"
-                          icon="mdi:close"
+                          icon="mdi:trash-can-outline"
+                          disabled={isPosting}
                         >
                           Hapus
                         </Button>
@@ -1138,6 +1294,8 @@ export default function BoxModelsPage() {
                             { value: 'lebar', label: 'Lebar' }
                           ]}
                           required
+                          className='text-gray-700'
+                          disabled={isPosting}
                         />
 
                         <Select
@@ -1149,73 +1307,68 @@ export default function BoxModelsPage() {
                             { value: 'L', label: 'L (Lebar)' },
                             { value: 'T', label: 'T (Tinggi)' }
                           ]}
+                          className='text-gray-700'
                           required
+                          disabled={isPosting}
                         />
 
                         <Input
                           label="Multiplier *"
                           type="number"
-                          step="0.5"
+                          step="0.1"
                           value={component.multiplier}
                           onChange={(e) => updateEditFormulaComponent(index, 'multiplier', e.target.value)}
-                          placeholder="0"
+                          placeholder="1.0"
                           required
+                          className='text-gray-700'
+                          disabled={isPosting}
                         />
 
                         <Input
                           label="Allowance (mm)"
                           type="number"
-                          value={component.allowance_mm}
+                          value={component.allowance_mm || ''}
                           onChange={(e) => updateEditFormulaComponent(index, 'allowance_mm', e.target.value)}
                           placeholder="0"
                           step="0.1"
+                          className='text-gray-700'
+                          disabled={isPosting}
                         />
 
                         <Input
                           label="Sort Order"
                           type="number"
-                          value={component.sort_order}
+                          value={component.sort_order || index + 1}
                           onChange={(e) => updateEditFormulaComponent(index, 'sort_order', e.target.value)}
-                          placeholder="1"
+                          placeholder={index + 1}
+                          className='text-gray-700'
                           min="1"
+                          disabled={isPosting}
                         />
                       </div>
 
                       <div className="mt-3 text-sm text-gray-600 p-2 bg-gray-50 rounded-lg">
-                        <strong>Formula:</strong> {component.source} × {component.multiplier} + {component.allowance_mm}mm
+                        <strong>Formula:</strong> {component.source || 'P'} × {component.multiplier || '1'}
+                        {component.allowance_mm ? ` + ${component.allowance_mm}mm` : ''}
                       </div>
                     </Card>
                   ))
-                ) : editingItem.hasFormula ? (
-                  <Card className="text-center py-8 border-dashed border-2">
-                    <div className="text-gray-400 mb-2">
-                      <CustomIcon icon="mdi:calculator-off" className="w-12 h-12 mx-auto" />
-                    </div>
-                    <p className="text-gray-500 mb-1">Data formula tidak ditemukan</p>
-                    <p className="text-sm text-gray-400">
-                      Tambahkan components baru untuk membuat formula
-                    </p>
-                  </Card>
                 ) : (
                   <Card className="text-center py-8 border-dashed border-2">
                     <div className="text-gray-400 mb-2">
                       <CustomIcon icon="mdi:calculator-off" className="w-12 h-12 mx-auto" />
                     </div>
-                    <p className="text-gray-500 mb-1">Belum ada formula untuk box model ini</p>
+                    <p className="text-gray-500 mb-1">Belum ada formula components</p>
                     <p className="text-sm text-gray-400 mb-4">
-                      Klik tombol "Buat Formula" untuk menambahkan formula baru
+                      Tambahkan components untuk menentukan formula perhitungan
                     </p>
                     <Button
                       variant="primary"
-                      onClick={() => {
-                        setShowEditModal(false)
-                        setEditingItem(editingItem)
-                        setEditingFormulaComponents([])
-                        setShowFormulaModal(true)
-                      }}
-                      icon="mdi:calculator-plus"
+                      onClick={addEditFormulaComponent}
+                      icon="mdi:plus"
+                      disabled={isPosting}
                     >
-                      Buat Formula
+                      Tambah Component Pertama
                     </Button>
                   </Card>
                 )}
@@ -1228,7 +1381,7 @@ export default function BoxModelsPage() {
       {/* ===== MODAL FORMULA (UNTUK TAMBAH BARU SAJA) ===== */}
       <Modal
         isOpen={showFormulaModal}
-        onClose={() => setShowFormulaModal(false)}
+        onClose={handleCloseFormulaModal}
         title={editingItem ? `Tambah Formula: ${editingItem.namaModel}` : 'Tambah Formula'}
         size="xl"
         footer={formulaModalFooter}
@@ -1272,6 +1425,7 @@ export default function BoxModelsPage() {
                   onClick={addFormulaComponent}
                   variant="success"
                   icon="mdi:plus"
+                  disabled={isPosting}
                 >
                   Tambah Component
                 </Button>
@@ -1302,6 +1456,7 @@ export default function BoxModelsPage() {
                           size="sm"
                           className="text-red-500 hover:text-red-700"
                           icon="mdi:close"
+                          disabled={isPosting}
                         >
                           Hapus
                         </Button>
@@ -1312,11 +1467,14 @@ export default function BoxModelsPage() {
                           label="Target *"
                           value={component.target}
                           onChange={(e) => updateFormulaComponent(index, 'target', e.target.value)}
+                          className='text-gray-700'
                           options={[
                             { value: 'panjang', label: 'Panjang' },
                             { value: 'lebar', label: 'Lebar' }
                           ]}
+                          className='text-gray-700'
                           required
+                          disabled={isPosting}
                         />
 
                         <Select
@@ -1328,7 +1486,9 @@ export default function BoxModelsPage() {
                             { value: 'L', label: 'L (Lebar)' },
                             { value: 'T', label: 'T (Tinggi)' }
                           ]}
+                          className='text-gray-700'
                           required
+                          disabled={isPosting}
                         />
 
                         <Input
@@ -1339,7 +1499,9 @@ export default function BoxModelsPage() {
                           onChange={(e) => updateFormulaComponent(index, 'multiplier', e.target.value)}
                           placeholder="0"
                           required
+                          className='text-gray-700'
                           helperText="Tidak boleh kosong"
+                          disabled={isPosting}
                         />
 
                         <Input
@@ -1349,6 +1511,8 @@ export default function BoxModelsPage() {
                           onChange={(e) => updateFormulaComponent(index, 'allowance_mm', e.target.value)}
                           placeholder="0"
                           step="0.1"
+                          className='text-gray-700'
+                          disabled={isPosting}
                         />
 
                         <Input
@@ -1358,6 +1522,8 @@ export default function BoxModelsPage() {
                           onChange={(e) => updateFormulaComponent(index, 'sort_order', e.target.value)}
                           placeholder="1"
                           min="1"
+                          className='text-gray-700'
+                          disabled={isPosting}
                         />
                       </div>
 
