@@ -69,6 +69,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         { name: 'Material Formulas', path: '/material-formulas' },
         { name: 'Print Settings', path: '/print-settings' },
         { name: 'Sheet Settings', path: '/sheet-settings' },
+        { name: 'Flute Settings', path: '/flute-settings' },
       ]
     }
   ]
@@ -266,7 +267,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     >
       {/* Logo dengan logo Tokodus */}
       <div className={`
-        flex items-center h-16 border-b border-gray-200 transition-all duration-300 bg-white
+        flex items-center h-16 border-b border-gray-200 transition-all duration-300 bg-white justify-center
         ${isCollapsed ? 'justify-center px-2' : 'px-4'}
       `}>
         {isCollapsed ? (
@@ -274,12 +275,16 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             <span className="text-white font-bold text-xl">T</span>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">T</span>
-            </div>
-            <h1 className="text-xl font-bold text-gray-900">Tokodus</h1>
-          </div>
+          <div className="relative bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg p-1 shadow-lg border ">
+                            <Image 
+                              src="/material/Tokodus__1_-removebg-preview.webp" 
+                              alt="Tokodus"
+                              width={140}
+                              height={40}
+                              className="h-10 w-auto object-contain"
+                              priority
+                            />
+                          </div>
         )}
       </div>
 

@@ -1,6 +1,8 @@
+// app/(protected)/print-settings/page.tsx
+
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Badge from '@/components/UI/Badge'
@@ -9,6 +11,7 @@ import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
 import CustomIcon from '@/components/UI/Icon'
 import SweetAlert from '@/components/UI/SweetAlert'
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 
 // Data berdasarkan Index Cetak sheet
 const mockPrintSettings = [
@@ -93,6 +96,39 @@ export default function PrintSettingsPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isPosting, setIsPosting] = useState(false)
+
+  // Stats untuk dashboard
+  const [stats, setStats] = useState({
+    totalSettings: 0,
+    activeSettings: 0,
+    pm52Count: 0,
+    sm74Count: 0,
+    planoMaxCount: 0,
+    totalRevenue: 0
+  })
+
+  useEffect(() => {
+    calculateStats()
+  }, [settings])
+
+  const calculateStats = () => {
+    const totalSettings = settings.length
+    const activeSettings = settings.filter(s => s.status === 'active').length
+    const pm52Count = settings.filter(s => s.machine === 'PM52').length
+    const sm74Count = settings.filter(s => s.machine === 'SM74').length
+    const planoMaxCount = settings.filter(s => s.machine === 'Plano Max').length
+    const totalRevenue = settings.reduce((sum, setting) => sum + setting.price, 0)
+
+    setStats({
+      totalSettings,
+      activeSettings,
+      pm52Count,
+      sm74Count,
+      planoMaxCount,
+      totalRevenue
+    })
+  }
 
   const filteredSettings = settings.filter(setting => {
     const matchesSearch = 
@@ -124,6 +160,7 @@ export default function PrintSettingsPage() {
         
         setSettings(settings.filter(s => s.id !== id))
         SweetAlert.success('Deleted!', `Print setting for ${machine} has been deleted.`)
+        calculateStats()
       } catch (error) {
         SweetAlert.error('Error!', 'Failed to delete print setting')
       } finally {
@@ -144,18 +181,36 @@ export default function PrintSettingsPage() {
         s.id === item.id ? { ...s, status: newStatus } : s
       ))
       SweetAlert.success('Success!', `Print setting status changed to ${newStatus}`)
+      calculateStats()
     }
   }
 
   const handleSave = async (formData) => {
     try {
-      setLoading(true)
+      setIsPosting(true)
       
       if (selectedSetting) {
         // Update existing
         const updatedSetting = {
           ...selectedSetting,
-          ...formData
+          ...formData,
+          maxMaterialSize: {
+            width: formData.maxMaterialWidth,
+            length: formData.maxMaterialLength
+          },
+          minMaterialSize: {
+            width: formData.minMaterialWidth,
+            length: formData.minMaterialLength
+          },
+          maxPrintSize: {
+            width: formData.maxPrintWidth,
+            length: formData.maxPrintLength
+          },
+          minPrintSize: {
+            width: formData.minPrintWidth,
+            length: formData.minPrintLength
+          },
+          price: formData.price
         }
         
         setSettings(settings.map(s => 
@@ -167,7 +222,25 @@ export default function PrintSettingsPage() {
         // Create new
         const newSetting = {
           id: `PRT-${Date.now().toString().slice(-6)}`,
-          ...formData,
+          machine: formData.machine,
+          printType: formData.printType,
+          maxMaterialSize: {
+            width: formData.maxMaterialWidth,
+            length: formData.maxMaterialLength
+          },
+          minMaterialSize: {
+            width: formData.minMaterialWidth,
+            length: formData.minMaterialLength
+          },
+          maxPrintSize: {
+            width: formData.maxPrintWidth,
+            length: formData.maxPrintLength
+          },
+          minPrintSize: {
+            width: formData.minPrintWidth,
+            length: formData.minPrintLength
+          },
+          price: formData.price,
           status: 'active'
         }
         
@@ -178,87 +251,150 @@ export default function PrintSettingsPage() {
       setIsEditModalOpen(false)
       setIsCreateModalOpen(false)
       setSelectedSetting(null)
+      calculateStats()
       
     } catch (error) {
       SweetAlert.error('Error!', 'Failed to save print setting')
     } finally {
-      setLoading(false)
+      setIsPosting(false)
+    }
+  }
+
+  const handleCloseModal = () => {
+    if (!isPosting) {
+      setIsEditModalOpen(false)
+      setIsCreateModalOpen(false)
+      setIsViewModalOpen(false)
+      setSelectedSetting(null)
     }
   }
 
   return (
     <div className="space-y-6 p-4 md:p-6">
-      {/* Header */}
-      <Card className="bg-gradient-to-r from-amber-600 to-orange-600 text-white">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-              <CustomIcon icon="mdi:printer" className="w-8 h-8" />
-              Print Settings
-            </h1>
-            <p className="opacity-90 mt-1">Configure printing machine settings and prices</p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              <Badge variant="info" icon="mdi:printer">
-                Total: {settings.length} Settings
-              </Badge>
-              <Badge variant="success" icon="mdi:check-circle">
-                Active: {settings.filter(s => s.status === 'active').length}
-              </Badge>
-              {machineTypes.map(machine => (
-                <Badge key={machine} variant="warning" icon="mdi:printer-outline">
-                  {machine}: {settings.filter(s => s.machine === machine).length}
-                </Badge>
-              ))}
-            </div>
-          </div>
-          <Button
-            variant="success"
-            icon="mdi:plus"
-            onClick={() => {
-              setSelectedSetting(null)
-              setIsCreateModalOpen(true)
-            }}
-          >
-            Add Print Setting
-          </Button>
+      {/* Header dengan judul */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+            Print Settings
+          </h1>
+          <p className="text-gray-600 mt-1">Configure printing machine settings and prices</p>
         </div>
-      </Card>
-
-      {/* Machine Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {machineTypes.map(machine => {
-          const machineSettings = settings.filter(s => s.machine === machine)
-          const totalPrice = machineSettings.reduce((sum, setting) => sum + setting.price, 0)
-          
-          return (
-            <Card key={machine} className="hover:shadow-lg transition-shadow">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-lg bg-amber-100 text-amber-600">
-                  <CustomIcon icon="mdi:printer" className="w-6 h-6" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{machine}</h3>
-                  <p className="text-sm text-gray-600">
-                    {machineSettings.length} print types
-                  </p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      Max Size: {machineSettings[0]?.maxMaterialSize.width || 0}x{machineSettings[0]?.maxMaterialSize.length || 0}cm
-                    </span>
-                    <span className="text-sm font-medium text-green-600">
-                      Total: {formatCurrency(totalPrice)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          )
-        })}
+        
+        <Button
+          variant="primary"
+          icon="mdi:plus"
+          onClick={() => {
+            setSelectedSetting(null)
+            setIsCreateModalOpen(true)
+          }}
+          className="w-full md:w-auto"
+        >
+          Add Print Setting
+        </Button>
       </div>
 
-      {/* Filters */}
+      {/* Stats Cards Grid - Desain Dashboard */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <CustomIcon icon="mdi:printer" className="text-blue-600" />
+              Total Settings
+            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-gray-900">{stats.totalSettings}</p>
+              <Badge variant="success" size="sm">
+                {stats.activeSettings} active
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500">settings configured</p>
+          </div>
+        </Card>
+
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <CustomIcon icon="mdi:printer-outline" className="text-amber-600" />
+              PM52 Machine
+            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-gray-900">{stats.pm52Count}</p>
+              <Badge variant="info" size="sm">
+                print types
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500">max: 37x52 cm</p>
+          </div>
+        </Card>
+
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <CustomIcon icon="mdi:printer-outline" className="text-green-600" />
+              SM74 Machine
+            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-gray-900">{stats.sm74Count}</p>
+              <Badge variant="info" size="sm">
+                print types
+              </Badge>
+            </div>
+            <p className="text-xs text-gray-500">max: 52.5x72 cm</p>
+          </div>
+        </Card>
+
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <CustomIcon icon="mdi:printer-outline" className="text-purple-600" />
+              Total Revenue
+            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-gray-900">
+                {formatCurrency(stats.totalRevenue)}
+              </p>
+            </div>
+            <p className="text-xs text-gray-500">from all print types</p>
+          </div>
+        </Card>
+      </div>
+
+      {/* Filters Section */}
       <Card>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              All Print Settings
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Filter and search print settings by machine and type
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              icon="mdi:filter-variant"
+              onClick={() => {
+                setMachineFilter('all')
+                setTypeFilter('all')
+                setSearch('')
+              }}
+            >
+              Clear Filters
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              icon="mdi:export"
+              onClick={() => SweetAlert.info('Export', 'Exporting print settings data...')}
+            >
+              Export
+            </Button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="md:col-span-2">
             <Input
               leftIcon="mdi:magnify"
@@ -286,176 +422,230 @@ export default function PrintSettingsPage() {
         </div>
       </Card>
 
-      {/* Settings Table */}
+      {/* Print Settings Table dengan desain clean */}
       <Card>
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Machine</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Print Type</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Material Size (cm)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Print Size (cm)</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Price</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredSettings.map((setting) => (
-                <tr key={setting.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4">
-                    <div className="font-medium text-amber-600">{setting.id}</div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <CustomIcon icon="mdi:printer-outline" className="w-4 h-4 text-gray-400" />
-                      <span className="font-medium text-gray-900">{setting.machine}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant="info">
-                      {setting.printType}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <div className="font-medium">Max: {setting.maxMaterialSize.width} x {setting.maxMaterialSize.length}</div>
-                      <div className="text-gray-500">Min: {setting.minMaterialSize.width} x {setting.minMaterialSize.length}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="text-sm">
-                      <div className="font-medium">Max: {setting.maxPrintSize.width} x {setting.maxPrintSize.length}</div>
-                      <div className="text-gray-500">Min: {setting.minPrintSize.width} x {setting.minPrintSize.length}</div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="font-bold text-green-600">
-                      {formatCurrency(setting.price)}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <Badge variant={setting.status === 'active' ? 'success' : 'danger'}>
-                        {setting.status}
-                      </Badge>
-                      <button
-                        onClick={() => handleToggleStatus(setting)}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        <CustomIcon icon="mdi:swap-vertical" className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedSetting(setting)
-                          setIsViewModalOpen(true)
-                        }}
-                        icon="mdi:eye"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedSetting(setting)
-                          setIsEditModalOpen(true)
-                        }}
-                        icon="mdi:pencil"
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(setting.id, setting.machine)}
-                        icon="mdi:delete"
-                        className="text-red-600 hover:text-red-700"
-                      />
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <Table
+          headers={['ID', 'Machine', 'Print Type', 'Material Size', 'Print Size', 'Price', 'Status', 'Actions']}
+          striped
+          hoverable
+        >
+          {filteredSettings.map((setting) => (
+            <TableRow key={setting.id} hoverable>
+              <TableCell>
+                <div className="font-medium text-blue-600">{setting.id}</div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <CustomIcon icon="mdi:printer-outline" className="w-4 h-4 text-gray-400" />
+                  <span className="font-medium text-gray-900">{setting.machine}</span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <Badge variant="info">
+                  {setting.printType}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="text-sm">
+                  <div className="font-medium">
+                    Max: {setting.maxMaterialSize.width}×{setting.maxMaterialSize.length}cm
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    Min: {setting.minMaterialSize.width}×{setting.minMaterialSize.length}cm
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="text-sm">
+                  <div className="font-medium">
+                    Max: {setting.maxPrintSize.width}×{setting.maxPrintSize.length}cm
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    Min: {setting.minPrintSize.width}×{setting.minPrintSize.length}cm
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="font-bold text-green-600">
+                  {formatCurrency(setting.price)}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Badge variant={setting.status === 'active' ? 'success' : 'danger'}>
+                    {setting.status}
+                  </Badge>
+                  <button
+                    onClick={() => handleToggleStatus(setting)}
+                    className="text-gray-400 hover:text-gray-600"
+                    title={setting.status === 'active' ? 'Deactivate' : 'Activate'}
+                  >
+                    <CustomIcon icon="mdi:swap-vertical" className="w-4 h-4" />
+                  </button>
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex space-x-2">
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => {
+                      setSelectedSetting(setting)
+                      setIsViewModalOpen(true)
+                    }}
+                    icon="mdi:eye"
+                    className="text-blue-600 hover:text-blue-700 cursor-pointer"
+                  >
+                    View
+                  </Button>
+                  
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => {
+                      setSelectedSetting(setting)
+                      setIsEditModalOpen(true)
+                    }}
+                    icon="mdi:pencil"
+                    className="text-amber-600 hover:text-amber-700 cursor-pointer"
+                  >
+                    Edit
+                  </Button>
+                  
+                  <Button
+                    size="xs"
+                    variant="ghost"
+                    onClick={() => handleDelete(setting.id, setting.machine)}
+                    icon="mdi:delete"
+                    className="text-red-600 hover:text-red-700 cursor-pointer"
+                  >
+                    Delete
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </Table>
+
+        {filteredSettings.length === 0 && (
+          <div className="text-center py-8">
+            <div className="text-gray-400 mb-2">
+              <CustomIcon icon="mdi:printer-off" className="w-12 h-12 mx-auto" />
+            </div>
+            <p className="text-gray-500 mb-1">No print settings found</p>
+            <p className="text-sm text-gray-400 mb-4">
+              Try adjusting your search or filter criteria
+            </p>
+            <Button
+              variant="primary"
+              onClick={() => setIsCreateModalOpen(true)}
+              icon="mdi:plus"
+            >
+              Add Print Setting
+            </Button>
+          </div>
+        )}
+
+        <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+          <div className="text-sm text-gray-500">
+            Showing {Math.min(10, filteredSettings.length)} of {filteredSettings.length} settings
+          </div>
+          <div className="text-sm text-gray-500">
+            Total: {formatCurrency(filteredSettings.reduce((sum, s) => sum + s.price, 0))}
+          </div>
         </div>
       </Card>
 
       {/* View Modal */}
       <Modal
         isOpen={isViewModalOpen}
-        onClose={() => {
-          setIsViewModalOpen(false)
-          setSelectedSetting(null)
-        }}
+        onClose={handleCloseModal}
         title="Print Setting Details"
         size="lg"
+        footer={
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={handleCloseModal}>
+              Close
+            </Button>
+          </div>
+        }
       >
         {selectedSetting && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
               <div>
-                <label className="block text-sm font-medium text-gray-700">ID</label>
-                <p className="mt-1 text-sm text-gray-900 font-semibold">{selectedSetting.id}</p>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Machine</label>
-                <p className="mt-1 text-sm text-gray-900">{selectedSetting.machine}</p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Print Type</label>
-              <p className="mt-1 text-sm text-gray-900">{selectedSetting.printType}</p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Material Size Limits (cm)</label>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Max:</span>
-                    <span className="font-medium">{selectedSetting.maxMaterialSize.width} × {selectedSetting.maxMaterialSize.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Min:</span>
-                    <span className="font-medium">{selectedSetting.minMaterialSize.width} × {selectedSetting.minMaterialSize.length}</span>
-                  </div>
+                <h3 className="text-lg font-semibold text-gray-900">{selectedSetting.id}</h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge variant="info">{selectedSetting.machine}</Badge>
+                  <Badge variant="primary">{selectedSetting.printType}</Badge>
                 </div>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Print Size Limits (cm)</label>
-                <div className="p-3 bg-gray-50 rounded-lg">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-sm text-gray-600">Max:</span>
-                    <span className="font-medium">{selectedSetting.maxPrintSize.width} × {selectedSetting.maxPrintSize.length}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Min:</span>
-                    <span className="font-medium">{selectedSetting.minPrintSize.width} × {selectedSetting.minPrintSize.length}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Price</label>
-              <p className="mt-1 text-2xl font-bold text-green-600">
-                {formatCurrency(selectedSetting.price)}
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">Status</label>
               <Badge variant={selectedSetting.status === 'active' ? 'success' : 'danger'}>
                 {selectedSetting.status}
               </Badge>
             </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card className="p-4 border-l-4 border-blue-500">
+                <h4 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+                  <CustomIcon icon="mdi:ruler-square" className="w-4 h-4" />
+                  Material Size Limits (cm)
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Max Size:</span>
+                    <span className="font-bold text-gray-900">
+                      {selectedSetting.maxMaterialSize.width} × {selectedSetting.maxMaterialSize.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Min Size:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedSetting.minMaterialSize.width} × {selectedSetting.minMaterialSize.length}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-4 border-l-4 border-green-500">
+                <h4 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+                  <CustomIcon icon="mdi:printer" className="w-4 h-4" />
+                  Print Size Limits (cm)
+                </h4>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Max Print:</span>
+                    <span className="font-bold text-gray-900">
+                      {selectedSetting.maxPrintSize.width} × {selectedSetting.maxPrintSize.length}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">Min Print:</span>
+                    <span className="font-medium text-gray-900">
+                      {selectedSetting.minPrintSize.width} × {selectedSetting.minPrintSize.length}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            <Card className="p-4 border-l-4 border-amber-500">
+              <h4 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+                <CustomIcon icon="mdi:cash" className="w-4 h-4" />
+                Price Information
+              </h4>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-gray-600">Print Price:</span>
+                  <span className="text-2xl font-bold text-green-600">
+                    {formatCurrency(selectedSetting.price)}
+                  </span>
+                </div>
+                <div className="text-sm text-gray-500">
+                  Price is per sheet/impression for this machine and print type combination.
+                </div>
+              </div>
+            </Card>
           </div>
         )}
       </Modal>
@@ -463,23 +653,15 @@ export default function PrintSettingsPage() {
       {/* Create/Edit Modal */}
       <Modal
         isOpen={isEditModalOpen || isCreateModalOpen}
-        onClose={() => {
-          setIsEditModalOpen(false)
-          setIsCreateModalOpen(false)
-          setSelectedSetting(null)
-        }}
+        onClose={handleCloseModal}
         title={selectedSetting ? 'Edit Print Setting' : 'Add Print Setting'}
-        size="lg"
+        size="xl"
         footer={
           <div className="flex justify-end gap-3">
             <Button
               variant="outline"
-              onClick={() => {
-                setIsEditModalOpen(false)
-                setIsCreateModalOpen(false)
-                setSelectedSetting(null)
-              }}
-              disabled={loading}
+              onClick={handleCloseModal}
+              disabled={isPosting}
             >
               Cancel
             </Button>
@@ -487,136 +669,193 @@ export default function PrintSettingsPage() {
               variant="primary"
               onClick={() => {
                 const formData = {
-                  machine: document.getElementById('machine').value,
-                  printType: document.getElementById('printType').value,
-                  maxMaterialWidth: parseFloat(document.getElementById('maxMaterialWidth').value),
-                  maxMaterialLength: parseFloat(document.getElementById('maxMaterialLength').value),
-                  minMaterialWidth: parseFloat(document.getElementById('minMaterialWidth').value),
-                  minMaterialLength: parseFloat(document.getElementById('minMaterialLength').value),
-                  maxPrintWidth: parseFloat(document.getElementById('maxPrintWidth').value),
-                  maxPrintLength: parseFloat(document.getElementById('maxPrintLength').value),
-                  minPrintWidth: parseFloat(document.getElementById('minPrintWidth').value),
-                  minPrintLength: parseFloat(document.getElementById('minPrintLength').value),
-                  price: parseFloat(document.getElementById('price').value)
+                  machine: (document.getElementById('machine') as HTMLSelectElement).value,
+                  printType: (document.getElementById('printType') as HTMLSelectElement).value,
+                  maxMaterialWidth: parseFloat((document.getElementById('maxMaterialWidth') as HTMLInputElement).value),
+                  maxMaterialLength: parseFloat((document.getElementById('maxMaterialLength') as HTMLInputElement).value),
+                  minMaterialWidth: parseFloat((document.getElementById('minMaterialWidth') as HTMLInputElement).value),
+                  minMaterialLength: parseFloat((document.getElementById('minMaterialLength') as HTMLInputElement).value),
+                  maxPrintWidth: parseFloat((document.getElementById('maxPrintWidth') as HTMLInputElement).value),
+                  maxPrintLength: parseFloat((document.getElementById('maxPrintLength') as HTMLInputElement).value),
+                  minPrintWidth: parseFloat((document.getElementById('minPrintWidth') as HTMLInputElement).value),
+                  minPrintLength: parseFloat((document.getElementById('minPrintLength') as HTMLInputElement).value),
+                  price: parseFloat((document.getElementById('price') as HTMLInputElement).value)
                 }
                 handleSave(formData)
               }}
-              loading={loading}
-              disabled={loading}
+              loading={isPosting}
+              disabled={isPosting}
             >
-              {loading ? 'Saving...' : selectedSetting ? 'Update' : 'Create'}
+              {isPosting ? 'Saving...' : selectedSetting ? 'Update' : 'Create'}
             </Button>
           </div>
         }
       >
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Machine *"
-              id="machine"
-              value={selectedSetting?.machine || ''}
-              options={machineTypes.map(machine => ({ value: machine, label: machine }))}
-              required
-            />
-            <Select
-              label="Print Type *"
-              id="printType"
-              value={selectedSetting?.printType || ''}
-              options={printTypes.map(type => ({ value: type, label: type }))}
-              required
-            />
+        <div className="space-y-6">
+          {/* Basic Info Section */}
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+              <CustomIcon icon="mdi:information-outline" className="w-5 h-5" />
+              Basic Information
+            </h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Select
+                label="Machine *"
+                id="machine"
+                value={selectedSetting?.machine || ''}
+                onChange={(e) => {}}
+                options={machineTypes.map(machine => ({ value: machine, label: machine }))}
+                required
+                disabled={isPosting}
+              />
+              <Select
+                label="Print Type *"
+                id="printType"
+                value={selectedSetting?.printType || ''}
+                onChange={(e) => {}}
+                options={printTypes.map(type => ({ value: type, label: type }))}
+                required
+                disabled={isPosting}
+              />
+            </div>
+
+            <div className="mt-4">
+              <Input
+                label="Price (IDR) *"
+                id="price"
+                type="number"
+                defaultValue={selectedSetting?.price || 0}
+                placeholder="Enter price"
+                required
+                disabled={isPosting}
+              />
+            </div>
           </div>
 
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Material Size Limits (cm)</h3>
+          {/* Material Size Section */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <CustomIcon icon="mdi:ruler-square" className="w-5 h-5" />
+              Material Size Limits (cm)
+            </h3>
+            
             <div className="grid grid-cols-2 gap-4">
               <Input
                 label="Max Width"
                 id="maxMaterialWidth"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.maxMaterialSize.width || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
               <Input
                 label="Max Length"
                 id="maxMaterialLength"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.maxMaterialSize.length || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-2">
               <Input
                 label="Min Width"
                 id="minMaterialWidth"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.minMaterialSize.width || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
               <Input
                 label="Min Length"
                 id="minMaterialLength"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.minMaterialSize.length || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
             </div>
           </div>
 
-          <div className="border-t pt-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-3">Print Size Limits (cm)</h3>
+          {/* Print Size Section */}
+          <div className="border-t pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <CustomIcon icon="mdi:printer" className="w-5 h-5" />
+              Print Size Limits (cm)
+            </h3>
+            
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Max Width"
+                label="Max Print Width"
                 id="maxPrintWidth"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.maxPrintSize.width || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
               <Input
-                label="Max Length"
+                label="Max Print Length"
                 id="maxPrintLength"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.maxPrintSize.length || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-2">
               <Input
-                label="Min Width"
+                label="Min Print Width"
                 id="minPrintWidth"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.minPrintSize.width || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
               <Input
-                label="Min Length"
+                label="Min Print Length"
                 id="minPrintLength"
                 type="number"
+                step="0.1"
                 defaultValue={selectedSetting?.minPrintSize.length || 0}
                 placeholder="0"
-                step="0.1"
+                disabled={isPosting}
               />
             </div>
           </div>
 
-          <div>
-            <Input
-              label="Price *"
-              id="price"
-              type="number"
-              defaultValue={selectedSetting?.price || 0}
-              placeholder="0"
-              required
-            />
-          </div>
+          {/* Preview Section */}
+          {(isEditModalOpen || isCreateModalOpen) && (
+            <Card className="p-4 bg-blue-50 border-blue-200">
+              <h4 className="text-sm font-medium text-blue-900 mb-3 flex items-center gap-2">
+                <CustomIcon icon="mdi:eye" className="w-4 h-4" />
+                Preview
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-blue-600">Material Size:</span>
+                  <p className="font-medium">
+                    Max: {selectedSetting?.maxMaterialSize.width || 0}×{selectedSetting?.maxMaterialSize.length || 0}cm
+                  </p>
+                  <p className="text-gray-600">
+                    Min: {selectedSetting?.minMaterialSize.width || 0}×{selectedSetting?.minMaterialSize.length || 0}cm
+                  </p>
+                </div>
+                <div>
+                  <span className="text-blue-600">Print Size:</span>
+                  <p className="font-medium">
+                    Max: {selectedSetting?.maxPrintSize.width || 0}×{selectedSetting?.maxPrintSize.length || 0}cm
+                  </p>
+                  <p className="text-gray-600">
+                    Min: {selectedSetting?.minPrintSize.width || 0}×{selectedSetting?.minPrintSize.length || 0}cm
+                  </p>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
       </Modal>
     </div>
