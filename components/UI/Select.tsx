@@ -1,67 +1,66 @@
-'use client'
-//  components/UI/Select.tsx
-import { Icon } from '@iconify/react'
-
-interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string
+// components/UI/Select.tsx
+interface SelectProps {
+  value: string
+  onChange: (e: React.ChangeEvent<HTMLSelectElement>) => void
+  options: Array<{ value: string; label: string }>
+  placeholder?: string
+  required?: boolean
+  disabled?: boolean
   error?: string
-  options: Array<{
-    value: string
-    label: string
-  }>
-  leftIcon?: string
-  helperText?: string
-  containerClass?: string
+  className?: string
 }
 
 export default function Select({
-  label,
-  error,
+  value,
+  onChange,
   options,
-  leftIcon,
-  helperText,
-  containerClass = '',
-  className = '',
-  ...props
+  placeholder,
+  required,
+  disabled,
+  error,
+  className = ''
 }: SelectProps) {
+  // Filter untuk menghilangkan duplikat value kosong
+  const uniqueOptions = options.reduce((acc, option) => {
+    // Skip jika value sudah ada atau value kosong duplikat
+    if (acc.some(item => item.value === option.value && option.value === '')) {
+      return acc
+    }
+    return [...acc, option]
+  }, [] as Array<{ value: string; label: string }>)
+
   return (
-    <div className={containerClass}>
-      {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          {label}
-        </label>
-      )}
-      <div className="relative">
-        {leftIcon && (
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Icon icon={leftIcon} className="w-5 h-5 text-gray-400" />
-          </div>
+    <div className="w-full">
+      <select
+        value={value}
+        onChange={onChange}
+        disabled={disabled}
+        required={required}
+        className={`
+          w-full px-3 py-2 border rounded-md shadow-sm 
+          focus:ring-blue-500 focus:border-blue-500 
+          ${error ? 'border-red-500' : 'border-gray-300'}
+          ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}
+          text-gray-600
+          ${className}
+        `}
+      >
+        {placeholder && (
+          <option value="" disabled={required}>
+            {placeholder}
+          </option>
         )}
-        <select
-          className={`
-            w-full px-4 py-2.5 border rounded-xl
-            focus:ring-2 focus:ring-blue-500 focus:border-blue-500
-            appearance-none bg-white
-            ${leftIcon ? 'pl-10' : ''}
-            ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300'}
-            ${className}
-          `}
-          {...props}
-        >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-          <Icon icon="mdi:chevron-down" className="w-5 h-5 text-gray-400" />
-        </div>
-      </div>
-      {(error || helperText) && (
-        <p className={`mt-1 text-sm ${error ? 'text-red-600' : 'text-gray-500'}`}>
-          {error || helperText}
-        </p>
+        {uniqueOptions.map((option) => (
+          <option 
+            key={`${option.value}-${option.label}`} // Key yang unik
+            value={option.value}
+          >
+            {option.label}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <p className="text-xs text-red-600 mt-1">{error}</p>
       )}
     </div>
   )

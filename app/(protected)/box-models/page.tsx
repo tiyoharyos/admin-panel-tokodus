@@ -1009,7 +1009,6 @@ export default function BoxModelsPage() {
             <TableRow key={model.id} hoverable>
               <TableCell>
                 <div className="font-medium text-blue-600">{model.kode}</div>
-                <div className="text-xs text-gray-500">ID: {model.id}</div>
               </TableCell>
               <TableCell>
                 <div className="font-medium text-gray-900">{model.namaModel}</div>

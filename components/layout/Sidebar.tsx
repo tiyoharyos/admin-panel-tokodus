@@ -70,6 +70,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         { name: 'Print Settings', path: '/print-settings' },
         { name: 'Sheet Settings', path: '/sheet-settings' },
         { name: 'Flute Settings', path: '/flute-settings' },
+        { name: 'Index Settings', path: '/index-sheet' },
       ]
     }
   ]

@@ -7,13 +7,12 @@ import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Badge from '@/components/UI/Badge'
 import Input from '@/components/UI/Input'
-import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
 import CustomIcon from '@/components/UI/Icon'
 import SweetAlert from '@/components/UI/SweetAlert'
 import { Table, TableRow, TableCell } from '@/components/UI/Table'
 
-export default function FluteSettingsPage() {
+export default function FlutesPage() {
   const router = useRouter()
   const [flutes, setFlutes] = useState([])
   const [loading, setLoading] = useState(true)
@@ -26,85 +25,181 @@ export default function FluteSettingsPage() {
   
   // State untuk modal Add
   const [addFormData, setAddFormData] = useState({
-    name: '',
-    description: '',
-    status: '1'
+    code: '',
+    name: ''
   })
 
   // Stats untuk dashboard
   const [stats, setStats] = useState({
     totalFlutes: 0,
-    activeFlutes: 0,
-    inactiveFlutes: 0
+    bFlute: 0,
+    cFlute: 0,
+    cbFlute: 0,
+    ebFlute: 0,
+    others: 0
   })
 
+  // Mapping flute type untuk auto-generate name
+  const fluteTypeMap = {
+    'B': 'B-Flute',
+    'C': 'C-Flute',
+    'CB': 'CB-Flute',
+    'BC': 'BC-Flute',
+    'EB': 'EB-Flute',
+    'E': 'E-Flute',
+    'A': 'A-Flute',
+    'F': 'F-Flute'
+  }
+
   // ===== FETCH DATA =====
-const fetchFlutes = async () => {
-  try {
-    setLoading(true)
-    setError(null)
-    
-    console.log('🔍 Fetching from:', 'http://192.168.18.14:8080/Api_TokoDus/Admin/Flutes/Flutes')
-    
-    const response = await axios.get('Admin/Flutes/Flutes', {
-      headers: {
-        'ngrok-skip-browser-warning': 'true'
-      }
-    })
-    
-    console.log('✅ Response:', response)
-    console.log('📊 Response data:', response.data)
-    
-    if (response.data && response.data.status === 200) {
-      console.log('🎯 Status 200 OK')
+  const fetchFlutes = async () => {
+    try {
+      setLoading(true)
+      setError(null)
       
-      if (Array.isArray(response.data.data)) {
-        console.log('📦 Data array found, length:', response.data.data.length)
-        
-        const processedFlutes = response.data.data.map(item => ({
-          id: item.id?.toString() || '',
-          name: item.name || '',
-          description: item.description || '',
-          status: item.status === '1' || item.status === 1,
-          status_bm: item.status?.toString(),
-          createdAt: item.created_at || new Date().toISOString().split('T')[0],
-          updatedAt: item.updated_at || new Date().toISOString().split('T')[0]
-        }))
-        
-        console.log('🔄 Processed flutes:', processedFlutes)
-        setFlutes(processedFlutes)
-        
-        // Hitung stats
-        const totalFlutes = processedFlutes.length
-        const activeFlutes = processedFlutes.filter(m => m.status).length
-        const inactiveFlutes = totalFlutes - activeFlutes
-        
-        setStats({
-          totalFlutes,
-          activeFlutes,
-          inactiveFlutes
-        })
-        
+      const response = await axios.get('/Admin/Flutes/Flutes', {
+        headers: {
+          'ngrok-skip-browser-warning': 'true'
+        }
+      })
+      
+      console.log('====== FETCH FLUTES RESPONSE ======')
+      console.log('Response:', response)
+      console.log('Response data:', response.data)
+      console.log('Response status:', response.data?.status)
+      console.log('===================================')
+      
+      // Handle berbagai format response
+      if (response.data) {
+        // Case 1: Response dengan status 200 dan data array
+        if (response.data.status === 200 && Array.isArray(response.data.data)) {
+          const processedFlutes = response.data.data.map(item => ({
+            id: item.id_f?.toString() || '',
+            code: item.code || '',
+            name: item.name || '',
+            createdAt: item.created_at || new Date().toISOString().split('T')[0],
+            updatedAt: item.updated_at || new Date().toISOString().split('T')[0]
+          }))
+          
+          setFlutes(processedFlutes)
+          
+          // Hitung stats
+          const totalFlutes = processedFlutes.length
+          const bFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'B').length
+          const cFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'C').length
+          const cbFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'CB' || f.code.toUpperCase() === 'BC').length
+          const ebFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'EB' || f.code.toUpperCase() === 'E').length
+          const others = processedFlutes.filter(f => {
+            const code = f.code.toUpperCase()
+            return !['B', 'C', 'CB', 'BC', 'EB', 'E'].includes(code)
+          }).length
+          
+          setStats({
+            totalFlutes,
+            bFlute,
+            cFlute,
+            cbFlute,
+            ebFlute,
+            others
+          })
+        }
+        // Case 2: Response langsung array
+        else if (Array.isArray(response.data)) {
+          const processedFlutes = response.data.map(item => ({
+            id: item.id_f?.toString() || '',
+            code: item.code || '',
+            name: item.name || '',
+            createdAt: item.created_at || new Date().toISOString().split('T')[0],
+            updatedAt: item.updated_at || new Date().toISOString().split('T')[0]
+          }))
+          
+          setFlutes(processedFlutes)
+          
+          const totalFlutes = processedFlutes.length
+          const bFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'B').length
+          const cFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'C').length
+          const cbFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'CB' || f.code.toUpperCase() === 'BC').length
+          const ebFlute = processedFlutes.filter(f => f.code.toUpperCase() === 'EB' || f.code.toUpperCase() === 'E').length
+          const others = processedFlutes.filter(f => {
+            const code = f.code.toUpperCase()
+            return !['B', 'C', 'CB', 'BC', 'EB', 'E'].includes(code)
+          }).length
+          
+          setStats({
+            totalFlutes,
+            bFlute,
+            cFlute,
+            cbFlute,
+            ebFlute,
+            others
+          })
+        }
+        // Case 3: Response kosong tapi success
+        else if (response.data.status === 200 && (!response.data.data || response.data.data.length === 0)) {
+          setFlutes([])
+          setStats({
+            totalFlutes: 0,
+            bFlute: 0,
+            cFlute: 0,
+            cbFlute: 0,
+            ebFlute: 0,
+            others: 0
+          })
+        }
+        // Case 4: Response dengan message "success" atau text lain (data kosong)
+        else if (typeof response.data === 'string' || response.data.message === 'success') {
+          console.log('⚠️ Data kosong atau response tidak standar')
+          setFlutes([])
+          setStats({
+            totalFlutes: 0,
+            bFlute: 0,
+            cFlute: 0,
+            cbFlute: 0,
+            ebFlute: 0,
+            others: 0
+          })
+        }
+        // Case 5: Format tidak dikenali
+        else {
+          console.warn('⚠️ Format response tidak dikenali:', response.data)
+          setFlutes([])
+          setStats({
+            totalFlutes: 0,
+            bFlute: 0,
+            cFlute: 0,
+            cbFlute: 0,
+            ebFlute: 0,
+            others: 0
+          })
+        }
       } else {
-        console.warn('⚠️ Data is not an array:', response.data.data)
         setFlutes([])
       }
-    } else {
-      const errorMsg = response.data?.message || 'Format response tidak sesuai'
-      console.error('❌ Response status not 200:', response.data)
-      setError(errorMsg)
+      
+    } catch (err) {
+      console.error('❌ Error fetching flutes:', err)
+      console.error('❌ Error response:', err.response?.data)
+      
+      // Jika error 404 atau data tidak ditemukan, set empty array (bukan error)
+      if (err.response?.status === 404 || err.response?.status === 204) {
+        console.log('ℹ️ Data tidak ditemukan, menampilkan table kosong')
+        setFlutes([])
+        setStats({
+          totalFlutes: 0,
+          bFlute: 0,
+          cFlute: 0,
+          cbFlute: 0,
+          ebFlute: 0,
+          others: 0
+        })
+        setError(null) // Clear error
+      } else {
+        setError(err.response?.data?.message || 'Tidak bisa connect ke server')
+      }
+    } finally {
+      setLoading(false)
     }
-    
-  } catch (err) {
-    console.error('❌ Error fetching flutes:', err)
-    console.error('❌ Error response:', err.response)
-    console.error('❌ Error message:', err.message)
-    
-    setError(err.response?.data?.message || err.message || 'Tidak bisa connect ke server')
-  } finally {
-    setLoading(false)
   }
-}
 
   useEffect(() => {
     fetchFlutes()
@@ -117,47 +212,92 @@ const fetchFlutes = async () => {
 
   const resetAddState = () => {
     setAddFormData({
-      name: '',
-      description: '',
-      status: '1'
+      code: '',
+      name: ''
+    })
+  }
+
+  // ===== AUTO GENERATE NAME =====
+  const handleCodeChange = (value) => {
+    const upperCode = value.toUpperCase()
+    const autoName = fluteTypeMap[upperCode] || `${upperCode}-Flute`
+    
+    setAddFormData({
+      code: upperCode,
+      name: autoName
+    })
+  }
+
+  const handleEditCodeChange = (value) => {
+    const upperCode = value.toUpperCase()
+    const autoName = fluteTypeMap[upperCode] || `${upperCode}-Flute`
+    
+    setEditingItem({
+      ...editingItem,
+      code: upperCode,
+      name: autoName
     })
   }
 
   // ===== HANDLERS =====
   const handleAddClick = () => {
-    resetAddState()
+    setAddFormData({
+      code: '',
+      name: ''
+    })
     setShowAddModal(true)
   }
 
   const handleAddSave = async () => {
-    if (!addFormData.name.trim()) {
-      SweetAlert.error('Validasi Error', 'Nama flute tidak boleh kosong')
+    if (!addFormData.code.trim()) {
+      SweetAlert.error('Validasi Error', 'Kode tidak boleh kosong')
       return
     }
     
-    if (!addFormData.description.trim()) {
-      SweetAlert.error('Validasi Error', 'Deskripsi tidak boleh kosong')
+    if (!addFormData.name.trim()) {
+      SweetAlert.error('Validasi Error', 'Nama tidak boleh kosong')
+      return
+    }
+    
+    // Check if code already exists
+    const isDuplicate = flutes.some(
+      flute => flute.code.toUpperCase() === addFormData.code.trim().toUpperCase()
+    )
+    
+    if (isDuplicate) {
+      SweetAlert.error('Kode Sudah Ada!', `Kode "${addFormData.code}" sudah terdaftar. Gunakan kode lain.`)
       return
     }
     
     try {
       setIsPosting(true)
       
-      const postData = {
-        name: addFormData.name.trim(),
-        description: addFormData.description.trim(),
-        status: addFormData.status
+      // Data yang akan dikirim
+      const requestData = {
+        code: addFormData.code.trim(),
+        name: addFormData.name.trim()
       }
       
-      const response = await axios.post('Admin/Flutes/FlutesAdd', postData, {
+      console.log('====== ADD FLUTE REQUEST ======')
+      console.log('URL:', '/Admin/Flutes/FlutesAdd')
+      console.log('Method:', 'POST')
+      console.log('Data:', requestData)
+      console.log('================================')
+      
+      const response = await axios.post('/Admin/Flutes/FlutesAdd', requestData, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         }
       })
       
+      console.log('====== ADD FLUTE RESPONSE ======')
+      console.log('Status:', response.status)
+      console.log('Data:', response.data)
+      console.log('================================')
+      
       if (response.data && response.data.status === 200) {
-        SweetAlert.success('Berhasil!', 'Flute berhasil ditambahkan!')
+        await SweetAlert.success('Berhasil!', 'Flute berhasil ditambahkan!')
         setShowAddModal(false)
         resetAddState()
         await fetchFlutes()
@@ -166,8 +306,36 @@ const fetchFlutes = async () => {
         SweetAlert.error('Gagal!', errorMessage)
       }
     } catch (err) {
-      console.error('❌ Error saat POST:', err)
-      SweetAlert.error('Error!', err.response?.data?.message || 'Terjadi kesalahan saat menyimpan data')
+      console.error('====== ADD FLUTE ERROR ======')
+      console.error('Error:', err)
+      console.error('Response:', err.response)
+      console.error('Response Data:', err.response?.data)
+      console.error('Response Status:', err.response?.status)
+      console.error('Request Config:', err.config)
+      console.error('============================')
+      
+      let errorMessage = 'Terjadi kesalahan saat menyimpan data'
+      
+      // Check for duplicate entry error
+      if (err.response?.status === 500) {
+        const responseText = err.response?.data
+        if (typeof responseText === 'string' && responseText.includes('Duplicate entry')) {
+          // Extract the duplicate key from error message
+          const match = responseText.match(/Duplicate entry '([^']+)'/)
+          const duplicateValue = match ? match[1] : addFormData.code
+          errorMessage = `Kode "${duplicateValue}" sudah terdaftar. Silakan gunakan kode lain.`
+        } else if (err.response?.data?.message) {
+          errorMessage = 'Error server: ' + err.response.data.message
+        } else {
+          errorMessage = 'Error server: Gagal menyimpan Flute'
+        }
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message
+      } else if (err.response?.status === 400) {
+        errorMessage = 'Validasi gagal: ' + (err.response?.data?.message || 'Beberapa data wajib belum diisi')
+      }
+      
+      SweetAlert.error('Error!', errorMessage)
     } finally {
       setIsPosting(false)
     }
@@ -175,40 +343,28 @@ const fetchFlutes = async () => {
 
   const handleEditClick = async (item) => {
     try {
-      // Fetch data flute by ID
-      const response = await axios.get(`Admin/Flutes/FlutesByid/${item.id}`, {
+      const response = await axios.get(`/Admin/Flutes/FlutesByid/${item.id}`, {
         headers: {
           'ngrok-skip-browser-warning': 'true'
         }
       })
       
       if (response.data && response.data.status === 200 && response.data.data) {
-        const fluteData = response.data.data
-        
+        const data = response.data.data
         setEditingItem({
-          id: fluteData.id?.toString() || '',
-          name: fluteData.name || '',
-          description: fluteData.description || '',
-          status_bm: fluteData.status?.toString() || '1',
-          status: fluteData.status === '1' || fluteData.status === 1
+          id: data.id_f?.toString() || item.id,
+          code: data.code || item.code,
+          name: data.name || item.name
         })
+        setShowEditModal(true)
       } else {
-        // Jika tidak ditemukan, gunakan data dari item
-        setEditingItem({ 
-          ...item,
-          status_bm: item.status ? '1' : '0'
-        })
+        setEditingItem({ ...item })
+        setShowEditModal(true)
       }
       
-      setShowEditModal(true)
-      
     } catch (err) {
-      console.error('❌ Error loading flute data for edit:', err)
-      // Jika error, tetap tampilkan modal dengan data yang ada
-      setEditingItem({ 
-        ...item,
-        status_bm: item.status ? '1' : '0'
-      })
+      console.error('❌ Error loading flute for edit:', err)
+      setEditingItem({ ...item })
       setShowEditModal(true)
     }
   }
@@ -216,61 +372,92 @@ const fetchFlutes = async () => {
   const handleEditSave = async () => {
     if (!editingItem) return
     
-    if (!editingItem.name.trim()) {
-      SweetAlert.error('Validasi Error', 'Nama flute tidak boleh kosong')
+    if (!editingItem.code.trim()) {
+      SweetAlert.error('Validasi Error', 'Kode tidak boleh kosong')
       return
     }
     
-    if (!editingItem.description?.trim()) {
-      SweetAlert.error('Validasi Error', 'Deskripsi tidak boleh kosong')
+    if (!editingItem.name.trim()) {
+      SweetAlert.error('Validasi Error', 'Nama tidak boleh kosong')
+      return
+    }
+    
+    // Check if new code already exists (excluding current item)
+    const isDuplicate = flutes.some(
+      flute => flute.id !== editingItem.id && 
+               flute.code.toUpperCase() === editingItem.code.trim().toUpperCase()
+    )
+    
+    if (isDuplicate) {
+      SweetAlert.error('Kode Sudah Ada!', `Kode "${editingItem.code}" sudah digunakan oleh flute lain. Gunakan kode lain.`)
       return
     }
     
     try {
       setIsPosting(true)
       
-      const putData = {
-        name: editingItem.name.trim(),
-        description: editingItem.description.trim(),
-        status: editingItem.status_bm
+      // Data yang akan dikirim
+      const requestData = {
+        code: editingItem.code.trim(),
+        name: editingItem.name.trim()
       }
       
-      const response = await axios.put(`Admin/Flutes/FlutesEdit/${editingItem.id}`, putData, {
+      console.log('====== EDIT FLUTE REQUEST ======')
+      console.log('URL:', `/Admin/Flutes/FlutesEdit/${editingItem.id}`)
+      console.log('Method:', 'PUT')
+      console.log('Data:', requestData)
+      console.log('================================')
+      
+      const response = await axios.put(`/Admin/Flutes/FlutesEdit/${editingItem.id}`, requestData, {
         headers: {
           'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
         }
       })
       
+      console.log('====== EDIT FLUTE RESPONSE ======')
+      console.log('Status:', response.status)
+      console.log('Data:', response.data)
+      console.log('================================')
+      
       if (response.data && response.data.status === 200) {
-        SweetAlert.success('Berhasil!', 'Flute berhasil diperbarui!')
-        
-        try {
-          await fetchFlutes()
-        } catch (fetchErr) {
-          console.error('⚠️ Error refreshing data:', fetchErr)
-          SweetAlert.info('Info', 'Data berhasil disimpan, refresh halaman untuk melihat perubahan terbaru.')
-        }
-        
+        await SweetAlert.success('Berhasil!', 'Flute berhasil diperbarui!')
         setShowEditModal(false)
         resetEditState()
-        
+        await fetchFlutes()
       } else {
         const errorMsg = response.data?.message || 'Gagal mengupdate data'
         SweetAlert.error('Gagal!', errorMsg)
       }
       
     } catch (err) {
-      console.error('❌ Error updating flute:', err)
+      console.error('====== EDIT FLUTE ERROR ======')
+      console.error('Error:', err)
+      console.error('Response:', err.response)
+      console.error('Response Data:', err.response?.data)
+      console.error('Response Status:', err.response?.status)
+      console.error('Request Config:', err.config)
+      console.error('============================')
       
       let errorMessage = 'Terjadi kesalahan saat mengupdate data'
       
-      if (err.response?.data?.message) {
+      // Check for duplicate entry error
+      if (err.response?.status === 500) {
+        const responseText = err.response?.data
+        if (typeof responseText === 'string' && responseText.includes('Duplicate entry')) {
+          // Extract the duplicate key from error message
+          const match = responseText.match(/Duplicate entry '([^']+)'/)
+          const duplicateValue = match ? match[1] : editingItem.code
+          errorMessage = `Kode "${duplicateValue}" sudah digunakan oleh flute lain. Silakan gunakan kode lain.`
+        } else if (err.response?.data?.message) {
+          errorMessage = 'Error server: ' + err.response.data.message
+        } else {
+          errorMessage = 'Error server: Gagal mengupdate Flute'
+        }
+      } else if (err.response?.data?.message) {
         errorMessage = err.response.data.message
-      } else if (err.response?.data?.error) {
-        errorMessage = err.response.data.error
-      } else if (err.message) {
-        errorMessage = err.message
+      } else if (err.response?.status === 400) {
+        errorMessage = 'Validasi gagal: ' + (err.response?.data?.message || 'Beberapa data wajib belum diisi')
       }
       
       SweetAlert.error('Error!', errorMessage)
@@ -285,64 +472,34 @@ const fetchFlutes = async () => {
     
     if (result.isConfirmed) {
       try {
-        const response = await axios.delete(`Admin/Flutes/FlutesDel/${id}`, {
+        console.log('====== DELETE FLUTE REQUEST ======')
+        console.log('URL:', `/Admin/Flutes/FlutesDel/${id}`)
+        console.log('Method:', 'DELETE')
+        console.log('==================================')
+        
+        const response = await axios.delete(`/Admin/Flutes/FlutesDel/${id}`, {
           headers: {
             'ngrok-skip-browser-warning': 'true'
           }
         })
         
+        console.log('====== DELETE FLUTE RESPONSE ======')
+        console.log('Status:', response.status)
+        console.log('Data:', response.data)
+        console.log('===================================')
+        
         if (response.data && response.data.status === 200) {
-          SweetAlert.success('Dihapus!', `Flute "${name}" berhasil dihapus!`)
+          await SweetAlert.success('Dihapus!', `Flute "${name}" berhasil dihapus!`)
           await fetchFlutes()
         } else {
           SweetAlert.error('Gagal!', response.data?.message || 'Gagal menghapus Flute')
         }
       } catch (err) {
-        console.error('❌ Error:', err)
+        console.error('====== DELETE FLUTE ERROR ======')
+        console.error('Error:', err)
+        console.error('Response:', err.response?.data)
+        console.error('================================')
         SweetAlert.error('Error!', err.response?.data?.message || 'Terjadi kesalahan saat menghapus data')
-      }
-    }
-  }
-
-  const toggleStatus = async (item) => {
-    const result = await SweetAlert.confirmAction(
-      'Ubah Status?',
-      `Apakah Anda yakin ingin ${item.status ? 'menonaktifkan' : 'mengaktifkan'} flute ini?`
-    )
-    
-    if (result.isConfirmed) {
-      try {
-        const newStatus = !item.status
-        const statusValue = newStatus ? '1' : '0'
-        
-        const response = await axios.put(`Admin/Flutes/FlutesEdit/${item.id}`, {
-          name: item.name,
-          description: item.description,
-          status: statusValue
-        }, {
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          }
-        })
-        
-        if (response.data && response.data.status === 200) {
-          const statusText = newStatus ? 'diaktifkan' : 'dinonaktifkan'
-          SweetAlert.success('Berhasil!', `Flute "${item.name}" berhasil ${statusText}!`)
-          
-          setFlutes(flutes.map(model => 
-            model.id === item.id ? { 
-              ...model, 
-              status: newStatus,
-              status_bm: statusValue
-            } : model
-          ))
-        } else {
-          SweetAlert.error('Gagal!', response.data?.message || 'Gagal mengubah status')
-        }
-      } catch (err) {
-        console.error('❌ Error:', err)
-        SweetAlert.error('Error!', err.response?.data?.message || 'Terjadi kesalahan saat mengubah status')
       }
     }
   }
@@ -403,13 +560,32 @@ const fetchFlutes = async () => {
     </div>
   )
 
+  // ===== GET FLUTE BADGE VARIANT =====
+  const getFluteBadgeVariant = (code) => {
+    const upperCode = code.toUpperCase()
+    switch (upperCode) {
+      case 'B':
+        return 'primary'
+      case 'C':
+        return 'success'
+      case 'CB':
+      case 'BC':
+        return 'warning'
+      case 'EB':
+      case 'E':
+        return 'info'
+      default:
+        return 'gray'
+    }
+  }
+
   // ===== LOADING STATE =====
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
           <CustomIcon icon="mdi:loading" className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Memuat flute settings...</p>
+          <p className="text-gray-600">Memuat flutes...</p>
         </div>
       </div>
     )
@@ -422,9 +598,9 @@ const fetchFlutes = async () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-              FLUTE Settings
+              Flutes
             </h1>
-            <p className="text-gray-600 mt-1">Kelola tipe flute untuk produk</p>
+            <p className="text-gray-600 mt-1">Kelola jenis flute untuk box</p>
           </div>
         </div>
         
@@ -455,9 +631,9 @@ const fetchFlutes = async () => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
-            FLUTE Settings
+            Flutes
           </h1>
-          <p className="text-gray-600 mt-1">Kelola tipe flute untuk produk</p>
+          <p className="text-gray-600 mt-1">Kelola jenis flute untuk box corrugated</p>
         </div>
         
         <Button
@@ -471,55 +647,73 @@ const fetchFlutes = async () => {
       </div>
 
       {/* Stats Cards Grid - Desain Dashboard */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-6">
         <Card className="bg-white">
           <div className="space-y-2">
             <p className="text-sm text-gray-600 flex items-center gap-2">
-              <CustomIcon icon="mdi:layers-triple" className="text-blue-600" />
+              <CustomIcon icon="mdi:layers" className="text-blue-600" />
               Total Flutes
             </p>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold text-gray-900">{stats.totalFlutes.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.totalFlutes}</p>
               <span className="text-sm text-blue-600 font-medium flex items-center">
                 <CustomIcon icon="mdi:chart-box" className="w-4 h-4 mr-1" />
-                {stats.activeFlutes} active
+                types
               </span>
             </div>
-            <p className="text-xs text-gray-500">tipe flute tersedia</p>
+            <p className="text-xs text-gray-500">jenis flute tersedia</p>
           </div>
         </Card>
 
         <Card className="bg-white">
           <div className="space-y-2">
             <p className="text-sm text-gray-600 flex items-center gap-2">
-              <CustomIcon icon="mdi:check-circle" className="text-green-600" />
-              Active Flutes
+              <CustomIcon icon="mdi:alpha-b-box" className="text-blue-600" />
+              B-Flute
             </p>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold text-gray-900">{stats.activeFlutes}</p>
-              <span className="text-sm text-green-600 font-medium flex items-center">
-                <CustomIcon icon="mdi:check" className="w-4 h-4 mr-1" />
-                ready to use
-              </span>
+              <p className="text-2xl font-bold text-gray-900">{stats.bFlute}</p>
             </div>
-            <p className="text-xs text-gray-500">flute aktif</p>
+            <p className="text-xs text-gray-500">ketebalan ~3mm</p>
           </div>
         </Card>
 
         <Card className="bg-white">
           <div className="space-y-2">
             <p className="text-sm text-gray-600 flex items-center gap-2">
-              <CustomIcon icon="mdi:close-circle" className="text-orange-600" />
-              Inactive Flutes
+              <CustomIcon icon="mdi:alpha-c-box" className="text-green-600" />
+              C-Flute
             </p>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold text-gray-900">{stats.inactiveFlutes}</p>
-              <span className="text-sm text-orange-600 font-medium flex items-center">
-                <CustomIcon icon="mdi:pause" className="w-4 h-4 mr-1" />
-                disabled
-              </span>
+              <p className="text-2xl font-bold text-gray-900">{stats.cFlute}</p>
             </div>
-            <p className="text-xs text-gray-500">flute nonaktif</p>
+            <p className="text-xs text-gray-500">ketebalan ~4mm</p>
+          </div>
+        </Card>
+
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <CustomIcon icon="mdi:layers-triple" className="text-orange-600" />
+              CB/BC-Flute
+            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-gray-900">{stats.cbFlute}</p>
+            </div>
+            <p className="text-xs text-gray-500">double wall</p>
+          </div>
+        </Card>
+
+        <Card className="bg-white">
+          <div className="space-y-2">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <CustomIcon icon="mdi:package-variant" className="text-purple-600" />
+              Others
+            </p>
+            <div className="flex items-baseline gap-2">
+              <p className="text-2xl font-bold text-gray-900">{stats.ebFlute + stats.others}</p>
+            </div>
+            <p className="text-xs text-gray-500">E, EB, A, F, dll</p>
           </div>
         </Card>
       </div>
@@ -530,10 +724,10 @@ const fetchFlutes = async () => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <CustomIcon icon="mdi:clipboard-list-outline" className="text-blue-600" />
-              All Flute Types
+              All Flutes
             </h3>
             <p className="text-sm text-gray-600 mt-1">
-              {stats.activeFlutes} active, {stats.inactiveFlutes} inactive
+              {stats.totalFlutes} jenis flute terdaftar
             </p>
           </div>
           <div className="flex gap-2">
@@ -556,7 +750,7 @@ const fetchFlutes = async () => {
         </div>
         
         <Table
-          headers={['ID', 'Nama Flute', 'Deskripsi', 'Status', 'Created At', 'Actions']}
+          headers={['Kode', 'Nama Flute', 'Actions']}
           striped
           hoverable
           className="mb-4"
@@ -564,32 +758,12 @@ const fetchFlutes = async () => {
           {flutes.map((flute) => (
             <TableRow key={flute.id} hoverable>
               <TableCell>
-                <div className="font-medium text-blue-600">#{flute.id}</div>
+                <Badge variant={getFluteBadgeVariant(flute.code)} className="text-lg font-bold">
+                  {flute.code}
+                </Badge>
               </TableCell>
               <TableCell>
                 <div className="font-medium text-gray-900">{flute.name}</div>
-              </TableCell>
-              <TableCell>
-                <div className="text-sm text-gray-600 line-clamp-2">{flute.description || 'No description'}</div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <Badge variant={flute.status ? 'success' : 'danger'}>
-                    {flute.status ? 'Active' : 'Inactive'}
-                  </Badge>
-                  <button
-                    onClick={() => toggleStatus(flute)}
-                    className="text-gray-400 hover:text-gray-600"
-                    title={flute.status ? 'Set inactive' : 'Set active'}
-                  >
-                    <CustomIcon icon="mdi:swap-vertical" className="w-4 h-4" />
-                  </button>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="text-sm text-gray-500">
-                  {new Date(flute.createdAt).toLocaleDateString('id-ID')}
-                </div>
               </TableCell>
               <TableCell>
                 <div className="flex space-x-2">
@@ -618,13 +792,11 @@ const fetchFlutes = async () => {
           ))}
         </Table>
 
-        {flutes.length === 0 && !loading && (
-          <div className="text-center py-8">
-            <CustomIcon icon="mdi:layers-off" className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 mb-1">Belum ada data flute</p>
-            <p className="text-sm text-gray-400 mb-4">
-              Tambahkan flute pertama Anda untuk mulai mengelola
-            </p>
+        {flutes.length === 0 && (
+          <div className="text-center py-12">
+            <CustomIcon icon="mdi:layers-off" className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 mb-2">Belum ada data flute</p>
+            <p className="text-sm text-gray-400 mb-6">Tambahkan flute pertama untuk memulai</p>
             <Button
               variant="primary"
               onClick={handleAddClick}
@@ -635,18 +807,20 @@ const fetchFlutes = async () => {
           </div>
         )}
 
-        <div className="flex justify-between items-center pt-4 border-t border-gray-100">
-          <div className="text-sm text-gray-500">
-            Showing {Math.min(10, flutes.length)} of {flutes.length} flutes
+        {flutes.length > 0 && (
+          <div className="flex justify-between items-center pt-4 border-t border-gray-100">
+            <div className="text-sm text-gray-500">
+              Showing {Math.min(10, flutes.length)} of {flutes.length} flutes
+            </div>
+            <Button
+              variant="link"
+              icon="mdi:export"
+              onClick={() => SweetAlert.info('Export', 'Exporting flutes data...')}
+            >
+              Export Data
+            </Button>
           </div>
-          <Button
-            variant="link"
-            icon="mdi:export"
-            onClick={() => SweetAlert.info('Export', 'Exporting flute data...')}
-          >
-            Export Data
-          </Button>
-        </div>
+        )}
       </Card>
 
       {/* ===== MODAL TAMBAH FLUTE ===== */}
@@ -658,38 +832,49 @@ const fetchFlutes = async () => {
         footer={addModalFooter}
       >
         <div className="space-y-4">
+          <div>
+            <Input
+              label="Kode Flute *"
+              value={addFormData.code}
+              onChange={(e) => handleCodeChange(e.target.value)}
+              placeholder="Contoh: B, C, CB, BC, EB"
+              required
+              helperText="Masukkan kode flute (B, C, CB, BC, EB, E, A, F, dll)"
+              className="text-gray-700 uppercase"
+              maxLength={3}
+            />
+            <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+              <CustomIcon icon="mdi:information" className="w-4 h-4" />
+              Nama akan otomatis terisi berdasarkan kode yang diinput
+            </p>
+          </div>
+
           <Input
             label="Nama Flute *"
             value={addFormData.name}
             onChange={(e) => setAddFormData({ ...addFormData, name: e.target.value })}
-            placeholder="Contoh: Single Flute, Double Flute, dll"
-            className="text-gray-600"
+            placeholder="Contoh: C-Flute"
             required
+            className="text-gray-700"
+            helperText="Nama otomatis terisi, tetapi bisa diubah jika perlu"
           />
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Deskripsi *
-            </label>
-            <textarea
-              value={addFormData.description}
-              onChange={(e) => setAddFormData({ ...addFormData, description: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-2.5 border text-gray-600 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Deskripsi flute..."
-              required
-            />
-          </div>
-
-          <Select
-            label="Status"
-            value={addFormData.status}
-            onChange={(e) => setAddFormData({ ...addFormData, status: e.target.value })}
-            options={[
-              { value: '1', label: 'Active' },
-              { value: '0', label: 'Inactive' }
-            ]}
-          />
+          {addFormData.code && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <CustomIcon icon="mdi:information" className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-1">Preview:</h4>
+                  <p className="text-sm text-blue-700">
+                    Kode: <strong>{addFormData.code}</strong>
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    Nama: <strong>{addFormData.name}</strong>
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
 
@@ -703,55 +888,52 @@ const fetchFlutes = async () => {
       >
         {editingItem && (
           <div className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-lg">
+              <p className="text-sm text-gray-600">
+                ID: <strong className="text-gray-900">{editingItem.id}</strong>
+              </p>
+            </div>
+
+            <div>
+              <Input
+                label="Kode Flute *"
+                value={editingItem.code}
+                onChange={(e) => handleEditCodeChange(e.target.value)}
+                placeholder="Contoh: B, C, CB, BC, EB"
+                required
+                className="text-gray-700 uppercase"
+                maxLength={3}
+                disabled={isPosting}
+              />
+              <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                <CustomIcon icon="mdi:information" className="w-4 h-4" />
+                Nama akan otomatis terisi berdasarkan kode yang diinput
+              </p>
+            </div>
+
             <Input
               label="Nama Flute *"
               value={editingItem.name}
-              onChange={(e) => setEditingItem({
-                ...editingItem,
-                name: e.target.value
-              })}
-              placeholder="Masukkan nama flute"
-              className="text-gray-600"
+              onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+              placeholder="Contoh: C-Flute"
               required
+              className="text-gray-700"
               disabled={isPosting}
             />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Deskripsi *
-              </label>
-              <textarea
-                value={editingItem.description || ''}
-                onChange={(e) => setEditingItem({
-                  ...editingItem,
-                  description: e.target.value
-                })}
-                rows={3}
-                className="w-full px-4 py-2.5 border text-gray-600 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Masukkan deskripsi flute..."
-                disabled={isPosting}
-                required
-              />
-            </div>
-
-            <Select
-              label="Status"
-              value={editingItem.status_bm}
-              onChange={(e) => setEditingItem({
-                ...editingItem,
-                status_bm: e.target.value
-              })}
-              options={[
-                { value: '1', label: 'Active' },
-                { value: '0', label: 'Inactive' }
-              ]}
-              disabled={isPosting}
-            />
-
-            <div className="pt-4 border-t border-gray-200">
-              <p className="text-xs text-gray-500">
-                <strong>Info:</strong> ID: {editingItem.id}
-              </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <CustomIcon icon="mdi:information" className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900 mb-1">Preview Perubahan:</h4>
+                  <p className="text-sm text-blue-700">
+                    Kode: <strong>{editingItem.code}</strong>
+                  </p>
+                  <p className="text-sm text-blue-700">
+                    Nama: <strong>{editingItem.name}</strong>
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         )}
