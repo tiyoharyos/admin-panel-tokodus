@@ -172,9 +172,6 @@ export default function DashboardPage() {
     router.push(`/orders/${orderId}`)
   }
 
-  const handleOrderMaterial = (materialId) => {
-    SweetAlert.info('Order Material', `Ordering material ID: ${materialId}`)
-  }
 
   // Handle New Order
   const handleNewOrderSubmit = async () => {
@@ -499,7 +496,6 @@ export default function DashboardPage() {
               <TableCell>
                 <div className="flex space-x-2">
                   <Button 
-                    size="xs" 
                     variant="ghost"
                     icon="mdi:eye"
                     onClick={() => handleViewOrder(order.id)}
@@ -565,7 +561,6 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Select
-                label="Category *"
                 value={newOrderData.category}
                 onChange={(e) => handleInputChange('category', e.target.value)}
                 options={[
@@ -595,7 +590,6 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
               <Select
-                label="Status *"
                 value={newOrderData.status}
                 onChange={(e) => handleInputChange('status', e.target.value)}
                 options={[
@@ -614,8 +608,6 @@ export default function DashboardPage() {
                 value={newOrderData.notes}
                 onChange={(e) => handleInputChange('notes', e.target.value)}
                 leftIcon="mdi:note-text"
-                multiline
-                rows={3}
               />
             </div>
           </div>

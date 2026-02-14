@@ -1,10 +1,12 @@
+
+// app/(protected)/layout.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Sidebar from '@/components/layout/Sidebar'
 import Header from '@/components/layout/Header'
-import axios from '../../lib/axios'
+
 
 export default function ProtectedLayout({ children }) {
   const pathname = usePathname()
@@ -34,24 +36,6 @@ export default function ProtectedLayout({ children }) {
     checkAuth()
   }, [router, pathname])
 
-  const validateToken = async (token) => {
-    try {
-      const response = await axios.get('/auth/validate', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      })
-      
-      if (response.status === 200) {
-        setIsLoading(false)
-      }
-    } catch (error) {
-      console.error('Token validation failed:', error)
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      throw error
-    }
-  }
 
   const handleToggleSidebar = () => {
     setIsSidebarCollapsed(!isSidebarCollapsed)

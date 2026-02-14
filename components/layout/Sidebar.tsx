@@ -40,37 +40,73 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       name: 'Orders', 
       path: '/orders',
     },
+    // Menu-item yang dikeluarkan dari Settings
     { 
-      icon: 'mdi:draw',
-      name: 'Designs', 
-      path: '/designs'
+      icon: 'mdi:cube-outline',
+      name: 'Box Models', 
+      path: '/box-models'
+    },
+    // { 
+    //   icon: 'mdi:cash-multiple',
+    //   name: 'Price Settings', 
+    //   path: '/price-settings'
+    // },
+    // { 
+    //   icon: 'mdi:flask',
+    //   name: 'Material Formulas', 
+    //   path: '/material-formulas'
+    // },
+    { 
+      icon: 'mdi:printer-settings',
+      name: 'Print Settings', 
+      path: '/print-settings'
+    },
+    // { 
+    //   icon: 'mdi:file-table',
+    //   name: 'Sheet Settings', 
+    //   path: '/sheet-settings'
+    // },
+    // { 
+    //   icon: 'mdi:wave',
+    //   name: 'Flute Settings', 
+    //   path: '/flute-settings'
+    // },
+    // { 
+    //   icon: 'mdi:file-document-outline',
+    //   name: 'Sheet K200', 
+    //   path: '/sheet-k200'
+    // },
+    { 
+      icon: 'mdi:google-circles-group',
+      name: 'Singgleface', 
+      path: '/Singgleface-indext'
     },
     { 
-      icon: 'mdi:package-variant',
-      name: 'Materials', 
-      path: '/materials',
+      icon: 'mdi:alpha-d-box-outline',
+      name: 'Inner Box', 
+      path: '/inner-box'
     },
     { 
-      icon: 'mdi:factory',
-      name: 'Production', 
-      path: '/production',
+      icon: 'mdi:cog-outline',
+      name: 'Pengaturan Costing', 
+      path: '/index_lain'
     },
     { 
-      icon: 'mdi:chart-bar',
-      name: 'Reports', 
-      path: '/reports'
+      icon: 'mdi:file-table',
+      name: 'Shet Settings', 
+      subItems: [
+        { name: 'Sheet', path: '/sheet-settings/sheet-index' },
+        { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
+        { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
+      ]
     },
+    // Settings dengan Duplex di dalamnya
     { 
       icon: 'mdi:cog',
-      name: 'Settings', 
+      name: 'Duplex Settings', 
       subItems: [
-        { name: 'Box Models', path: '/box-models' },
-        { name: 'Price Settings', path: '/price-settings' },
-        { name: 'Material Formulas', path: '/material-formulas' },
-        { name: 'Print Settings', path: '/print-settings' },
-        { name: 'Sheet Settings', path: '/sheet-settings' },
-        { name: 'Flute Settings', path: '/flute-settings' },
-        { name: 'Index Settings', path: '/index-sheet' },
+        { name: 'Rumus DK', path: '/Duplex/Rumus_dk' },
+        { name: 'Rumus DMD', path: '/Duplex/Rumus_dmd' }
       ]
     }
   ]
@@ -92,6 +128,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             })
             submenuMatched = true
           }
+        
         })
       }
     })
@@ -224,7 +261,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     : '0px'
                 }}
               >
-                <ul className="space-y-1 py-2">
+               <ul className="space-y-1 py-2">
                   {nav.subItems?.map((subItem) => {
                     const isSubItemActive = isActive(subItem.path)
                     return (
@@ -277,15 +314,15 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </div>
         ) : (
           <div className="relative bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg p-1 shadow-lg border ">
-                            <Image 
-                              src="/material/Tokodus__1_-removebg-preview.webp" 
-                              alt="Tokodus"
-                              width={140}
-                              height={40}
-                              className="h-10 w-auto object-contain"
-                              priority
-                            />
-                          </div>
+            <Image 
+              src="/material/Tokodus__1_-removebg-preview.webp" 
+              alt="Tokodus"
+              width={140}
+              height={40}
+              className="h-10 w-auto object-contain"
+              priority
+            />
+          </div>
         )}
       </div>
 

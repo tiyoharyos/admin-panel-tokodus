@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from '@/lib/axios';
+import { loginService } from '@/services/auth.service'
+import { setToken } from '@/lib/auth'
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
 import Swal from 'sweetalert2';
@@ -12,75 +13,52 @@ export default function Login() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
 
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('rememberedEmail');
-    const savedPassword = localStorage.getItem('rememberedPassword');
-    const savedRememberMe = localStorage.getItem('rememberMe') === 'true';
-
-    if (savedRememberMe && savedEmail && savedPassword) {
-      setForm({ email: savedEmail, password: savedPassword });
-      setRememberMe(true);
-    }
-  }, []);
 
 
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError('')
+  setLoading(true)
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  try {
+    const data = await loginService(form)
 
-    try {
-      const res = await axios.post('/Auth/login', form);
-      const { access_token } = res.data;
+    setToken(data.access_token)
 
-      localStorage.setItem('token', access_token);
+    await Swal.fire({
+      icon: 'success',
+      title: 'Login Berhasil',
+      text: 'Selamat datang kembali!',
+      showConfirmButton: false,
+      timer: 1500,
+      backdrop: true
+    })
 
-      if (rememberMe) {
-        localStorage.setItem('rememberedEmail', form.email);
-        localStorage.setItem('rememberedPassword', form.password);
-        localStorage.setItem('rememberMe', 'true');
-      } else {
-        localStorage.removeItem('rememberedEmail');
-        localStorage.removeItem('rememberedPassword');
-        localStorage.setItem('rememberMe', 'false');
-      }
+    router.push('/dashboard')
+    router.refresh()
 
+  } catch (err: any) {
+    const message =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      'Login gagal. Periksa email & password.'
 
-      await Swal.fire({
-        icon: 'success',
-        title: 'Login Berhasil',
-        text: 'Selamat datang kembali!',
-        showConfirmButton: false,
-        timer: 1500,
-        backdrop: true
-      });
+    setError(message)
 
-      router.push('/dashboard');
-      router.refresh();
+    Swal.fire({
+      icon: 'error',
+      title: 'Login Gagal',
+      text: message,
+      confirmButtonText: 'Coba Lagi'
+    })
 
-    } catch (err: any) {
-      const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        'Login gagal. Periksa email & password.';
+  } finally {
+    setLoading(false)
+  }
+}
 
-      setError(message);
-
-      Swal.fire({
-        icon: 'error',
-        title: 'Login Gagal',
-        text: message,
-        confirmButtonText: 'Coba Lagi'
-      });
-
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {

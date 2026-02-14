@@ -1,12 +1,12 @@
 'use client'
-// components/UI/Button.tsx
 import { Icon } from '@iconify/react'
+import { ReactNode } from 'react'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
-  icon?: string
+  icon?: string | ReactNode // Bisa string (icon name) atau ReactNode (komponen Icon)
   iconPosition?: 'left' | 'right'
   fullWidth?: boolean
   rounded?: 'none' | 'sm' | 'md' | 'lg' | 'full'
@@ -50,6 +50,19 @@ export default function Button({
     full: 'rounded-full'
   }
 
+  // Helper function untuk render icon
+  const renderIcon = () => {
+    if (!icon) return null
+    
+    if (typeof icon === 'string') {
+      // Jika icon adalah string (nama icon)
+      return <Icon icon={icon} className={`w-4 h-4 ${iconPosition === 'left' ? 'mr-2' : 'ml-2'}`} />
+    }
+    
+    // Jika icon adalah ReactNode
+    return icon
+  }
+
   return (
     <button
       className={`
@@ -63,15 +76,14 @@ export default function Button({
       disabled={disabled || loading}
       {...props}
     >
-      {loading && (
+      {loading ? (
         <Icon icon="mdi:loading" className="animate-spin w-4 h-4 mr-2" />
-      )}
-      {!loading && icon && iconPosition === 'left' && (
-        <Icon icon={icon} className="w-4 h-4 mr-2" />
-      )}
-      {children}
-      {!loading && icon && iconPosition === 'right' && (
-        <Icon icon={icon} className="w-4 h-4 ml-2" />
+      ) : (
+        <>
+          {icon && iconPosition === 'left' && renderIcon()}
+          {children}
+          {icon && iconPosition === 'right' && renderIcon()}
+        </>
       )}
     </button>
   )

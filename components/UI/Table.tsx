@@ -1,9 +1,10 @@
-// components/UI/Table.tsx
 'use client'
+
+import { ReactNode } from 'react'
 
 interface TableProps {
   headers: string[]
-  children: React.ReactNode
+  children: ReactNode
   className?: string
   striped?: boolean
   hoverable?: boolean
@@ -41,7 +42,7 @@ function Table({
 }
 
 interface TableRowProps {
-  children: React.ReactNode
+  children: ReactNode
   className?: string
   hoverable?: boolean
 }
@@ -55,7 +56,7 @@ function TableRow({ children, className = '', hoverable = true }: TableRowProps)
 }
 
 interface TableCellProps {
-  children: React.ReactNode
+  children: ReactNode
   className?: string
   colSpan?: number
 }
