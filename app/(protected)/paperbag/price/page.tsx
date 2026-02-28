@@ -460,10 +460,10 @@ export default function PaperbagSheetPricesPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-200">
-            <Icon icon="mdi:currency-idr" className="w-6 h-6 text-white" />
+            <Icon icon="mdi:shopping" className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-500 bg-clip-text text-transparent">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
               Harga Sheet Paperbag
             </h1>
             <p className="text-gray-600 mt-1">Kelola harga sheet berdasarkan material, ukuran, dan GSM</p>

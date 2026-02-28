@@ -161,7 +161,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     //   path: '/other-minorder'
     // },
      { 
-      icon: 'mdi:wave',
+      icon: 'mdi:bell',
       name: 'Liminating Settings',
        subItems: [
         { name: 'Liminating', path: '/lamitasi' },
@@ -177,7 +177,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     //   path: '/sablon'
     // },
      { 
-      icon: 'mdi:wave',
+      icon: 'mdi:knife',
       name: 'Pisau Setting', 
       subItems: [
         { name: 'Pisau Config', path: '/pisau-config' },
@@ -197,7 +197,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     //   path: '/pisau-registry'
     // },
     { 
-      icon: 'mdi:wave',
+      icon: 'mdi:shopping',
       name: 'Paperbag',
       subItems: [
         { name: 'Tali Paperbag',  path: '/paperbag/tali' },
