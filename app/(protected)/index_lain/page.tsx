@@ -131,9 +131,7 @@ const useIndexLainnya = () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await axios.get<ApiResponse<IndexLainnya[]>>('/Admin/Other/indexLainnya', {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
-      })
+      const response = await axios.get<ApiResponse<IndexLainnya[]>>('/Admin/Other/indexLainnya')
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
         setIndexData(response.data.data)
       } else {

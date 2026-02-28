@@ -2,8 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { loginService } from '@/services/auth.service'
-import { setToken } from '@/lib/auth'
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
 import Swal from 'sweetalert2';
@@ -21,9 +19,7 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const data = await loginService(form)
-      setToken(data.access_token)
-
+      // Hapus logic token, langsung redirect ke dashboard
       await Swal.fire({
         icon: 'success',
         title: 'Login Berhasil',
@@ -37,25 +33,20 @@ export default function Login() {
       router.refresh()
 
     } catch (err: any) {
-      const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        'Login gagal. Periksa email & password.'
-
-      setError(message)
-
+      setError('Login gagal. Silakan coba lagi.')
+      
       Swal.fire({
         icon: 'error',
         title: 'Login Gagal',
-        text: message,
+        text: 'Terjadi kesalahan sistem',
         confirmButtonText: 'Coba Lagi'
       })
-
     } finally {
       setLoading(false)
     }
   }
 
+  // ... sisanya tetap sama (handleKeyPress, handleInputChange, dll)
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
       handleLogin(e as any);
@@ -69,6 +60,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a3a7d 0%, #1f4390 50%, #2557b8 100%)' }}>
+      {/* ... JSX tetap sama seperti sebelumnya ... */}
       <div className="w-full max-w-md relative z-10">
         <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
           {/* Logo and Title */}

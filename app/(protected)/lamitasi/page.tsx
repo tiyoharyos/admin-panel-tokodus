@@ -26,6 +26,13 @@ interface ApiResponse {
 }
 
 interface EditFormData {
+  code: string
+  label: string
+  index_harga: string
+}
+
+interface AddFormData {
+  code: string
   label: string
   index_harga: string
 }
@@ -53,6 +60,8 @@ const getErrMsg = (err: unknown, fallback: string): string => {
   return fallback
 }
 
+const EMPTY_ADD_FORM: AddFormData = { code: '', label: '', index_harga: '' }
+
 // ============ BADGE ============
 function Badge({ color, children }: { color: string; children: React.ReactNode }) {
   return (
@@ -73,10 +82,13 @@ export default function LaminasiPage() {
   const [isPosting, setIsPosting] = useState(false)
   const [search, setSearch] = useState('')
 
+  // Modal states
   const [showViewModal, setShowViewModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<Laminasi | null>(null)
-  const [editForm, setEditForm] = useState<EditFormData>({ label: '', index_harga: '' })
+  const [editForm, setEditForm] = useState<EditFormData>({ code: '', label: '', index_harga: '' })
+  const [addForm, setAddForm] = useState<AddFormData>(EMPTY_ADD_FORM)
 
   // ===== STATS =====
   const stats = useMemo(() => {
@@ -121,13 +133,51 @@ export default function LaminasiPage() {
 
   const handleEditClick = (item: Laminasi) => {
     setSelectedItem(item)
-    setEditForm({ label: item.label, index_harga: item.index_harga })
+    setEditForm({ code: item.code, label: item.label, index_harga: item.index_harga })
     setShowViewModal(false)
     setShowEditModal(true)
   }
 
+  const handleAddClick = () => {
+    setAddForm(EMPTY_ADD_FORM)
+    setShowAddModal(true)
+  }
+
+  // ===== ADD HANDLER =====
+  const handleAdd = async () => {
+    if (!addForm.code.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Kode tidak boleh kosong.', confirmButtonColor: '#6366f1' })
+      return
+    }
+    if (!addForm.label.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Label tidak boleh kosong.', confirmButtonColor: '#6366f1' })
+      return
+    }
+    if (addForm.index_harga.trim() === '' || isNaN(Number(addForm.index_harga)) || Number(addForm.index_harga) < 0) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Index harga tidak valid.', confirmButtonColor: '#6366f1' })
+      return
+    }
+    try {
+      setIsPosting(true)
+      await axios.post('/Admin/Laminasi/LaminasiAdd', addForm)
+      await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data laminasi berhasil ditambahkan!', timer: 1500, showConfirmButton: false })
+      setShowAddModal(false)
+      setAddForm(EMPTY_ADD_FORM)
+      await fetchData()
+    } catch (err: unknown) {
+      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menambahkan data'), confirmButtonColor: '#6366f1' })
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  // ===== EDIT HANDLER =====
   const handleUpdate = async () => {
     if (!selectedItem) return
+    if (!editForm.code.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Kode tidak boleh kosong.', confirmButtonColor: '#6366f1' })
+      return
+    }
     if (!editForm.label.trim()) {
       Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Label tidak boleh kosong.', confirmButtonColor: '#6366f1' })
       return
@@ -138,8 +188,10 @@ export default function LaminasiPage() {
     }
     try {
       setIsPosting(true)
-      await axios.put(`/Admin/Laminasi/Laminasi/${selectedItem.id_lt}`, editForm)
-      setLaminasiList(prev => prev.map(l => l.id_lt === selectedItem.id_lt ? { ...l, ...editForm } : l))
+      await axios.put(`/Admin/Laminasi/LaminasiEdit/${selectedItem.id_lt}`, editForm)
+      setLaminasiList(prev =>
+        prev.map(l => l.id_lt === selectedItem.id_lt ? { ...l, ...editForm } : l)
+      )
       await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data laminasi berhasil diperbarui!', timer: 1500, showConfirmButton: false })
       setShowEditModal(false)
       setSelectedItem(null)
@@ -147,6 +199,35 @@ export default function LaminasiPage() {
       Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menyimpan data'), confirmButtonColor: '#6366f1' })
     } finally {
       setIsPosting(false)
+    }
+  }
+
+  // ===== DELETE HANDLER =====
+  const handleDelete = async (item: Laminasi) => {
+    const result = await Swal.fire({
+      icon: 'warning',
+      title: 'Hapus Laminasi?',
+      html: `Apakah Anda yakin ingin menghapus <strong>${item.label}</strong>?<br/><span class="text-sm text-gray-500">Tindakan ini tidak dapat dibatalkan.</span>`,
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Ya, Hapus!',
+      cancelButtonText: 'Batal',
+    })
+
+    if (!result.isConfirmed) return
+
+    try {
+      await axios.delete(`/Admin/Laminasi/Laminasi/${item.id_lt}`)
+      setLaminasiList(prev => prev.filter(l => l.id_lt !== item.id_lt))
+      // Close view modal if open for this item
+      if (showViewModal && selectedItem?.id_lt === item.id_lt) {
+        setShowViewModal(false)
+        setSelectedItem(null)
+      }
+      await Swal.fire({ icon: 'success', title: 'Dihapus!', text: 'Laminasi berhasil dihapus.', timer: 1500, showConfirmButton: false })
+    } catch (err: unknown) {
+      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menghapus data'), confirmButtonColor: '#6366f1' })
     }
   }
 
@@ -169,9 +250,14 @@ export default function LaminasiPage() {
             <p className="text-slate-500 mt-1 text-sm">Kelola jenis dan index harga laminasi</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} icon="mdi:refresh">
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchData} icon="mdi:refresh">
+            Refresh
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleAddClick} icon="mdi:plus">
+            Tambah Laminasi
+          </Button>
+        </div>
       </div>
 
       {/* ===== STATS CARDS ===== */}
@@ -243,6 +329,9 @@ export default function LaminasiPage() {
             <div className="flex flex-col items-center gap-3 py-16">
               <Icon icon="mdi:layers-off" className="w-16 h-16 text-gray-300" />
               <p className="text-gray-500 font-medium text-lg">Belum ada data laminasi</p>
+              <Button variant="primary" size="sm" onClick={handleAddClick} icon="mdi:plus">
+                Tambah Laminasi Pertama
+              </Button>
             </div>
           ) : (
             <table className="min-w-full divide-y divide-gray-100">
@@ -339,6 +428,13 @@ export default function LaminasiPage() {
                             >
                               <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
                             </button>
+                            <button
+                              onClick={() => handleDelete(item)}
+                              title="Hapus"
+                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Icon icon="mdi:trash-can-outline" className="w-5 h-5" />
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -369,6 +465,12 @@ export default function LaminasiPage() {
         size="md"
         footer={
           <>
+            <Button variant="ghost" size="md" icon="mdi:trash-can-outline"
+              onClick={() => { if (selectedItem) { setShowViewModal(false); handleDelete(selectedItem) } }}
+              className="text-red-500 hover:bg-red-50 hover:text-red-600 mr-auto"
+            >
+              Hapus
+            </Button>
             <Button variant="outline" size="md" onClick={() => setShowViewModal(false)}>
               Tutup
             </Button>
@@ -437,6 +539,92 @@ export default function LaminasiPage() {
         })()}
       </Modal>
 
+      {/* ===== ADD MODAL ===== */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => !isPosting && setShowAddModal(false)}
+        title="Tambah Laminasi Baru"
+        size="md"
+        closeOnOverlayClick={!isPosting}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={() => !isPosting && setShowAddModal(false)}
+              disabled={isPosting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              onClick={handleAdd}
+              loading={isPosting}
+              disabled={isPosting}
+              icon="mdi:plus"
+            >
+              Simpan Data
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          {/* Info */}
+          <div className="flex items-center gap-2 px-3 py-3 bg-green-50 border border-green-100 rounded-lg">
+            <Icon icon="mdi:information-outline" className="w-4 h-4 text-green-500 flex-shrink-0" />
+            <p className="text-sm text-green-700">
+              Isi semua field di bawah untuk menambahkan jenis laminasi baru.
+            </p>
+          </div>
+
+          {/* Fields */}
+          <Input
+            label="Kode"
+            type="text"
+            value={addForm.code}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddForm(p => ({ ...p, code: e.target.value }))}
+            disabled={isPosting}
+            leftIcon="mdi:code-tags"
+            placeholder="Contoh: doff, glossy, uv..."
+            helperText="Kode unik untuk identifikasi laminasi (huruf kecil, tanpa spasi)"
+          />
+
+          <Input
+            label="Label"
+            type="text"
+            value={addForm.label}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddForm(p => ({ ...p, label: e.target.value }))}
+            disabled={isPosting}
+            leftIcon="mdi:layers-triple"
+            placeholder="Nama tampilan laminasi..."
+          />
+
+          <Input
+            label="Index Harga"
+            type="number"
+            min={0}
+            step={0.01}
+            value={addForm.index_harga}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAddForm(p => ({ ...p, index_harga: e.target.value }))}
+            disabled={isPosting}
+            leftIcon="mdi:percent"
+            placeholder="0.0000"
+            helperText="Contoh: 0.15 berarti +15% dari harga dasar"
+          />
+
+          {/* Preview */}
+          {addForm.index_harga !== '' && !isNaN(Number(addForm.index_harga)) && Number(addForm.index_harga) >= 0 && (
+            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl border border-gray-200">
+              <span className="text-sm text-gray-500">Preview index harga</span>
+              <span className="text-sm font-bold text-green-600">
+                +{(parseFloat(addForm.index_harga || '0') * 100).toFixed(1)}% dari harga dasar
+              </span>
+            </div>
+          )}
+        </div>
+      </Modal>
+
       {/* ===== EDIT MODAL ===== */}
       <Modal
         isOpen={showEditModal}
@@ -473,11 +661,22 @@ export default function LaminasiPage() {
             <div className="flex items-center gap-2 px-3 py-3 bg-indigo-50 border border-indigo-100 rounded-lg">
               <Icon icon="mdi:information-outline" className="w-4 h-4 text-indigo-500 flex-shrink-0" />
               <p className="text-sm text-indigo-700">
-                Kode <span className="font-semibold">{selectedItem.code}</span> tidak dapat diubah
+                ID: <span className="font-semibold">{selectedItem.id_lt}</span> — semua field dapat diubah.
               </p>
             </div>
 
             {/* Fields */}
+            <Input
+              label="Kode"
+              type="text"
+              value={editForm.code}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditForm(p => ({ ...p, code: e.target.value }))}
+              disabled={isPosting}
+              leftIcon="mdi:code-tags"
+              placeholder="Contoh: doff, glossy, uv..."
+              helperText="Kode unik untuk identifikasi laminasi"
+            />
+
             <Input
               label="Label"
               type="text"

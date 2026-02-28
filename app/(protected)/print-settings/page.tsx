@@ -148,11 +148,7 @@ export default function PrintSettingsPage() {
       setLoading(true)
       setError(null)
 
-      const response = await axios.get<ApiResponse>('Admin/Cetak/Machine', {
-        headers: { 'ngrok-skip-browser-warning': 'true' },
-        timeout: 10000
-      })
-
+      const response = await axios.get('Admin/Cetak/Machine')
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
         setMachines(response.data.data)
       } else {

@@ -187,9 +187,7 @@ export default function FlutesPage() {
       setLoading(true)
       setError(null)
       const response = await axios.get<FluteListResponse | FluteApiItem[] | ApiResponse<null>>(
-        '/Admin/Flutes/Flutes',
-        { headers: { 'ngrok-skip-browser-warning': 'true' }, timeout: 10000 }
-      )
+        '/Admin/Flutes/Flutes' )
       if (response.data) {
         let processedFlutes: Flute[] = []
         if (typeof response.data === 'object' && response.data !== null) {

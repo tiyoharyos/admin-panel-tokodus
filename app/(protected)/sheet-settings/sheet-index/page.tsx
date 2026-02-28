@@ -206,9 +206,7 @@ export default function SheetSettingsPage() {
   // ===== FETCH FLUTES =====
   const fetchFlutes = useCallback(async (): Promise<Flute[]> => {
     try {
-      const response = await axios.get('/Admin/Flutes/Flutes', {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
-      })
+      const response = await axios.get('/Admin/Flutes/Flutes')
       let processed: Flute[] = []
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
         processed = processFluteList(response.data.data)
@@ -230,9 +228,7 @@ export default function SheetSettingsPage() {
       setLoading(true)
       setError(null)
 
-      const response = await axios.get<ApiResponse | SheetIndexApiItem[]>('/Admin/Sheet/sheetIndex', {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
-      })
+      const response = await axios.get<ApiResponse | SheetIndexApiItem[]>('/Admin/Sheet/sheetIndex')
 
       const responseData: SheetIndexApiItem[] = Array.isArray(response.data)
         ? response.data

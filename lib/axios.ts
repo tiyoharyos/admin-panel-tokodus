@@ -1,9 +1,9 @@
-import axios from 'axios'
+import axios from 'axios';
 import { getToken } from './auth'
 
 const instance = axios.create({
-    baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://192.168.18.14:8080/Api_TokoDus'
-
+  baseURL: 'http://192.168.18.14:8080/Api_TokoDus/',
+  withCredentials: false,
 })
 
 instance.interceptors.request.use(

@@ -94,10 +94,21 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     //   name: 'Material Formulas', 
     //   path: '/material-formulas'
     // },
+    // { 
+    //   icon: 'mdi:printer-settings',
+    //   name: 'Print Settings', 
+    //   path: '/print-settings'
+    // },
     { 
       icon: 'mdi:printer-settings',
       name: 'Print Settings', 
-      path: '/print-settings'
+       subItems: [
+        { name: 'Print Settings', path: '/print-settings' },
+        { name: 'Minimal Order Settings',  path: '/other-minorder' },
+        // { name: 'Price  Paperbag',  path: '/paperbag/price' },
+        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
+        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
+      ] 
     },
     // { 
     //   icon: 'mdi:file-table',
@@ -151,24 +162,40 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     // },
      { 
       icon: 'mdi:wave',
-      name: 'Laminating Settings', 
-      path: '/lamitasi'
+      name: 'Liminating Settings',
+       subItems: [
+        { name: 'Liminating', path: '/lamitasi' },
+        { name: 'Sablon', path: '/sablon' },
+        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
+        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
+      ]
+      
     },
-    { 
+    // { 
+    //   icon: 'mdi:wave',
+    //   name: 'Sabling Settings', 
+    //   path: '/sablon'
+    // },
+     { 
       icon: 'mdi:wave',
-      name: 'Sabling Settings', 
-      path: '/sablon'
+      name: 'Pisau Setting', 
+      subItems: [
+        { name: 'Pisau Config', path: '/pisau-config' },
+        { name: 'Pisau Registri', path: '/pisau-registry' },
+        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
+        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
+      ]
     },
-    { 
-      icon: 'mdi:wave',
-      name: 'Pisau Config', 
-      path: '/pisau-config'
-    },
-    { 
-      icon: 'mdi:wave',
-      name: 'Pisau Registry', 
-      path: '/pisau-registry'
-    },
+    // { 
+    //   icon: 'mdi:wave',
+    //   name: 'Pisau Config', 
+    //   path: '/pisau-config'
+    // },
+    // { 
+    //   icon: 'mdi:wave',
+    //   name: 'Pisau Registry', 
+    //   path: '/pisau-registry'
+    // },
     { 
       icon: 'mdi:wave',
       name: 'Paperbag',

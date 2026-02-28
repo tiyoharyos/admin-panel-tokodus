@@ -29,7 +29,8 @@ interface ApiResponse {
   data: PaperbagTali[]
 }
 
-interface EditFormData {
+interface FormData {
+  kode: string
   nama: string
   deskripsi: string
   harga_per_pcs: string
@@ -52,6 +53,14 @@ const TALI_META: Record<string, { icon: string; color: string }> = {
 
 const DEFAULT_TALI_META = { icon: 'mdi:rope', color: 'gray' }
 
+const EMPTY_FORM: FormData = {
+  kode: '',
+  nama: '',
+  deskripsi: '',
+  harga_per_pcs: '',
+  status: '1',
+}
+
 const formatCurrency = (amount: string | number) => {
   const num = typeof amount === 'string' ? parseFloat(amount) : amount
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
@@ -64,6 +73,15 @@ const getErrMsg = (err: unknown, fallback: string): string => {
   return fallback
 }
 
+const validateForm = (form: FormData, isEdit = false): string | null => {
+  if (!isEdit && !form.kode.trim()) return 'Kode tali tidak boleh kosong.'
+  if (!form.nama.trim()) return 'Nama tali tidak boleh kosong.'
+  if (!form.deskripsi.trim()) return 'Deskripsi tidak boleh kosong.'
+  if (form.harga_per_pcs === '' || isNaN(Number(form.harga_per_pcs)) || Number(form.harga_per_pcs) < 0)
+    return 'Harga per pcs tidak valid.'
+  return null
+}
+
 // ============ MAIN COMPONENT ============
 export default function PaperbagTaliPage() {
   const [taliList, setTaliList] = useState<PaperbagTali[]>([])
@@ -72,10 +90,14 @@ export default function PaperbagTaliPage() {
   const [isPosting, setIsPosting] = useState(false)
   const [search, setSearch] = useState('')
 
+  // Modal state
   const [showViewModal, setShowViewModal] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [selectedItem, setSelectedItem] = useState<PaperbagTali | null>(null)
-  const [editForm, setEditForm] = useState<EditFormData>({ nama: '', deskripsi: '', harga_per_pcs: '', status: '1' })
+
+  // Form state (shared for add & edit)
+  const [form, setForm] = useState<FormData>(EMPTY_FORM)
 
   // ===== STATS =====
   const stats = useMemo(() => {
@@ -117,34 +139,78 @@ export default function PaperbagTaliPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ===== HANDLERS =====
+  // ===== HANDLERS: VIEW =====
   const handleViewClick = (item: PaperbagTali) => {
     setSelectedItem(item)
     setShowViewModal(true)
   }
 
+  // ===== HANDLERS: ADD =====
+  const handleAddClick = () => {
+    setForm(EMPTY_FORM)
+    setShowAddModal(true)
+  }
+
+  const handleAdd = async () => {
+    const err = validateForm(form)
+    if (err) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: err, confirmButtonColor: '#3B82F6' })
+      return
+    }
+
+    try {
+      setIsPosting(true)
+      await axios.post('/Admin/Paperbag/PaperbagTaliAdd', {
+        kode: form.kode.trim(),
+        nama: form.nama.trim(),
+        deskripsi: form.deskripsi.trim(),
+        harga_per_pcs: form.harga_per_pcs,
+      })
+      await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Tali baru berhasil ditambahkan!', timer: 1500, showConfirmButton: false })
+      setShowAddModal(false)
+      fetchData() // refresh list from server
+    } catch (err: unknown) {
+      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menambahkan data'), confirmButtonColor: '#3B82F6' })
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  // ===== HANDLERS: EDIT =====
   const handleEditClick = (item: PaperbagTali) => {
     setSelectedItem(item)
-    setEditForm({ nama: item.nama, deskripsi: item.deskripsi, harga_per_pcs: item.harga_per_pcs, status: item.status })
+    setForm({
+      kode: item.kode,
+      nama: item.nama,
+      deskripsi: item.deskripsi,
+      harga_per_pcs: item.harga_per_pcs,
+      status: item.status,
+    })
     setShowViewModal(false)
     setShowEditModal(true)
   }
 
   const handleUpdate = async () => {
     if (!selectedItem) return
-    if (!editForm.nama.trim()) {
-      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Nama tali tidak boleh kosong.', confirmButtonColor: '#3B82F6' })
-      return
-    }
-    if (isNaN(Number(editForm.harga_per_pcs)) || Number(editForm.harga_per_pcs) < 0) {
-      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Harga per pcs tidak valid.', confirmButtonColor: '#3B82F6' })
+    const errMsg = validateForm(form, true)
+    if (errMsg) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: errMsg, confirmButtonColor: '#3B82F6' })
       return
     }
 
     try {
       setIsPosting(true)
-      await axios.put(`/Admin/Paperbag/PaperbagTali/${selectedItem.id}`, editForm)
-      setTaliList(prev => prev.map(t => t.id === selectedItem.id ? { ...t, ...editForm } : t))
+      await axios.put(`/Admin/Paperbag/PaperbagTaliEdit/${selectedItem.id}`, {
+        kode: selectedItem.kode, // kode tidak bisa diubah, kirim yang lama
+        nama: form.nama.trim(),
+        deskripsi: form.deskripsi.trim(),
+        harga_per_pcs: form.harga_per_pcs,
+      })
+      setTaliList(prev => prev.map(t =>
+        t.id === selectedItem.id
+          ? { ...t, nama: form.nama, deskripsi: form.deskripsi, harga_per_pcs: form.harga_per_pcs }
+          : t
+      ))
       await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data tali berhasil diperbarui!', timer: 1500, showConfirmButton: false })
       setShowEditModal(false)
       setSelectedItem(null)
@@ -155,6 +221,31 @@ export default function PaperbagTaliPage() {
     }
   }
 
+  // ===== HANDLERS: DELETE =====
+  const handleDeleteClick = async (item: PaperbagTali) => {
+    const result = await Swal.fire({
+      title: 'Hapus Tali?',
+      html: `Apakah kamu yakin ingin menghapus <b>"${item.nama}"</b>?<br/><small class="text-gray-500">Tindakan ini tidak dapat dibatalkan.</small>`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#6B7280',
+    })
+
+    if (result.isConfirmed) {
+      try {
+        await axios.delete(`/Admin/Paperbag/PaperbagTali/${item.id}`)
+        setTaliList(prev => prev.filter(t => t.id !== item.id))
+        await Swal.fire({ icon: 'success', title: 'Dihapus!', text: `"${item.nama}" berhasil dihapus.`, timer: 1500, showConfirmButton: false })
+      } catch (err: unknown) {
+        Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menghapus data'), confirmButtonColor: '#3B82F6' })
+      }
+    }
+  }
+
+  // ===== HANDLERS: TOGGLE STATUS =====
   const toggleStatus = async (item: PaperbagTali) => {
     const newStatus = item.status === '1' ? '0' : '1'
     const result = await Swal.fire({
@@ -169,7 +260,13 @@ export default function PaperbagTaliPage() {
 
     if (result.isConfirmed) {
       try {
-        await axios.put(`/Admin/Paperbag/PaperbagTali/${item.id}`, { ...item, status: newStatus })
+        await axios.put(`/Admin/Paperbag/PaperbagTaliEdit/${item.id}`, {
+          kode: item.kode,
+          nama: item.nama,
+          deskripsi: item.deskripsi,
+          harga_per_pcs: item.harga_per_pcs,
+          status: newStatus,
+        })
         setTaliList(prev => prev.map(t => t.id === item.id ? { ...t, status: newStatus } : t))
         await Swal.fire({ icon: 'success', title: 'Berhasil!', text: `"${item.nama}" berhasil diperbarui!`, timer: 1500, showConfirmButton: false })
       } catch (err: unknown) {
@@ -177,6 +274,62 @@ export default function PaperbagTaliPage() {
       }
     }
   }
+
+  // ===== SHARED FORM FIELDS =====
+  const renderFormFields = (isEdit = false) => (
+    <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 space-y-4">
+      <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+        <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center">
+          <Icon icon="mdi:pencil" className="w-3 h-3 text-amber-600" />
+        </div>
+        Informasi Tali
+      </h3>
+
+      {/* Kode — hanya muncul saat Add */}
+      {!isEdit && (
+        <Input
+          label="Kode Tali"
+          type="text"
+          value={form.kode}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, kode: e.target.value }))}
+          disabled={isPosting}
+          leftIcon="mdi:identifier"
+          placeholder="contoh: tali_kertas_natural"
+        />
+      )}
+
+      <Input
+        label="Nama Tali"
+        type="text"
+        value={form.nama}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, nama: e.target.value }))}
+        disabled={isPosting}
+        leftIcon="mdi:rope"
+      />
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
+        <textarea
+          value={form.deskripsi}
+          onChange={e => setForm(p => ({ ...p, deskripsi: e.target.value }))}
+          disabled={isPosting}
+          rows={3}
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60 resize-none"
+        />
+      </div>
+
+      <Input
+        label="Harga per pcs (IDR)"
+        type="number"
+        min={0}
+        step={50}
+        value={form.harga_per_pcs}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, harga_per_pcs: e.target.value }))}
+        disabled={isPosting}
+        leftIcon="mdi:cash"
+      />
+    </div>
+  )
 
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat data Tali Paperbag..." />
@@ -198,9 +351,14 @@ export default function PaperbagTaliPage() {
             <p className="text-gray-600 mt-1">Kelola jenis dan harga tali paperbag</p>
           </div>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData} className="border-gray-300" icon="mdi:refresh">
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={fetchData} className="border-gray-300" icon="mdi:refresh">
+            Refresh
+          </Button>
+          <Button variant="primary" size="sm" onClick={handleAddClick} icon="mdi:plus">
+            Tambah Tali
+          </Button>
+        </div>
       </div>
 
       {/* ===== STATS CARDS ===== */}
@@ -311,7 +469,6 @@ export default function PaperbagTaliPage() {
                             </div>
                             <div>
                               <p className="font-medium text-gray-900">{item.nama}</p>
-                              <p className="text-xs text-gray-400">ID: {item.id}</p>
                             </div>
                           </div>
                         </td>
@@ -350,6 +507,9 @@ export default function PaperbagTaliPage() {
                             </button>
                             <button onClick={() => handleEditClick(item)} className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors" title="Edit">
                               <Icon icon="mdi:pencil" className="w-5 h-5" />
+                            </button>
+                            <button onClick={() => handleDeleteClick(item)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors" title="Hapus">
+                              <Icon icon="mdi:trash-can" className="w-5 h-5" />
                             </button>
                           </div>
                         </td>
@@ -423,6 +583,37 @@ export default function PaperbagTaliPage() {
         })()}
       </Modal>
 
+      {/* ===== ADD MODAL ===== */}
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => !isPosting && setShowAddModal(false)}
+        title="➕ Tambah Tali Baru"
+        size="md"
+        footer={
+          <div className="flex justify-end gap-3">
+            <Button variant="outline" onClick={() => !isPosting && setShowAddModal(false)} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:content-save">
+              Simpan
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-5">
+          <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Icon icon="mdi:plus-circle" className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-green-900">Tambah Jenis Tali Baru</p>
+                <p className="text-xs text-green-600 mt-0.5">Isi semua field yang diperlukan. Kode tali bersifat unik.</p>
+              </div>
+            </div>
+          </div>
+          {renderFormFields(false)}
+        </div>
+      </Modal>
+
       {/* ===== EDIT MODAL ===== */}
       <Modal
         isOpen={showEditModal}
@@ -449,55 +640,7 @@ export default function PaperbagTaliPage() {
                 </div>
               </div>
             </div>
-
-            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 space-y-4">
-              <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-                <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:pencil" className="w-3 h-3 text-amber-600" />
-                </div>
-                Informasi Tali
-              </h3>
-              <Input
-                label="Nama Tali"
-                type="text"
-                value={editForm.nama}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditForm(p => ({ ...p, nama: e.target.value }))}
-                disabled={isPosting}
-                leftIcon="mdi:rope"
-              />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-                <textarea
-                  value={editForm.deskripsi}
-                  onChange={e => setEditForm(p => ({ ...p, deskripsi: e.target.value }))}
-                  disabled={isPosting}
-                  rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60 resize-none"
-                />
-              </div>
-              <Input
-                label="Harga per pcs (IDR)"
-                type="number"
-                min={0}
-                step={50}
-                value={editForm.harga_per_pcs}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditForm(p => ({ ...p, harga_per_pcs: e.target.value }))}
-                disabled={isPosting}
-                leftIcon="mdi:cash"
-              />
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={editForm.status}
-                  onChange={e => setEditForm(p => ({ ...p, status: e.target.value }))}
-                  disabled={isPosting}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60 bg-white"
-                >
-                  <option value="1">Aktif</option>
-                  <option value="0">Non-aktif</option>
-                </select>
-              </div>
-            </div>
+            {renderFormFields(true)}
           </div>
         )}
       </Modal>

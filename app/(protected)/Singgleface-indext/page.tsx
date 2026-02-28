@@ -195,9 +195,7 @@ const parseFlatApiResponse = (rawItems: ApiRawItem[]) => {
 }
 
 const fetchAllData = async (): Promise<{ flutes: Flute[]; substances: SinglefaceSubstance[] }> => {
-  const response = await axios.get<ApiResponse<ApiRawItem[]>>(`${API_BASE}/singelfaceIndex`, {
-    headers: { 'ngrok-skip-browser-warning': 'true' }
-  })
+  const response = await axios.get<ApiResponse<ApiRawItem[]>>(`${API_BASE}/singelfaceIndex`)
   const rawItems: ApiRawItem[] = response.data?.data || (Array.isArray(response.data) ? response.data : [])
   if (!Array.isArray(rawItems)) throw new Error('Invalid response format')
   return parseFlatApiResponse(rawItems)
@@ -205,9 +203,7 @@ const fetchAllData = async (): Promise<{ flutes: Flute[]; substances: Singleface
 
 const fetchFlutesOnly = async (): Promise<Flute[]> => {
   try {
-    const response = await axios.get<ApiResponse>(`${API_BASE}/singelfaceFlutes`, {
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    })
+    const response = await axios.get<ApiResponse>(`${API_BASE}/singelfaceFlutes`)
     const data = response.data?.data || response.data || []
     return (Array.isArray(data) ? data : []).map((f: any) => ({
       id: f.id_f?.toString() || f.id?.toString() || '',

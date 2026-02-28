@@ -187,9 +187,7 @@ const useBoxModels = () => {
       setLoading(true)
       setError(null)
 
-      const { data } = await axios.get<ApiResponse<BoxModelApiItem[]>>('/Admin/Box/boxModels', {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
-      })
+      const { data } = await axios.get('/Admin/Box/boxModels')
 
       if (data?.status === 200 && Array.isArray(data.data)) {
         const processed = await Promise.all(data.data.map(async (item: BoxModelApiItem) => {
@@ -477,43 +475,6 @@ export default function BoxModelsPage() {
     }
   }
 
-  const toggleStatus = async (item: BoxModel) => {
-    const result = await Swal.fire({
-      title: 'Ubah Status?',
-      text: `${item.status ? 'Nonaktifkan' : 'Aktifkan'} "${item.namaModel}"?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: item.status ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
-      confirmButtonColor: '#3b82f6'
-    })
-
-    if (result.isConfirmed) {
-      try {
-        const newStatus = !item.status
-        const { data } = await axios.patch<ApiResponse>(`/Admin/Box/boxModels/${item.id}/status`, {
-          status_bm: newStatus ? '1' : '0'
-        })
-
-        if (data?.status === 200) {
-          await Swal.fire({
-            icon: 'success',
-            title: 'Berhasil!',
-            text: `"${item.namaModel}" ${newStatus ? 'diaktifkan' : 'dinonaktifkan'}!`,
-            timer: 1500,
-            showConfirmButton: false
-          })
-          await refetch()
-        }
-      } catch (err: unknown) {
-        Swal.fire({ 
-          icon: 'error', 
-          title: 'Error!', 
-          text: getErrMsg(err, 'Gagal mengubah status'),
-          confirmButtonColor: '#3b82f6'
-        })
-      }
-    }
-  }
 
   // ===== FORMULA HANDLERS =====
   const addFormulaComponent = useCallback((target: 'edit' | 'new' = 'new') => {
