@@ -1,30 +1,28 @@
-// app/(protected)/print-settings/page.tsx
-
+///app/(protected)/print-settings/page.tsx
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
 import axios from '@/lib/axios'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
-import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
-import SweetAlert from '@/components/UI/SweetAlert'
 import { Icon } from '@iconify/react'
+import Swal from 'sweetalert2'
+
+// ===== GLOBAL COMPONENTS =====
+import LoadingState from '@/components/UI/LoadingState'
+import ErrorState from '@/components/UI/ErrorState'
+// import EmptyState from '@/components/UI/EmptyState'
 
 // ============ TYPES ============
 interface Machine {
   id_ma: string
   name_ma: string
-  bahan_max_panjang: string
-  bahan_max_lebar: string
-  bahan_min_panjang: string
-  bahan_min_lebar: string
-  cetak_max_panjang: string
-  cetak_max_lebar: string
-  cetak_min_panjang: string
-  cetak_min_lebar: string
+  bahan_max_p_cm: string
+  bahan_max_l_cm: string
+  bahan_min_p_cm: string
+  bahan_min_l_cm: string
   harga_blok: string
   harga_tulisan: string
   harga_separasi: string
@@ -36,50 +34,30 @@ interface ApiResponse {
   data: Machine[]
 }
 
-interface Stats {
-  totalMachines: number
-  activeMachines: number
-  pm52Count: number
-  sm74Count: number
-  planoMaxCount: number
-  priceRange: {
-    min: number
-    max: number
-  }
-}
-
 interface UpdateMachineFormData {
-  maxMaterialWidth: number
-  maxMaterialLength: number
-  minMaterialWidth: number
-  minMaterialLength: number
-  maxPrintWidth: number
-  maxPrintLength: number
-  minPrintWidth: number
-  minPrintLength: number
-  priceBlok: number
-  priceTulisan: number
-  priceSeparasi: number
+  id_ma: string
+  bahan_max_p_cm: number
+  bahan_max_l_cm: number
+  bahan_min_p_cm: number
+  bahan_min_l_cm: number
+  harga_blok: number
+  harga_tulisan: number
+  harga_separasi: number
 }
 
 // ============ CONSTANTS ============
 const PRINT_TYPES = [
-  { id: 'blok', label: 'Cetak Blok', field: 'harga_blok', icon: 'mdi:layers', color: 'blue' },
-  { id: 'tulisan', label: 'Cetak Tulisan', field: 'harga_tulisan', icon: 'mdi:format-text', color: 'green' },
-  { id: 'separasi', label: 'Cetak Separasi', field: 'harga_separasi', icon: 'mdi:palette', color: 'purple' }
+  { id: 'blok', label: 'Cetak Blok', field: 'harga_blok', icon: 'mdi:layers', color: '#3b82f6' },
+  { id: 'tulisan', label: 'Cetak Tulisan', field: 'harga_tulisan', icon: 'mdi:format-text', color: '#10b981' },
+  { id: 'separasi', label: 'Cetak Separasi', field: 'harga_separasi', icon: 'mdi:palette', color: '#8b5cf6' }
 ] as const
 
-const MACHINE_FILTERS = {
-  PM52: (name: string) => name?.toUpperCase() === 'PM52',
-  SM74: (name: string) => name?.toUpperCase() === 'SM74',
-  PLANO: (name: string) => name?.toUpperCase().includes('PLANO')
-} as const
-
-const MACHINE_SPECS = {
-  PM52: { label: 'PM52', maxSize: '37×52 cm' },
-  SM74: { label: 'SM74', maxSize: '52.5×72 cm' },
-  PLANO: { label: 'Plano Max', maxSize: '72×102 cm' }
-} as const
+// Machine accent colors by name
+const MACHINE_META: Record<string, { icon: string; accent: string }> = {
+  'PM52': { icon: 'mdi:printer', accent: '#3b82f6' },
+  'SM74': { icon: 'mdi:printer-check', accent: '#10b981' },
+}
+const DEFAULT_MACHINE_META = { icon: 'mdi:printer', accent: '#64748b' }
 
 // ============ UTILS ============
 const formatCurrency = (amount: string | number) => {
@@ -92,52 +70,50 @@ const formatCurrency = (amount: string | number) => {
   }).format(num)
 }
 
-const formatSize = (panjang: string, lebar: string) => {
-  return `${parseFloat(panjang).toFixed(1)} × ${parseFloat(lebar).toFixed(1)} cm`
-}
+const formatSize = (panjang: string, lebar: string) =>
+  `${parseFloat(panjang).toFixed(1)} × ${parseFloat(lebar).toFixed(1)} cm`
 
-const getMachineType = (name: string): keyof typeof MACHINE_SPECS => {
-  if (MACHINE_FILTERS.PM52(name)) return 'PM52'
-  if (MACHINE_FILTERS.SM74(name)) return 'SM74'
-  if (MACHINE_FILTERS.PLANO(name)) return 'PLANO'
-  return 'PLANO'
-}
+const getMachineMeta = (name: string) =>
+  MACHINE_META[name?.toUpperCase()] || DEFAULT_MACHINE_META
 
-const getMachineBadgeClass = (name: string): string => {
-  const type = getMachineType(name)
-  const classes = {
-    PM52: 'bg-blue-100 text-blue-800 border border-blue-200',
-    SM74: 'bg-green-100 text-green-800 border border-green-200',
-    PLANO: 'bg-purple-100 text-purple-800 border border-purple-200'
-  }
-  return classes[type]
+// ============ BADGE (same as box-models) ============
+function Badge({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
+      style={{ background: `${color}18`, color }}
+    >
+      {children}
+    </span>
+  )
 }
 
 // ============ HOOKS ============
 const useMachineStats = (machines: Machine[]) => {
   return useMemo(() => {
     const totalMachines = machines.length
-    const activeMachines = machines.length
-    
-    const pm52Count = machines.filter(m => MACHINE_FILTERS.PM52(m.name_ma)).length
-    const sm74Count = machines.filter(m => MACHINE_FILTERS.SM74(m.name_ma)).length
-    const planoMaxCount = machines.filter(m => MACHINE_FILTERS.PLANO(m.name_ma)).length
-    
+
     const allPrices = machines.flatMap(m => [
       parseFloat(m.harga_blok),
       parseFloat(m.harga_tulisan),
       parseFloat(m.harga_separasi)
-    ]).filter(price => !isNaN(price) && price > 0)
-    
+    ]).filter(p => !isNaN(p) && p > 0)
+
+    const avgBlok = machines.length
+      ? machines.reduce((acc, m) => acc + parseFloat(m.harga_blok), 0) / machines.length
+      : 0
+
+    const configuredCount = machines.filter(m =>
+      parseFloat(m.bahan_max_p_cm) > 0 && parseFloat(m.bahan_max_l_cm) > 0
+    ).length
+
     return {
       totalMachines,
-      activeMachines,
-      pm52Count,
-      sm74Count,
-      planoMaxCount,
+      configuredCount,
       priceRange: {
         min: allPrices.length > 0 ? Math.min(...allPrices) : 0,
-        max: allPrices.length > 0 ? Math.max(...allPrices) : 0
+        max: allPrices.length > 0 ? Math.max(...allPrices) : 0,
+        avgBlok
       }
     }
   }, [machines])
@@ -145,62 +121,64 @@ const useMachineStats = (machines: Machine[]) => {
 
 // ============ MAIN COMPONENT ============
 export default function PrintSettingsPage() {
-  const router = useRouter()
-  
   // ===== STATE =====
   const [machines, setMachines] = useState<Machine[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [posting, setPosting] = useState(false)
   const [search, setSearch] = useState('')
-  
+
   // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  
-  // Selected data
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null)
 
   const stats = useMachineStats(machines)
 
   // ===== DERIVED STATE =====
-  const filteredMachines = useMemo(() => 
-    machines.filter(machine => 
+  const filteredMachines = useMemo(() =>
+    machines.filter(machine =>
       machine.name_ma.toLowerCase().includes(search.toLowerCase()) ||
       machine.id_ma.includes(search)
-    ), [machines, search]
-  )
+    ), [machines, search])
 
-  // ===== API CALLS =====
+  // ===== API =====
   const fetchMachines = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      
+
       const response = await axios.get<ApiResponse>('Admin/Cetak/Machine', {
         headers: { 'ngrok-skip-browser-warning': 'true' },
         timeout: 10000
       })
-      
+
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
         setMachines(response.data.data)
       } else {
         setMachines([])
       }
-      
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('❌ Error fetching machines:', err)
-      
-      if (err.response?.status === 404 || err.response?.status === 204) {
-        setMachines([])
-        setError(null)
-      } else if (err.code === 'ECONNABORTED') {
-        setError('Koneksi timeout. Silakan coba lagi.')
-      } else if (!err.response) {
-        setError('Tidak bisa connect ke server. Periksa koneksi internet.')
-      } else {
-        setError(err.response?.data?.message || 'Terjadi kesalahan saat memuat data')
+      let errorMessage = 'Terjadi kesalahan saat memuat data'
+      if (err && typeof err === 'object' && 'response' in err) {
+        const errResponse = err as { response?: { status?: number; data?: { message?: string } } }
+        if (errResponse.response?.status === 404 || errResponse.response?.status === 204) {
+          setMachines([])
+          setError(null)
+          return
+        }
+        errorMessage = errResponse.response?.data?.message || errorMessage
+      } else if (err && typeof err === 'object' && 'code' in err) {
+        const errCode = err as { code?: string }
+        errorMessage = errCode.code === 'ECONNABORTED'
+          ? 'Koneksi timeout. Silakan coba lagi.'
+          : 'Tidak bisa connect ke server. Periksa koneksi internet.'
+      } else if (err instanceof Error) {
+        errorMessage = err.message
       }
+      setError(errorMessage)
+      setMachines([])
     } finally {
       setLoading(false)
     }
@@ -212,13 +190,19 @@ export default function PrintSettingsPage() {
 
   // ===== HANDLERS =====
   const handleRefresh = useCallback(async () => {
-    const result = await SweetAlert.confirmAction(
-      'Refresh Data?',
-      'Data akan dimuat ulang dari server.'
-    )
-    
+    const result = await Swal.fire({
+      icon: 'question',
+      title: 'Refresh Data?',
+      text: 'Data akan dimuat ulang dari server.',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Refresh!',
+      cancelButtonText: 'Batal',
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#6B7280'
+    })
     if (result.isConfirmed) {
       await fetchMachines()
+      Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data berhasil di-refresh!', timer: 1500, showConfirmButton: false })
     }
   }, [fetchMachines])
 
@@ -235,20 +219,26 @@ export default function PrintSettingsPage() {
 
   const handleUpdate = useCallback(async (formData: UpdateMachineFormData) => {
     if (!selectedMachine) return
-    
     try {
       setPosting(true)
-      
-      
-      await SweetAlert.success('Berhasil!', 'Machine settings berhasil diperbarui!')
-      
+      Swal.fire({
+        title: 'Loading...', text: 'Menyimpan perubahan...',
+        allowOutsideClick: false, showConfirmButton: false,
+        didOpen: () => Swal.showLoading()
+      })
+
+      // Simulasi API call — ganti dengan axios.put(...) ke endpoint sebenarnya
+      await new Promise(resolve => setTimeout(resolve, 1500))
+
+      Swal.close()
+      await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Machine settings berhasil diperbarui!', timer: 1500, showConfirmButton: false })
       setIsEditModalOpen(false)
       setSelectedMachine(null)
       await fetchMachines()
-      
-    } catch (error) {
-      console.error('Error updating:', error)
-      await SweetAlert.error('Error!', 'Gagal mengupdate machine settings')
+    } catch (err: unknown) {
+      Swal.close()
+      const msg = err instanceof Error ? err.message : 'Gagal mengupdate machine settings'
+      Swal.fire({ icon: 'error', title: 'Error!', text: msg, confirmButtonColor: '#3b82f6' })
     } finally {
       setPosting(false)
     }
@@ -264,80 +254,43 @@ export default function PrintSettingsPage() {
 
   const handleSubmitEdit = useCallback(() => {
     const form = document.forms.namedItem('editForm')
-    if (form) {
-      const formData = {
-        maxMaterialWidth: parseFloat((form.elements.namedItem('maxMaterialWidth') as HTMLInputElement).value),
-        maxMaterialLength: parseFloat((form.elements.namedItem('maxMaterialLength') as HTMLInputElement).value),
-        minMaterialWidth: parseFloat((form.elements.namedItem('minMaterialWidth') as HTMLInputElement).value),
-        minMaterialLength: parseFloat((form.elements.namedItem('minMaterialLength') as HTMLInputElement).value),
-        maxPrintWidth: parseFloat((form.elements.namedItem('maxPrintWidth') as HTMLInputElement).value),
-        maxPrintLength: parseFloat((form.elements.namedItem('maxPrintLength') as HTMLInputElement).value),
-        minPrintWidth: parseFloat((form.elements.namedItem('minPrintWidth') as HTMLInputElement).value),
-        minPrintLength: parseFloat((form.elements.namedItem('minPrintLength') as HTMLInputElement).value),
-        priceBlok: parseFloat((form.elements.namedItem('priceBlok') as HTMLInputElement).value),
-        priceTulisan: parseFloat((form.elements.namedItem('priceTulisan') as HTMLInputElement).value),
-        priceSeparasi: parseFloat((form.elements.namedItem('priceSeparasi') as HTMLInputElement).value)
-      }
-      handleUpdate(formData)
+    if (form && selectedMachine) {
+      const get = (name: string) => parseFloat((form.elements.namedItem(name) as HTMLInputElement).value)
+      handleUpdate({
+        id_ma: selectedMachine.id_ma,
+        bahan_max_p_cm: get('bahan_max_p_cm'),
+        bahan_max_l_cm: get('bahan_max_l_cm'),
+        bahan_min_p_cm: get('bahan_min_p_cm'),
+        bahan_min_l_cm: get('bahan_min_l_cm'),
+        harga_blok: get('harga_blok'),
+        harga_tulisan: get('harga_tulisan'),
+        harga_separasi: get('harga_separasi')
+      })
     }
-  }, [handleUpdate])
+  }, [handleUpdate, selectedMachine])
 
   // ===== RENDER =====
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-            <Icon icon="mdi:printer" className="w-8 h-8 text-blue-600 absolute inset-0 m-auto animate-pulse" />
-          </div>
-          <p className="mt-6 text-lg font-medium text-gray-700">Memuat Print Settings...</p>
-          <p className="text-sm text-gray-500 mt-2">Harap tunggu sebentar</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="max-w-lg w-full border-red-200 bg-red-50">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Icon icon="mdi:alert-circle" className="w-10 h-10 text-red-600" />
-            </div>
-            <h3 className="text-xl font-bold text-red-800 mb-2">Error Loading Data</h3>
-            <p className="text-red-700 mb-6">{error}</p>
-            <Button onClick={fetchMachines} variant="danger" className="mx-auto">
-              <Icon icon="mdi:refresh" className="w-4 h-4 mr-2" />
-              Coba Lagi
-            </Button>
-          </div>
-        </Card>
-      </div>
-    )
-  }
+  if (loading) return <LoadingState message="Memuat Print Settings..." submessage="Harap tunggu sebentar" icon="mdi:printer-settings" />
+  if (error) return <ErrorState message={error} onRetry={fetchMachines} />
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+
       {/* ===== HEADER ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-            <Icon icon="mdi:printer-multiple" className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
+            <Icon icon="mdi:printer-settings" className="w-6 h-6 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Print Settings
-            </h1>
-            <p className="text-gray-600 mt-1">Kelola konfigurasi mesin cetak dan harga</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Print Settings</h1>
+            <p className="text-slate-500 mt-1 text-sm">Kelola konfigurasi mesin cetak dan harga</p>
           </div>
         </div>
-        
         <Button
           onClick={handleRefresh}
-          variant="primary"
-          className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
+          variant="outline"
+          size="md"
           icon="mdi:refresh"
         >
           Refresh Data
@@ -345,249 +298,172 @@ export default function PrintSettingsPage() {
       </div>
 
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full group-hover:bg-blue-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:printer-multiple" className="w-4 h-4 text-blue-600" />
-              Total Machines
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-gray-900">{stats.totalMachines.toLocaleString()}</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {[
+          {
+            icon: 'mdi:layers',
+            label: 'Harga Cetak Blok',
+            value: formatCurrency(stats.priceRange.avgBlok),
+            sub: 'Rata-rata semua mesin'
+          },
+          {
+            icon: 'mdi:cash-minus',
+            label: 'Harga Terendah',
+            value: formatCurrency(stats.priceRange.min),
+            sub: 'Dari semua tipe cetak'
+          },
+          {
+            icon: 'mdi:cash-plus',
+            label: 'Harga Tertinggi',
+            value: formatCurrency(stats.priceRange.max),
+            sub: 'Dari semua tipe cetak'
+          }
+        ].map((s, i) => (
+          <Card key={i} shadow="sm" padding="md" hoverable>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-gray-500">{s.label}</p>
+              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
+              </div>
             </div>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="text-green-600 font-medium flex items-center gap-1">
-                <Icon icon="mdi:check-circle" className="w-3 h-3" />
-                {stats.activeMachines} Aktif
-              </span>
-            </div>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full group-hover:bg-blue-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:printer" className="w-4 h-4 text-blue-600" />
-              PM52
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-gray-900">{stats.pm52Count}</p>
-            </div>
-            <p className="text-xs text-gray-500">Max: 37×52 cm</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full group-hover:bg-green-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:printer" className="w-4 h-4 text-green-600" />
-              SM74
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-gray-900">{stats.sm74Count}</p>
-            </div>
-            <p className="text-xs text-gray-500">Max: 52.5×72 cm</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-50 rounded-bl-full group-hover:bg-purple-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:printer" className="w-4 h-4 text-purple-600" />
-              Plano Max
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-3xl font-bold text-gray-900">{stats.planoMaxCount}</p>
-            </div>
-            <p className="text-xs text-gray-500">Max: 72×102 cm</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-50 rounded-bl-full group-hover:bg-amber-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-amber-600" />
-              Price Range
-            </p>
-            <div className="flex items-baseline gap-2">
-              <p className="text-xl font-bold text-gray-900">{formatCurrency(stats.priceRange.min)}</p>
-            </div>
-            <p className="text-xs text-gray-500">to {formatCurrency(stats.priceRange.max)}</p>
-          </div>
-        </Card>
+            <p className="text-2xl font-bold text-slate-800 truncate">{s.value}</p>
+            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
+          </Card>
+        ))}
       </div>
 
-      {/* ===== MAIN CARD ===== */}
-      <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-        {/* Card Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 px-6 pt-6">
+      {/* ===== MAIN TABLE CARD ===== */}
+      <Card shadow="md" padding="none">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Icon icon="mdi:format-list-bulleted" className="w-5 h-5 text-blue-600" />
-              Daftar Mesin Cetak
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">
-              Total {stats.totalMachines} mesin terkonfigurasi
+            <h3 className="text-base font-semibold text-slate-800">Daftar Mesin Cetak</h3>
+            <p className="text-sm text-gray-400 mt-0.5">
+              Total {stats.totalMachines} mesin · {stats.configuredCount} terkonfigurasi
             </p>
-          </div>
-          
-          <div className="flex gap-2 w-full sm:w-auto">
-            <div className="relative flex-1 sm:w-64">
-              <Input
-                leftIcon="mdi:magnify"
-                placeholder="Cari mesin..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-10"
-              />
-              {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                >
-                  <Icon icon="mdi:close-circle" className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={fetchMachines}
-              className="border-gray-300 hover:bg-gray-50"
-              icon="mdi:refresh"
-            >
-              Refresh
-            </Button>
           </div>
         </div>
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {['Mesin', 'Material Size', 'Print Area', 'Harga Cetak', 'Actions'].map((header) => (
-                  <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                    {header}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredMachines.length === 0 ? (
+          {machines.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <Icon icon="mdi:printer-off" className="w-16 h-16 text-gray-300" />
+              <p className="text-gray-500 font-medium text-lg">Belum ada data mesin cetak</p>
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-100">
+              <thead className="bg-gray-50">
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center">
-                    <div className="flex flex-col items-center">
-                      <Icon icon="mdi:printer-off" className="w-12 h-12 text-gray-300 mb-3" />
-                      <p className="text-gray-500 font-medium">Tidak ada mesin yang ditemukan</p>
-                      <p className="text-sm text-gray-400 mt-1">Coba ubah kata kunci pencarian</p>
-                      {search && (
-                        <Button
-                          variant="outline"
-                          onClick={() => setSearch('')}
-                          className="mt-4"
-                          icon="mdi:close"
-                        >
-                          Clear Search
-                        </Button>
-                      )}
-                    </div>
-                  </td>
+                  {['Mesin', 'Ukuran Material', 'Harga Cetak', 'Aksi'].map(h => (
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ) : (
-                filteredMachines.map((machine) => (
-                  <tr key={machine.id_ma} className="hover:bg-blue-50/50 transition-colors duration-150">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center mr-3 ${getMachineBadgeClass(machine.name_ma)}`}>
-                          <Icon icon="mdi:printer" className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-900">{machine.name_ma}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-700">Max:</span>{' '}
-                          <span className="text-gray-600">{formatSize(machine.bahan_max_panjang, machine.bahan_max_lebar)}</span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-700">Min:</span>{' '}
-                          <span className="text-gray-600">{formatSize(machine.bahan_min_panjang, machine.bahan_min_lebar)}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-700">Max:</span>{' '}
-                          <span className="text-gray-600">{formatSize(machine.cetak_max_panjang, machine.cetak_max_lebar)}</span>
-                        </div>
-                        <div className="text-sm">
-                          <span className="font-medium text-gray-700">Min:</span>{' '}
-                          <span className="text-gray-600">{formatSize(machine.cetak_min_panjang, machine.cetak_min_lebar)}</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="space-y-1">
-                        {PRINT_TYPES.map((type) => (
-                          <div key={type.id} className="flex items-center gap-1 text-sm">
-                            <Icon icon={type.icon} className={`w-3 h-3 text-${type.color}-600`} />
-                            <span className="text-gray-600">{type.label}:</span>
-                            <span className="font-medium text-green-600">
-                              {formatCurrency(machine[type.field])}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => handleViewDetails(machine)}
-                          className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Lihat Detail"
-                        >
-                          <Icon icon="mdi:eye" className="w-5 h-5" />
-                        </button>
-                        
-                        <button
-                          onClick={() => handleEdit(machine)}
-                          className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Icon icon="mdi:pencil" className="w-5 h-5" />
-                        </button>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
+                {filteredMachines.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Icon icon="mdi:printer-off" className="w-16 h-16 text-gray-300" />
+                        <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
+                        <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+                        <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
+                          Hapus Pencarian
+                        </Button>
                       </div>
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredMachines.map((machine) => {
+                    const meta = getMachineMeta(machine.name_ma)
+                    return (
+                      <tr key={machine.id_ma} className="hover:bg-slate-50/80 transition-colors">
+                        {/* Mesin */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                              style={{ background: `${meta.accent}15` }}
+                            >
+                              <Icon icon={meta.icon} className="w-5 h-5" style={{ color: meta.accent }} />
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-800">{machine.name_ma}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Ukuran Material */}
+                        <td className="px-6 py-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge color="#3b82f6">Max</Badge>
+                              <span className="text-sm text-slate-700">
+                                {formatSize(machine.bahan_max_p_cm, machine.bahan_max_l_cm)}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge color="#64748b">Min</Badge>
+                              <span className="text-sm text-slate-700">
+                                {formatSize(machine.bahan_min_p_cm, machine.bahan_min_l_cm)}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Harga Cetak */}
+                        <td className="px-6 py-4">
+                          <div className="space-y-1.5">
+                            {PRINT_TYPES.map((type) => (
+                              <div key={type.id} className="flex items-center gap-2">
+                                <Icon icon={type.icon} className="w-3.5 h-3.5" style={{ color: type.color }} />
+                                <span className="text-xs text-gray-500 w-24">{type.label}:</span>
+                                <span className="text-xs font-semibold" style={{ color: type.color }}>
+                                  {formatCurrency(machine[type.field as keyof Machine] as string)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
+                        {/* Aksi */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleViewDetails(machine)}
+                              title="Lihat Detail"
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            >
+                              <Icon icon="mdi:eye-outline" className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleEdit(machine)}
+                              title="Edit"
+                              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            >
+                              <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
 
-        {/* Table Footer */}
+        {/* Footer */}
         {filteredMachines.length > 0 && (
-          <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50/50">
-            <div className="text-sm text-gray-600">
-              Menampilkan {filteredMachines.length} dari {machines.length} mesin
-            </div>
-            <button
-              onClick={() => SweetAlert.info('Export', 'Exporting machine data...')}
-              className="text-blue-600 hover:text-blue-700 flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              <Icon icon="mdi:export" className="w-4 h-4" />
-              <span className="text-sm font-medium">Export Data</span>
-            </button>
+          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
+            <p className="text-sm text-gray-500">
+              Menampilkan <span className="font-medium text-slate-700">{filteredMachines.length}</span> dari{' '}
+              <span className="font-medium text-slate-700">{machines.length}</span> mesin
+            </p>
           </div>
         )}
       </Card>
@@ -596,275 +472,200 @@ export default function PrintSettingsPage() {
       <Modal
         isOpen={isViewModalOpen}
         onClose={handleCloseModal}
-        title="🔍 Detail Mesin Cetak"
-        size="xl"
+        title="Detail Mesin Cetak"
+        size="md"
         footer={
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={handleCloseModal}>
-              Tutup
-            </Button>
+          <>
+            <Button variant="outline" onClick={handleCloseModal}>Tutup</Button>
             <Button
               variant="primary"
               onClick={() => selectedMachine && handleEdit(selectedMachine)}
-              icon="mdi:pencil"
+              icon="mdi:pencil-outline"
             >
               Edit Mesin
             </Button>
-          </div>
+          </>
         }
       >
-        {selectedMachine && (
-          <div className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-xl border border-blue-200">
-              <div className="flex items-center gap-4">
-                <div className={`w-16 h-16 rounded-xl flex items-center justify-center ${getMachineBadgeClass(selectedMachine.name_ma)}`}>
-                  <Icon icon="mdi:printer" className="w-8 h-8" />
+        {selectedMachine && (() => {
+          const meta = getMachineMeta(selectedMachine.name_ma)
+          return (
+            <div className="space-y-4">
+              {/* Identity */}
+              <div
+                className="flex items-center gap-4 p-4 rounded-xl"
+                style={{ background: `${meta.accent}0d` }}
+              >
+                <div
+                  className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+                  style={{ background: `${meta.accent}20` }}
+                >
+                  <Icon icon={meta.icon} className="w-7 h-7" style={{ color: meta.accent }} />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedMachine.name_ma}</h2>
-                  <p className="text-sm text-gray-600 mt-1">ID Mesin: {selectedMachine.id_ma}</p>
+                  <p className="text-base font-semibold text-slate-800">{selectedMachine.name_ma}</p>
                 </div>
               </div>
-            </div>
 
-            {/* Specifications */}
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="p-5 bg-blue-50/50 border-blue-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Icon icon="mdi:ruler-square" className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <h3 className="font-semibold text-blue-900">Material Size Limits</h3>
-                </div>
-                <div className="space-y-4">
+              {/* Material Size */}
+              <Card shadow="none" padding="sm" bordered>
+                <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
+                  <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5" />
+                  Ukuran Material
+                </p>
+                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-blue-700 mb-1">Maksimum</p>
-                    <p className="text-2xl font-bold text-blue-900">
-                      {formatSize(selectedMachine.bahan_max_panjang, selectedMachine.bahan_max_lebar)}
-                    </p>
-                  </div>
-                  <div className="border-t border-blue-200 pt-3">
-                    <p className="text-xs text-blue-700 mb-1">Minimum</p>
-                    <p className="text-lg font-semibold text-blue-800">
-                      {formatSize(selectedMachine.bahan_min_panjang, selectedMachine.bahan_min_lebar)}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-
-              <Card className="p-5 bg-green-50/50 border-green-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Icon icon="mdi:printer" className="w-4 h-4 text-green-600" />
-                  </div>
-                  <h3 className="font-semibold text-green-900">Print Area Limits</h3>
-                </div>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-xs text-green-700 mb-1">Maksimum</p>
-                    <p className="text-2xl font-bold text-green-900">
-                      {formatSize(selectedMachine.cetak_max_panjang, selectedMachine.cetak_max_lebar)}
-                    </p>
-                  </div>
-                  <div className="border-t border-green-200 pt-3">
-                    <p className="text-xs text-green-700 mb-1">Minimum</p>
-                    <p className="text-lg font-semibold text-green-800">
-                      {formatSize(selectedMachine.cetak_min_panjang, selectedMachine.cetak_min_lebar)}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Pricing */}
-            <div>
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-amber-600" />
-                </div>
-                Print Types & Pricing
-              </h3>
-              <div className="grid gap-3">
-                {PRINT_TYPES.map((type) => (
-                  <Card key={type.id} className="p-4 hover:shadow-md transition-shadow border-l-4 border-l-${type.color}-500">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className={`bg-${type.color}-100 p-2 rounded-lg`}>
-                          <Icon icon={type.icon} className={`w-5 h-5 text-${type.color}-600`} />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">{type.label}</p>
-                          <p className="text-xs text-gray-500">Harga per lembar</p>
-                        </div>
-                      </div>
-                      <p className="text-2xl font-bold text-green-600">
-                        {formatCurrency(selectedMachine[type.field])}
-                      </p>
+                    <p className="text-xs text-gray-400 mb-1">Maksimum</p>
+                    <div className="flex items-center gap-1.5">
+                      <Badge color="#3b82f6">Max</Badge>
+                      <span className="text-sm font-medium text-slate-700">
+                        {formatSize(selectedMachine.bahan_max_p_cm, selectedMachine.bahan_max_l_cm)}
+                      </span>
                     </div>
-                  </Card>
-                ))}
-              </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 mb-1">Minimum</p>
+                    <div className="flex items-center gap-1.5">
+                      <Badge color="#64748b">Min</Badge>
+                      <span className="text-sm font-medium text-slate-700">
+                        {formatSize(selectedMachine.bahan_min_p_cm, selectedMachine.bahan_min_l_cm)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Pricing */}
+              <Card shadow="none" padding="sm" bordered>
+                <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
+                  <Icon icon="mdi:cash-multiple" className="w-3.5 h-3.5" />
+                  Harga Cetak
+                </p>
+                <div className="space-y-2">
+                  {PRINT_TYPES.map((type) => (
+                    <div key={type.id} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <Icon icon={type.icon} className="w-4 h-4" style={{ color: type.color }} />
+                        <span className="text-sm text-gray-600">{type.label}</span>
+                      </div>
+                      <span className="text-sm font-bold" style={{ color: type.color }}>
+                        {formatCurrency(selectedMachine[type.field as keyof Machine] as string)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </Modal>
 
       {/* ===== EDIT MODAL ===== */}
       <Modal
         isOpen={isEditModalOpen}
         onClose={handleCloseModal}
-        title={`✏️ Edit Mesin - ${selectedMachine?.name_ma}`}
+        title={`Edit Mesin — ${selectedMachine?.name_ma}`}
         size="xl"
+        closeOnOverlayClick={!posting}
         footer={
-          <div className="flex justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={handleCloseModal}
-              disabled={posting}
-            >
-              Batal
-            </Button>
+          <>
+            <Button variant="outline" onClick={handleCloseModal} disabled={posting}>Batal</Button>
             <Button
               variant="primary"
               onClick={handleSubmitEdit}
               loading={posting}
               disabled={posting}
+              icon="mdi:check"
             >
               {posting ? 'Menyimpan...' : 'Simpan Perubahan'}
             </Button>
-          </div>
+          </>
         }
       >
         {selectedMachine && (
-          <form name="editForm" className="space-y-6 max-h-[70vh] overflow-y-auto px-1">
-            {/* Info Box */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
+          <form name="editForm" className="space-y-5">
+            {/* Info box */}
+            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-blue-800">Mengedit Konfigurasi Mesin</p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Mesin: <span className="font-semibold">{selectedMachine.name_ma}</span> 
+                </p>
+              </div>
+            </div>
+
+            {/* Material Size Section */}
+            <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5 text-blue-600" />
                 </div>
-                <div>
-                  <h4 className="font-semibold text-blue-900 mb-1">Mengedit Mesin Cetak</h4>
-                  <p className="text-sm text-blue-700">
-                    Mesin: <span className="font-medium">{selectedMachine.name_ma}</span> (ID: {selectedMachine.id_ma})
-                  </p>
-                  <p className="text-xs text-blue-600 mt-1">
-                    Update semua field di bawah sesuai kebutuhan
-                  </p>
-                </div>
+                Ukuran Material (cm)
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Max Panjang"
+                  name="bahan_max_p_cm"
+                  type="number"
+                  step="0.01"
+                  defaultValue={selectedMachine.bahan_max_p_cm}
+                  disabled={posting}
+                  leftIcon="mdi:arrow-expand-horizontal"
+                />
+                <Input
+                  label="Max Lebar"
+                  name="bahan_max_l_cm"
+                  type="number"
+                  step="0.01"
+                  defaultValue={selectedMachine.bahan_max_l_cm}
+                  disabled={posting}
+                  leftIcon="mdi:arrow-expand-vertical"
+                />
+                <Input
+                  label="Min Panjang"
+                  name="bahan_min_p_cm"
+                  type="number"
+                  step="0.01"
+                  defaultValue={selectedMachine.bahan_min_p_cm}
+                  disabled={posting}
+                  leftIcon="mdi:arrow-collapse-horizontal"
+                />
+                <Input
+                  label="Min Lebar"
+                  name="bahan_min_l_cm"
+                  type="number"
+                  step="0.01"
+                  defaultValue={selectedMachine.bahan_min_l_cm}
+                  disabled={posting}
+                  leftIcon="mdi:arrow-collapse-vertical"
+                />
               </div>
             </div>
 
             {/* Pricing Section */}
-            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
                 <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:cash" className="w-4 h-4 text-amber-600" />
+                  <Icon icon="mdi:cash" className="w-3.5 h-3.5 text-amber-600" />
                 </div>
-                Print Pricing (IDR)
-              </h3>
+                Harga Cetak (IDR)
+              </h4>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {PRINT_TYPES.map((type) => (
                   <Input
                     key={type.id}
                     label={type.label}
-                    name={`price${type.id.charAt(0).toUpperCase() + type.id.slice(1)}`}
+                    name={type.field}
                     type="number"
                     step="1000"
-                    defaultValue={selectedMachine[type.field]}
+                    defaultValue={selectedMachine[type.field as keyof Machine] as string}
                     disabled={posting}
                     leftIcon={type.icon}
                   />
                 ))}
-              </div>
-            </div>
-
-            {/* Material Size Section */}
-            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:ruler-square" className="w-4 h-4 text-blue-600" />
-                </div>
-                Material Size (cm)
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Max Width"
-                  name="maxMaterialWidth"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.bahan_max_panjang}
-                  disabled={posting}
-                />
-                <Input
-                  label="Max Length"
-                  name="maxMaterialLength"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.bahan_max_lebar}
-                  disabled={posting}
-                />
-                <Input
-                  label="Min Width"
-                  name="minMaterialWidth"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.bahan_min_panjang}
-                  disabled={posting}
-                />
-                <Input
-                  label="Min Length"
-                  name="minMaterialLength"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.bahan_min_lebar}
-                  disabled={posting}
-                />
-              </div>
-            </div>
-
-            {/* Print Area Section */}
-            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                <div className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:printer" className="w-4 h-4 text-green-600" />
-                </div>
-                Print Area (cm)
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Max Width"
-                  name="maxPrintWidth"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.cetak_max_panjang}
-                  disabled={posting}
-                />
-                <Input
-                  label="Max Length"
-                  name="maxPrintLength"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.cetak_max_lebar}
-                  disabled={posting}
-                />
-                <Input
-                  label="Min Width"
-                  name="minPrintWidth"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.cetak_min_panjang}
-                  disabled={posting}
-                />
-                <Input
-                  label="Min Length"
-                  name="minPrintLength"
-                  type="number"
-                  step="0.01"
-                  defaultValue={selectedMachine.cetak_min_lebar}
-                  disabled={posting}
-                />
               </div>
             </div>
           </form>

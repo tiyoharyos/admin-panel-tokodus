@@ -2,13 +2,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import axios from '../../../lib/axios'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
-import CustomIcon from '@/components/UI/Icon'
+import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
 
 export default function ProfilePage() {
@@ -285,7 +284,7 @@ export default function ProfilePage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-center h-64">
             <div className="text-center">
-              <CustomIcon icon="mdi:loading" className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+              <Icon icon="mdi:loading" className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
               <p className="text-gray-600">Loading profile...</p>
             </div>
           </div>
@@ -298,7 +297,7 @@ export default function ProfilePage() {
   const renderInfoField = (label, value, icon = null) => (
     <div className="mb-4">
       <p className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
-        {icon && <CustomIcon icon={icon} className="w-4 h-4" />}
+        {icon && <Icon icon={icon} className="w-4 h-4" />}
         {label}
       </p>
       <p className="text-gray-900 font-medium">
@@ -316,13 +315,13 @@ export default function ProfilePage() {
             {/* Profile Avatar */}
             <div className="relative">
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
-                <CustomIcon 
+                <Icon 
                   icon="mdi:account" 
                   className="w-12 h-12 text-white" 
                 />
               </div>
               <button className="absolute bottom-0 right-0 w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-200">
-                <CustomIcon icon="mdi:camera" className="w-4 h-4 text-gray-600" />
+                <Icon icon="mdi:camera" className="w-4 h-4 text-gray-600" />
               </button>
             </div>
 
@@ -332,22 +331,22 @@ export default function ProfilePage() {
                 {profileData.firstName} {profileData.lastName}
               </h1>
               <p className="text-gray-600 mb-2 flex items-center gap-2">
-                <CustomIcon icon="mdi:briefcase" className="w-4 h-4" />
+                <Icon icon="mdi:briefcase" className="w-4 h-4" />
                 {profileData.position} | {profileData.country}
               </p>
               <p className="text-sm text-gray-500 flex items-center gap-2">
-                <CustomIcon icon="mdi:map-marker" className="w-4 h-4" />
+                <Icon icon="mdi:map-marker" className="w-4 h-4" />
                 {profileData.cityState}
               </p>
               
               {/* Contact Info */}
               <div className="flex flex-wrap gap-4 mt-4">
                 <div className="flex items-center gap-2 text-sm">
-                  <CustomIcon icon="mdi:email" className="w-4 h-4 text-blue-600" />
+                  <Icon icon="mdi:email" className="w-4 h-4 text-blue-600" />
                   <span className="text-gray-600">{profileData.email}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
-                  <CustomIcon icon="mdi:phone" className="w-4 h-4 text-green-600" />
+                  <Icon icon="mdi:phone" className="w-4 h-4 text-green-600" />
                   <span className="text-gray-600">{profileData.phone}</span>
                 </div>
               </div>
@@ -361,7 +360,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 flex items-center justify-center bg-blue-100 text-blue-600 rounded-lg">
-                  <CustomIcon icon="mdi:account-details" className="w-5 h-5" />
+                  <Icon icon="mdi:account-details" className="w-5 h-5" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900">Personal Information</h2>
               </div>
@@ -400,7 +399,7 @@ export default function ProfilePage() {
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 flex items-center justify-center bg-green-100 text-green-600 rounded-lg">
-                  <CustomIcon icon="mdi:map-marker" className="w-5 h-5" />
+                  <Icon icon="mdi:map-marker" className="w-5 h-5" />
                 </div>
                 <h2 className="text-xl font-semibold text-gray-900">Address</h2>
               </div>
@@ -556,7 +555,7 @@ export default function ProfilePage() {
 
             <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 mt-2">
               <p className="text-sm text-blue-700">
-                <CustomIcon icon="mdi:information" className="w-4 h-4 inline mr-1" />
+                <Icon icon="mdi:information" className="w-4 h-4 inline mr-1" />
                 Address information is used for billing and shipping purposes.
               </p>
             </div>

@@ -1,5 +1,5 @@
 // services/auth.service.ts unutk login/logout dan manajemen token
-import axios from '@/lib/axios'
+import axios from '../lib/axios'
 
 export interface LoginPayload {
   email: string

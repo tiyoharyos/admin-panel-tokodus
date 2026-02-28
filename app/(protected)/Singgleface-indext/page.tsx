@@ -1,34 +1,57 @@
-// app/%28protected%29/sheet-settings/page.tsx
-
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
-import axios from '@/lib/axios'
+import { Icon } from '@iconify/react'
+import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
+import LoadingState from '@/components/UI/LoadingState'
+import ErrorState from '@/components/UI/ErrorState'
+import Input from '@/components/UI/Input'
+import axios from '@/lib/axios'
+import { AxiosError } from 'axios'
 import SweetAlert from '@/components/UI/SweetAlert'
-import { Icon } from '@iconify/react'
 
-// ===== TYPE DEFINITIONS =====
+// ============================================================
+// TYPES
+// ============================================================
+
 interface Flute {
+  id: string    // from id_f
+  code: string  // e.g. "B", "E"
+  name: string  // e.g. "B-Flute"
+}
+
+interface SinglefaceSubstance {
+  id: string              // substance_id
+  layer_1: string         // layer_1_gsm
+  layer_1_type: string
+  layer_2: string         // layer_2_gsm
+  layer_2_type: string
+  substance_code: string  // computed: "125M/125M"
+  [key: string]: any      // dynamic flute price fields: b_flute_price, e_flute_price, etc.
+}
+
+/** Raw item from API flat list */
+interface ApiRawItem {
   id: string
+  substance_id: string
+  flute_id: string
+  price_per_m2: string
+  layer_1_gsm: string
+  layer_1_type: string
+  layer_2_gsm: string
+  layer_2_type: string
+  id_f: string
   code: string
   name: string
 }
 
-interface SinglefaceSubstance {
-  id: string
-  no: string
-  layer_1: string
-  layer_1_type: string
-  layer_2: string
-  layer_2_type: string
-  substance_code: string
-  created_at: string
-  updated_at: string
-  [key: string]: any
+interface ApiResponse<T = any> {
+  status: number
+  message?: string
+  data?: T
 }
 
 interface FormData {
@@ -37,23 +60,9 @@ interface FormData {
   layer_2: string
   layer_2_type: string
   flutes: string[]
-  price_per_m2: { [key: string]: string }
+  price_per_m2: { [fluteCode: string]: string }
 }
 
-interface Stats {
-  totalSubstances: number
-  activeSubstances: number
-  withAllFlutes: number
-  totalIndices: number
-}
-
-interface CacheData {
-  layer_1: string
-  layer_2: string
-  timestamp: number
-}
-
-// ===== PAGINATION TYPES =====
 interface PaginationConfig {
   currentPage: number
   itemsPerPage: number
@@ -61,122 +70,266 @@ interface PaginationConfig {
   totalPages: number
 }
 
-// ===== BASE FORM TEMPLATE =====
+interface Stats {
+  totalSubstances: number
+  activeSubstances: number
+  totalIndices: number
+}
+
+// ============================================================
+// CONSTANTS & UTILS
+// ============================================================
+
+const API_BASE = '/Admin/Singelface'
+
+const LAYER_TYPES = [
+  { value: 'K', label: 'K - Kraft' },
+  { value: 'M', label: 'M - Medium' },
+  { value: 'W', label: 'W - White' },
+  { value: 'B', label: 'B - Bogus' },
+  { value: 'T', label: 'T - Test' },
+]
+
+const FLUTE_BADGE_COLORS: Record<string, string> = {
+  A: 'bg-red-100 text-red-700 border border-red-200',
+  B: 'bg-blue-100 text-blue-700 border border-blue-200',
+  C: 'bg-green-100 text-green-700 border border-green-200',
+  E: 'bg-purple-100 text-purple-700 border border-purple-200',
+  F: 'bg-orange-100 text-orange-700 border border-orange-200',
+}
+
+const FLUTE_TEXT_COLORS = [
+  'text-blue-600',
+  'text-purple-600',
+  'text-green-600',
+  'text-orange-600',
+  'text-red-600',
+]
+
+const LAYER_BADGE_COLORS: Record<string, string> = {
+  K: 'bg-amber-100 text-amber-800 border border-amber-200',
+  M: 'bg-sky-100 text-sky-800 border border-sky-200',
+  W: 'bg-gray-100 text-gray-800 border border-gray-200',
+  B: 'bg-slate-100 text-slate-800 border border-slate-200',
+  T: 'bg-teal-100 text-teal-800 border border-teal-200',
+}
+
+const formatCurrency = (val: number | string) => {
+  const num = parseFloat(val as string) || 0
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num)
+}
+
+const getLayerBadgeClass = (type: string) =>
+  LAYER_BADGE_COLORS[type] || 'bg-gray-100 text-gray-800'
+
+const getFluteBadgeClass = (code: string) =>
+  FLUTE_BADGE_COLORS[code] || 'bg-indigo-100 text-indigo-700 border border-indigo-200'
+
+const getFluteTextColor = (idx: number) =>
+  FLUTE_TEXT_COLORS[idx % FLUTE_TEXT_COLORS.length]
+
+const formatSubstanceDisplay = (substance: Pick<FormData, 'layer_1' | 'layer_1_type' | 'layer_2' | 'layer_2_type'> | SinglefaceSubstance) =>
+  `${substance.layer_1}${substance.layer_1_type} / ${substance.layer_2}${substance.layer_2_type}`
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof AxiosError) {
+    if (error.code === 'ECONNABORTED') {
+      return 'Koneksi timeout. Silakan coba lagi.'
+    }
+    if (!error.response) {
+      return 'Tidak bisa connect ke server. Periksa koneksi internet.'
+    }
+    if (error.response.data && typeof error.response.data === 'object' && 'message' in error.response.data) {
+      return (error.response.data as { message: string }).message
+    }
+    return 'Terjadi kesalahan saat memuat data'
+  }
+  
+  if (error instanceof Error) {
+    return error.message
+  }
+  
+  return 'Terjadi kesalahan yang tidak diketahui'
+}
+
+// ============================================================
+// SERVICE
+// ============================================================
+
+/** Parse flat API list → deduplicated substances + flute list */
+const parseFlatApiResponse = (rawItems: ApiRawItem[]) => {
+  // Collect unique flutes
+  const fluteMap: Map<string, Flute> = new Map()
+  rawItems.forEach(item => {
+    if (!fluteMap.has(item.id_f)) {
+      fluteMap.set(item.id_f, {
+        id: item.id_f,
+        code: item.code,
+        name: item.name,
+      })
+    }
+  })
+  const flutes = Array.from(fluteMap.values())
+
+  // Group by substance_id
+  const substanceMap: Map<string, SinglefaceSubstance> = new Map()
+  rawItems.forEach(item => {
+    if (!substanceMap.has(item.substance_id)) {
+      substanceMap.set(item.substance_id, {
+        id: item.substance_id,
+        layer_1: item.layer_1_gsm || '',
+        layer_1_type: item.layer_1_type || 'K',
+        layer_2: item.layer_2_gsm || '',
+        layer_2_type: item.layer_2_type || 'M',
+        substance_code: `${item.layer_1_gsm}${item.layer_1_type}/${item.layer_2_gsm}${item.layer_2_type}`,
+      })
+    }
+    // Set dynamic flute price field: e.g. b_flute_price
+    const priceField = `${item.code.toLowerCase()}_flute_price`
+    const substance = substanceMap.get(item.substance_id)!
+    substance[priceField] = parseFloat(item.price_per_m2) || 0
+  })
+
+  const substances = Array.from(substanceMap.values())
+  return { flutes, substances }
+}
+
+const fetchAllData = async (): Promise<{ flutes: Flute[]; substances: SinglefaceSubstance[] }> => {
+  const response = await axios.get<ApiResponse<ApiRawItem[]>>(`${API_BASE}/singelfaceIndex`, {
+    headers: { 'ngrok-skip-browser-warning': 'true' }
+  })
+  const rawItems: ApiRawItem[] = response.data?.data || (Array.isArray(response.data) ? response.data : [])
+  if (!Array.isArray(rawItems)) throw new Error('Invalid response format')
+  return parseFlatApiResponse(rawItems)
+}
+
+const fetchFlutesOnly = async (): Promise<Flute[]> => {
+  try {
+    const response = await axios.get<ApiResponse>(`${API_BASE}/singelfaceFlutes`, {
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    })
+    const data = response.data?.data || response.data || []
+    return (Array.isArray(data) ? data : []).map((f: any) => ({
+      id: f.id_f?.toString() || f.id?.toString() || '',
+      code: f.code || '',
+      name: f.name || '',
+    }))
+  } catch {
+    return []
+  }
+}
+
+const apiAdd = async (data: any): Promise<ApiResponse> => {
+  const res = await axios.post<ApiResponse>(`${API_BASE}/singelfaceIndexAdd`, data, {
+    headers: { 'ngrok-skip-browser-warning': 'true', 'Content-Type': 'application/json' }
+  })
+  return res.data
+}
+
+const apiUpdate = async (data: any): Promise<ApiResponse> => {
+  const res = await axios.put<ApiResponse>(`${API_BASE}/singelfaceIndexUpdate`, data, {
+    headers: { 'ngrok-skip-browser-warning': 'true', 'Content-Type': 'application/json' }
+  })
+  return res.data
+}
+
+const apiDelete = async (id: string): Promise<ApiResponse> => {
+  const res = await axios.delete<ApiResponse>(`${API_BASE}/singelfaceIndexDelete/${id}`, {
+    headers: { 'ngrok-skip-browser-warning': 'true' }
+  })
+  return res.data
+}
+
+// ============================================================
+// HOOK
+// ============================================================
+
 const BASE_FORM: FormData = {
   layer_1: '',
   layer_1_type: 'K',
   layer_2: '',
   layer_2_type: 'M',
   flutes: [],
-  price_per_m2: {}
+  price_per_m2: {},
 }
 
-export default function SinglefaceSettingsPage() {
-  const router = useRouter()
-
-  // ===== STATE =====
-  const [singlefaceSubstances, setSinglefaceSubstances] = useState<SinglefaceSubstance[]>([])
+const useSingleface = () => {
+  const [substances, setSubstances] = useState<SinglefaceSubstance[]>([])
   const [flutes, setFlutes] = useState<Flute[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isPosting, setIsPosting] = useState(false)
-
-  // Cache state
-  const [layerCache, setLayerCache] = useState<Record<string, CacheData>>({})
-
-  // Pagination state
   const [pagination, setPagination] = useState<PaginationConfig>({
     currentPage: 1,
     itemsPerPage: 10,
     totalItems: 0,
-    totalPages: 0
+    totalPages: 0,
   })
 
-  // Modal states
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingItem, setEditingItem] = useState<SinglefaceSubstance | null>(null)
-
-  // Form states
-  const [addFormData, setAddFormData] = useState<FormData>({ ...BASE_FORM })
-  const [editFormData, setEditFormData] = useState<FormData>({ ...BASE_FORM })
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-
-  // Stats
-  const [stats, setStats] = useState<Stats>({
-    totalSubstances: 0,
-    activeSubstances: 0,
-    withAllFlutes: 0,
-    totalIndices: 0
-  })
-
-  // ===== CLEAR ALL CACHE =====
-  const clearAllLayerCache = useCallback(() => {
-    // Konfirmasi sebelum menghapus
-    SweetAlert.confirm(
-      'Clear All Cache',
-      'Apakah Anda yakin ingin menghapus semua cache? Tindakan ini tidak dapat dibatalkan.',
-      'warning'
-    ).then((result) => {
-      if (result.isConfirmed) {
-        try {
-          // Clear from state
-          setLayerCache({})
-          
-          // Clear from localStorage
-          const keysToRemove: string[] = []
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i)
-            if (key?.startsWith('layer_cache_')) {
-              keysToRemove.push(key)
-            }
-          }
-          
-          keysToRemove.forEach(key => localStorage.removeItem(key))
-          
-          SweetAlert.success('Cache Cleared', 'Semua cache berhasil dihapus')
-          
-          // Refresh data
-          setTimeout(() => {
-            fetchSinglefaceIndex()
-          }, 500)
-          
-        } catch (err) {
-          console.error('Error clearing cache:', err)
-          SweetAlert.error('Error', 'Gagal menghapus cache')
-        }
-      }
-    })
+  const refetch = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      const { flutes: f, substances: s } = await fetchAllData()
+      setFlutes(f)
+      setSubstances(s)
+    } catch (err: any) {
+      // Fallback: try fetching flutes separately
+      try {
+        const f = await fetchFlutesOnly()
+        setFlutes(f)
+      } catch {}
+      setError(getErrorMessage(err))
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
-  // ===== FILTERED DATA =====
-  const filteredSubstances = useMemo(() => {
-    return singlefaceSubstances
-  }, [singlefaceSubstances])
+  useEffect(() => { refetch() }, [refetch])
 
-  // ===== PAGINATED DATA =====
-  const paginatedData = useMemo(() => {
-    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage
-    const endIndex = startIndex + pagination.itemsPerPage
-    return filteredSubstances.slice(startIndex, endIndex)
-  }, [filteredSubstances, pagination.currentPage, pagination.itemsPerPage])
-
-  // ===== OTOMATIS PILIH SEMUA FLUTE =====
+  // Sync pagination when substances change
   useEffect(() => {
-    if (flutes.length > 0 && showAddModal) {
-      setAddFormData(prev => ({
-        ...prev,
-        flutes: [],
-        price_per_m2: {}
-      }))
-    }
-  }, [flutes, showAddModal])
+    const total = substances.length
+    const totalPages = Math.max(1, Math.ceil(total / pagination.itemsPerPage))
+    setPagination(prev => ({
+      ...prev,
+      totalItems: total,
+      totalPages,
+      currentPage: prev.currentPage > totalPages ? 1 : prev.currentPage,
+    }))
+  }, [substances.length, pagination.itemsPerPage])
 
-  // ===== PAGINATION HANDLERS =====
+  const stats = useMemo<Stats>(() => ({
+    totalSubstances: substances.length,
+    activeSubstances: substances.filter(s => s.layer_1 && s.layer_2).length,
+    totalIndices: substances.length * flutes.length,
+  }), [substances, flutes])
+
+  const paginatedData = useMemo(() => {
+    const start = (pagination.currentPage - 1) * pagination.itemsPerPage
+    return substances.slice(start, start + pagination.itemsPerPage)
+  }, [substances, pagination.currentPage, pagination.itemsPerPage])
+
+  const addItem = async (data: any): Promise<ApiResponse> => {
+    const res = await apiAdd(data)
+    return res
+  }
+
+  const updateItem = async (data: any): Promise<ApiResponse> => {
+    const res = await apiUpdate(data)
+    return res
+  }
+
+  const deleteItem = async (id: string): Promise<ApiResponse> => {
+    const res = await apiDelete(id)
+    if (res?.status === 200) {
+      setSubstances(prev => prev.filter(s => s.id !== id))
+    }
+    return res
+  }
+
   const handlePageChange = (page: number) => {
     if (page < 1 || page > pagination.totalPages) return
     setPagination(prev => ({ ...prev, currentPage: page }))
-    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const handleItemsPerPageChange = (value: number) => {
@@ -184,1305 +337,850 @@ export default function SinglefaceSettingsPage() {
       ...prev,
       itemsPerPage: value,
       currentPage: 1,
-      totalPages: Math.ceil(filteredSubstances.length / value)
+      totalPages: Math.max(1, Math.ceil(substances.length / value)),
     }))
   }
 
-  // ===== UPDATE PAGINATION ON DATA CHANGE =====
-  useEffect(() => {
-    const totalItems = filteredSubstances.length
-    const totalPages = Math.ceil(totalItems / pagination.itemsPerPage)
-    
-    setPagination(prev => ({
-      ...prev,
-      totalItems,
-      totalPages,
-      currentPage: prev.currentPage > totalPages && totalPages > 0 ? 1 : prev.currentPage
-    }))
-  }, [filteredSubstances, pagination.itemsPerPage])
+  return {
+    substances,
+    flutes,
+    loading,
+    error,
+    stats,
+    pagination,
+    paginatedData,
+    refetch,
+    addItem,
+    updateItem,
+    deleteItem,
+    handlePageChange,
+    handleItemsPerPageChange,
+  }
+}
 
-  // ===== LOAD CACHE FROM LOCALSTORAGE =====
-  const loadLayerCache = useCallback((): Record<string, CacheData> => {
-    const cache: Record<string, CacheData> = {}
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key?.startsWith('layer_cache_')) {
-          const id = key.replace('layer_cache_', '')
-          const data = JSON.parse(localStorage.getItem(key) || '{}')
-          if (data.timestamp && Date.now() - data.timestamp < 7 * 24 * 60 * 60 * 1000) {
-            cache[id] = data
-          }
-        }
+// ============================================================
+// PAGE COMPONENT
+// ============================================================
+
+export default function SinglefaceSettingsPage() {
+  const {
+    substances,
+    flutes,
+    loading,
+    error,
+    stats,
+    pagination,
+    paginatedData,
+    refetch,
+    addItem,
+    updateItem,
+    deleteItem,
+    handlePageChange,
+    handleItemsPerPageChange,
+  } = useSingleface()
+
+  const [isPosting, setIsPosting] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<SinglefaceSubstance | null>(null)
+  const [addFormData, setAddFormData] = useState<FormData>({ ...BASE_FORM })
+  const [editFormData, setEditFormData] = useState<FormData>({ ...BASE_FORM })
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  // ---- Validation ----
+  const validateForm = (form: FormData): boolean => {
+    // Check layer_1
+    if (!form.layer_1?.toString().trim()) {
+      SweetAlert.error('Validasi Error', 'Gramasi layer 1 tidak boleh kosong')
+      return false
+    }
+    if (isNaN(parseFloat(form.layer_1)) || parseFloat(form.layer_1) <= 0) {
+      SweetAlert.error('Validasi Error', 'Gramasi layer 1 harus angka lebih dari 0')
+      return false
+    }
+
+    // Check layer_2
+    if (!form.layer_2?.toString().trim()) {
+      SweetAlert.error('Validasi Error', 'Gramasi layer 2 tidak boleh kosong')
+      return false
+    }
+    if (isNaN(parseFloat(form.layer_2)) || parseFloat(form.layer_2) <= 0) {
+      SweetAlert.error('Validasi Error', 'Gramasi layer 2 harus angka lebih dari 0')
+      return false
+    }
+
+    // Check flutes selection
+    if (form.flutes.length === 0) {
+      SweetAlert.error('Validasi Error', 'Pilih minimal satu flute type')
+      return false
+    }
+
+    // Check prices
+    for (const code of form.flutes) {
+      const price = form.price_per_m2?.[code]
+      if (!price?.toString().trim()) {
+        SweetAlert.error('Validasi Error', `Harga ${code}-Flute wajib diisi`)
+        return false
       }
-    } catch (err) {
-      console.error('Error loading cache:', err)
-    }
-    return cache
-  }, [])
-
-  // ===== SAVE TO CACHE =====
-  const saveToCache = useCallback((id: string, layer_1: string, layer_2: string) => {
-    const cacheData: CacheData = {
-      layer_1,
-      layer_2,
-      timestamp: Date.now()
-    }
-    
-    setLayerCache(prev => ({
-      ...prev,
-      [id]: cacheData
-    }))
-    
-    localStorage.setItem(`layer_cache_${id}`, JSON.stringify(cacheData))
-  }, [])
-
-  // ===== FETCH FLUTES =====
-  const fetchFlutes = useCallback(async (): Promise<Flute[]> => {
-    try {
-      const response = await axios.get('/Admin/Singelface/singelfaceFlutes', {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
-      })
-
-      let processedFlutes: Flute[] = []
-
-      if (response.data?.status === 200 && Array.isArray(response.data.data)) {
-        processedFlutes = response.data.data.map((flute: any) => ({
-          id: flute.id_f?.toString() || '',
-          code: flute.code || '',
-          name: flute.name || ''
-        }))
-      } else if (Array.isArray(response.data)) {
-        processedFlutes = response.data.map((flute: any) => ({
-          id: flute.id_f?.toString() || '',
-          code: flute.code || '',
-          name: flute.name || ''
-        }))
-      }
-
-      setFlutes(processedFlutes)
-      return processedFlutes
-    } catch (err) {
-      console.error('Error fetching flutes:', err)
-      setFlutes([])
-      return []
-    }
-  }, [])
-
-  // ===== FETCH SINGLEFACE INDEX =====
-  const fetchSinglefaceIndex = useCallback(async (): Promise<SinglefaceSubstance[]> => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const response = await axios.get('/Admin/Singelface/singelfaceIndex', {
-        headers: { 'ngrok-skip-browser-warning': 'true' }
-      })
-
-      const responseData = Array.isArray(response.data) 
-        ? response.data 
-        : response.data?.data || []
-
-      if (!Array.isArray(responseData)) {
-        throw new Error('Invalid response format')
-      }
-
-      const currentCache = loadLayerCache()
-      const groupedData: { [key: string]: SinglefaceSubstance } = {}
-      
-      responseData.forEach((item: any) => {
-        const substanceId = item.substance_id || item.id_ss
-        
-        if (!groupedData[substanceId]) {
-          let layer1 = item.layer_1_weight
-          let layer2 = item.layer_2_weight
-          
-          const layer1Type = item.layer_1_type || 'K'
-          const layer2Type = item.layer_2_type || 'M'
-          
-          if ((layer1 === '0' || layer1 === 0 || !layer1) && currentCache[substanceId]) {
-            layer1 = currentCache[substanceId].layer_1
-          }
-          
-          if ((layer2 === '0' || layer2 === 0 || !layer2) && currentCache[substanceId]) {
-            layer2 = currentCache[substanceId].layer_2
-          }
-          
-          if ((layer1 === '0' || layer1 === 0 || !layer1) && singlefaceSubstances.length > 0) {
-            const existing = singlefaceSubstances.find(s => s.id === substanceId)
-            if (existing && existing.layer_1 && existing.layer_1 !== '0') {
-              layer1 = existing.layer_1
-            }
-          }
-          
-          if ((layer2 === '0' || layer2 === 0 || !layer2) && singlefaceSubstances.length > 0) {
-            const existing = singlefaceSubstances.find(s => s.id === substanceId)
-            if (existing && existing.layer_2 && existing.layer_2 !== '0') {
-              layer2 = existing.layer_2
-            }
-          }
-          
-          groupedData[substanceId] = {
-            id: substanceId.toString(),
-            no: '',
-            layer_1: layer1 ? layer1.toString() : '',
-            layer_1_type: layer1Type,
-            layer_2: layer2 ? layer2.toString() : '',
-            layer_2_type: layer2Type,
-            substance_code: `${layer1}${layer1Type}/${layer2}${layer2Type}`,
-            created_at: item.created_at || '',
-            updated_at: item.updated_at || '',
-            _api_layer_1: item.layer_1_weight,
-            _api_layer_2: item.layer_2_weight
-          }
-        }
-        
-        const fluteCode = item.code
-        if (fluteCode) {
-          const priceField = `${fluteCode.toLowerCase()}_flute_price`
-          const price = parseFloat(item.price_per_m2) || 0
-          groupedData[substanceId][priceField] = price
-        }
-      })
-
-      const processedSubstances = Object.values(groupedData).map((item, index) => ({
-        ...item,
-        no: (index + 1).toString()
-      }))
-      
-      const zeroLayers = processedSubstances.filter(s => s.layer_1 === '0' || s.layer_2 === '0')
-
-      setSinglefaceSubstances(processedSubstances)
-
-      const totalSubstances = processedSubstances.length
-      const totalIndices = responseData.length
-
-      setStats({
-        totalSubstances,
-        activeSubstances: totalSubstances - zeroLayers.length,
-        withAllFlutes: totalSubstances,
-        totalIndices
-      })
-
-      return processedSubstances
-    } catch (err: any) {
-      console.error('Error fetching singleface index:', err)
-      setError(err.message || 'Failed to fetch data')
-      setSinglefaceSubstances([])
-      setStats({ totalSubstances: 0, activeSubstances: 0, withAllFlutes: 0, totalIndices: 0 })
-      return []
-    } finally {
-      setLoading(false)
-    }
-  }, [loadLayerCache, singlefaceSubstances])
-
-  // ===== INITIAL LOAD =====
-  useEffect(() => {
-    const init = async () => {
-      try {
-        const initialCache = loadLayerCache()
-        setLayerCache(initialCache)
-        
-        await fetchFlutes()
-        await fetchSinglefaceIndex()
-      } catch (err) {
-        console.error('Initialization error:', err)
-        setError('Failed to load data')
+      if (isNaN(parseFloat(price)) || parseFloat(price) <= 0) {
+        SweetAlert.error('Validasi Error', `Harga ${code}-Flute harus angka lebih dari 0`)
+        return false
       }
     }
-    init()
-  }, [])
 
-  // ===== FORM HANDLERS =====
+    return true
+  }
+
+  // ---- Add handlers ----
   const handleAddInputChange = (field: string, value: any) => {
     setAddFormData(prev => ({ ...prev, [field]: value }))
-    if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }))
-    }
+    setFormErrors(prev => ({ ...prev, [field]: '' }))
   }
 
-  const handleEditInputChange = (field: string, value: any) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }))
-    if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }))
-    }
-  }
-
-  // ===== HANDLE FLUTE SELECTION =====
-  const handleAddFluteToggle = (fluteCode: string) => {
+  const handleAddFluteToggle = (code: string) => {
     setAddFormData(prev => {
-      const isSelected = prev.flutes.includes(fluteCode)
-      let newFlutes: string[]
-      let newPricePerM2 = { ...prev.price_per_m2 }
-      
-      if (isSelected) {
-        newFlutes = prev.flutes.filter(code => code !== fluteCode)
-        delete newPricePerM2[fluteCode]
-      } else {
-        newFlutes = [...prev.flutes, fluteCode]
-        newPricePerM2[fluteCode] = ''
-      }
-      
-      return {
-        ...prev,
-        flutes: newFlutes,
-        price_per_m2: newPricePerM2
-      }
+      const selected = prev.flutes.includes(code)
+      const newFlutes = selected ? prev.flutes.filter(c => c !== code) : [...prev.flutes, code]
+      const newPrices = { ...prev.price_per_m2 }
+      if (selected) delete newPrices[code]
+      else newPrices[code] = ''
+      return { ...prev, flutes: newFlutes, price_per_m2: newPrices }
     })
-  }
-
-  const handleEditFluteToggle = (fluteCode: string) => {
-    setEditFormData(prev => {
-      const isSelected = prev.flutes.includes(fluteCode)
-      let newFlutes: string[]
-      let newPricePerM2 = { ...prev.price_per_m2 }
-      
-      if (isSelected) {
-        newFlutes = prev.flutes.filter(code => code !== fluteCode)
-        delete newPricePerM2[fluteCode]
-      } else {
-        newFlutes = [...prev.flutes, fluteCode]
-        if (!newPricePerM2[fluteCode]) {
-          newPricePerM2[fluteCode] = ''
-        }
-      }
-      
-      return {
-        ...prev,
-        flutes: newFlutes,
-        price_per_m2: newPricePerM2
-      }
-    })
-  }
-
-  // ===== VALIDATION =====
-  const validateForm = (formData: FormData): Record<string, string> => {
-    const errors: Record<string, string> = {}
-
-    const layerFields = ['layer_1', 'layer_2']
-    layerFields.forEach(field => {
-      if (!formData[field] || formData[field].toString().trim() === '') {
-        errors[field] = 'Gramasi tidak boleh kosong'
-      } else if (isNaN(parseFloat(formData[field])) || parseFloat(formData[field]) <= 0) {
-        errors[field] = 'Gramasi harus angka lebih dari 0'
-      }
-    })
-
-    formData.flutes.forEach(fluteCode => {
-      const price = formData.price_per_m2?.[fluteCode]
-      if (!price || price.toString().trim() === '') {
-        errors[`price_${fluteCode}`] = `Harga ${fluteCode}-Flute tidak boleh kosong jika dipilih`
-      } else if (isNaN(parseFloat(price))) {
-        errors[`price_${fluteCode}`] = `Harga ${fluteCode}-Flute harus berupa angka`
-      } else if (parseFloat(price) <= 0) {
-        errors[`price_${fluteCode}`] = `Harga ${fluteCode}-Flute harus lebih dari 0`
-      }
-    })
-
-    if (formData.flutes.length === 0) {
-      errors.flutes = 'Pilih minimal satu flute type'
-    }
-
-    return errors
   }
 
   const handleAddSave = async () => {
-    const errors = validateForm(addFormData)
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors)
-      SweetAlert.error('Validasi Error', 'Periksa kembali data yang diisi')
+    if (!validateForm(addFormData)) return
+
+    // Check for duplicate substance combination
+    const newSubstanceCode = `${addFormData.layer_1}${addFormData.layer_1_type}/${addFormData.layer_2}${addFormData.layer_2_type}`
+    const isDuplicate = substances.some(s => s.substance_code === newSubstanceCode)
+    
+    if (isDuplicate) {
+      SweetAlert.error('Duplikat!', `Kombinasi "${newSubstanceCode}" sudah ada. Gunakan kombinasi lain.`)
       return
     }
 
+    setIsPosting(true)
     try {
-      setIsPosting(true)
-
-      const fluteIds = addFormData.flutes.map(fluteCode => {
-        const flute = flutes.find(f => f.code === fluteCode)
-        return flute ? parseInt(flute.id) : 0
+      const fluteIds = addFormData.flutes.map(code => {
+        const f = flutes.find(fl => fl.code === code)
+        return f ? parseInt(f.id) : 0
       }).filter(id => id > 0)
 
-      const priceArray = addFormData.flutes.map(fluteCode => 
-        parseFloat(addFormData.price_per_m2[fluteCode] || '0')
+      const priceArray = addFormData.flutes.map(code =>
+        parseFloat(addFormData.price_per_m2[code] || '0')
       )
 
-      const layer1Value = parseFloat(addFormData.layer_1.trim())
-      const layer2Value = parseFloat(addFormData.layer_2.trim())
-
       const postData = {
-        layer_1_weight: layer1Value,
-        layer_2_weight: layer2Value,
-        layer_1: layer1Value,
-        layer_2: layer2Value,
-        layer_1_type: addFormData.layer_1_type.trim(),
-        layer_2_type: addFormData.layer_2_type.trim(),
+        layer_1: parseFloat(addFormData.layer_1.trim()),
+        layer_1_type: addFormData.layer_1_type,
+        layer_2: parseFloat(addFormData.layer_2.trim()),
+        layer_2_type: addFormData.layer_2_type,
         flutes: fluteIds,
-        price_per_m2: priceArray
+        price_per_m2: priceArray,
       }
 
-      const response = await axios.post('/Admin/Singelface/singelfaceIndexAdd', postData, {
-        headers: { 
-          'ngrok-skip-browser-warning': 'true',
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (response.data?.status === 200 || response.status === 200) {
-        SweetAlert.success('Berhasil!', `Data berhasil ditambahkan (Layer 1: ${addFormData.layer_1}, Layer 2: ${addFormData.layer_2})`)
+      const res = await addItem(postData)
+      if (res?.status === 200) {
+        SweetAlert.success('Berhasil!', 'Data berhasil ditambahkan')
         setShowAddModal(false)
         setAddFormData({ ...BASE_FORM })
         setFormErrors({})
-        
-        setTimeout(() => {
-          fetchSinglefaceIndex()
-        }, 1500)
-        
+        setTimeout(() => refetch(), 1000)
       } else {
-        SweetAlert.error('Gagal!', response.data?.message || 'Gagal menambahkan data')
+        SweetAlert.error('Gagal!', res?.message || 'Gagal menambahkan data')
       }
     } catch (err: any) {
-      console.error('Error:', err)
-      SweetAlert.error('Error!', err.response?.data?.message || `Terjadi kesalahan: ${err.message}`)
+      SweetAlert.error('Error!', getErrorMessage(err))
     } finally {
       setIsPosting(false)
     }
   }
 
+  // ---- Edit handlers ----
   const handleEditClick = (item: SinglefaceSubstance) => {
     const existingFlutes: string[] = []
-    const existingPrices: { [key: string]: string } = []
-    
-    flutes.forEach(flute => {
-      const priceField = `${flute.code.toLowerCase()}_flute_price`
+    const existingPrices: Record<string, string> = {}
+    flutes.forEach(f => {
+      const priceField = `${f.code.toLowerCase()}_flute_price`
       const price = item[priceField]
-      
-      if (price !== undefined && price !== null && price !== '' && price !== 0) {
-        existingFlutes.push(flute.code)
-        existingPrices[flute.code] = price.toString()
+      if (price !== undefined && price !== null && parseFloat(price) > 0) {
+        existingFlutes.push(f.code)
+        existingPrices[f.code] = price.toString()
       }
     })
-    
-    const editData: FormData = {
-      layer_1: item.layer_1 && item.layer_1 !== '0' ? item.layer_1.toString() : '',
+    setEditingItem(item)
+    setEditFormData({
+      layer_1: item.layer_1 || '',
       layer_1_type: item.layer_1_type || 'K',
-      layer_2: item.layer_2 && item.layer_2 !== '0' ? item.layer_2.toString() : '',
+      layer_2: item.layer_2 || '',
       layer_2_type: item.layer_2_type || 'M',
       flutes: existingFlutes,
-      price_per_m2: existingPrices
-    }
-
-    setEditingItem(item)
-    setEditFormData(editData)
+      price_per_m2: existingPrices,
+    })
     setFormErrors({})
     setShowEditModal(true)
   }
 
+  const handleEditInputChange = (field: string, value: any) => {
+    setEditFormData(prev => ({ ...prev, [field]: value }))
+    setFormErrors(prev => ({ ...prev, [field]: '' }))
+  }
+
+  const handleEditFluteToggle = (code: string) => {
+    setEditFormData(prev => {
+      const selected = prev.flutes.includes(code)
+      const newFlutes = selected ? prev.flutes.filter(c => c !== code) : [...prev.flutes, code]
+      const newPrices = { ...prev.price_per_m2 }
+      if (selected) delete newPrices[code]
+      else if (!newPrices[code]) newPrices[code] = ''
+      return { ...prev, flutes: newFlutes, price_per_m2: newPrices }
+    })
+  }
+
   const handleEditSave = async () => {
     if (!editingItem) return
+    if (!validateForm(editFormData)) return
+
+    // Check for duplicate substance combination (excluding current)
+    const newSubstanceCode = `${editFormData.layer_1}${editFormData.layer_1_type}/${editFormData.layer_2}${editFormData.layer_2_type}`
+    const isDuplicate = substances.some(
+      s => s.id !== editingItem.id && s.substance_code === newSubstanceCode
+    )
     
-    const errors = validateForm(editFormData)
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors)
-      SweetAlert.error('Validasi Error', 'Periksa kembali data yang diisi')
+    if (isDuplicate) {
+      SweetAlert.error('Duplikat!', `Kombinasi "${newSubstanceCode}" sudah digunakan oleh data lain.`)
       return
     }
 
+    setIsPosting(true)
     try {
-      setIsPosting(true)
-
-      const fluteIds = editFormData.flutes.map(fluteCode => {
-        const flute = flutes.find(f => f.code === fluteCode)
-        return flute ? parseInt(flute.id) : 0
+      const fluteIds = editFormData.flutes.map(code => {
+        const f = flutes.find(fl => fl.code === code)
+        return f ? parseInt(f.id) : 0
       }).filter(id => id > 0)
 
-      const priceArray = editFormData.flutes.map(fluteCode => 
-        parseFloat(editFormData.price_per_m2[fluteCode] || '0')
+      const priceArray = editFormData.flutes.map(code =>
+        parseFloat(editFormData.price_per_m2[code] || '0')
       )
 
       const putData = {
         substance_id: parseInt(editingItem.id),
         layer_1: parseFloat(editFormData.layer_1.trim()),
-        layer_1_type: editFormData.layer_1_type.trim(),
+        layer_1_type: editFormData.layer_1_type,
         layer_2: parseFloat(editFormData.layer_2.trim()),
-        layer_2_type: editFormData.layer_2_type.trim(),
+        layer_2_type: editFormData.layer_2_type,
         flutes: fluteIds,
-        price_per_m2: priceArray
+        price_per_m2: priceArray,
       }
 
-      const response = await axios.put('/Admin/Singelface/singelfaceIndexUpdate', putData, {
-        headers: { 
-          'ngrok-skip-browser-warning': 'true',
-          'Content-Type': 'application/json'
-        }
-      })
-      
-      if (response.data?.status === 200 || response.status === 200) {
-        saveToCache(editingItem.id, editFormData.layer_1, editFormData.layer_2)
-        
-        setSinglefaceSubstances(prev => 
-          prev.map(item => 
-            item.id === editingItem.id 
-              ? {
-                  ...item,
-                  layer_1: editFormData.layer_1,
-                  layer_2: editFormData.layer_2,
-                  layer_1_type: editFormData.layer_1_type,
-                  layer_2_type: editFormData.layer_2_type,
-                  substance_code: `${editFormData.layer_1}${editFormData.layer_1_type}/${editFormData.layer_2}${editFormData.layer_2_type}`,
-                  ...flutes.reduce((acc, flute) => {
-                    const priceField = `${flute.code.toLowerCase()}_flute_price`
-                    if (editFormData.flutes.includes(flute.code)) {
-                      acc[priceField] = parseFloat(editFormData.price_per_m2[flute.code] || '0')
-                    } else {
-                      acc[priceField] = 0
-                    }
-                    return acc
-                  }, {} as Record<string, number>)
-                }
-              : item
-          )
-        )
-
+      const res = await updateItem(putData)
+      if (res?.status === 200) {
         SweetAlert.success('Berhasil!', 'Data berhasil diperbarui')
         setShowEditModal(false)
         setEditingItem(null)
         setEditFormData({ ...BASE_FORM })
         setFormErrors({})
-        
-        setTimeout(() => {
-          fetchSinglefaceIndex()
-        }, 1000)
-        
+        setTimeout(() => refetch(), 1000)
       } else {
-        SweetAlert.error('Gagal!', response.data?.message || 'Gagal memperbarui data')
+        SweetAlert.error('Gagal!', res?.message || 'Gagal memperbarui data')
       }
     } catch (err: any) {
-      console.error('Error:', err)
-      SweetAlert.error('Error!', err.response?.data?.message || `Terjadi kesalahan: ${err.message}`)
+      SweetAlert.error('Error!', getErrorMessage(err))
     } finally {
       setIsPosting(false)
     }
   }
 
-  // ===== DELETE HANDLER =====
-  const handleDelete = async (id: string, substanceCode: string) => {
-    const result = await SweetAlert.confirmDelete()
+  const handleDelete = async (id: string, code: string) => {
+    const result = await SweetAlert.confirmDelete(`Hapus kombinasi ${code}?`)
+    if (!result.isConfirmed) return
     
-    if (result.isConfirmed) {
-      try {
-        localStorage.removeItem(`layer_cache_${id}`)
-        setLayerCache(prev => {
-          const newCache = { ...prev }
-          delete newCache[id]
-          return newCache
-        })
-
-        const response = await axios.delete(`/Admin/Singelface/singelfaceIndexDelete/${id}`, {
-          headers: { 'ngrok-skip-browser-warning': 'true' }
-        })
-
-        if (response.data?.status === 200) {
-          SweetAlert.success('Berhasil!', 'Data berhasil dihapus')
-          
-          setSinglefaceSubstances(prev => prev.filter(item => item.id !== id))
-          
-          setTimeout(() => {
-            fetchSinglefaceIndex()
-          }, 1000)
-          
-        } else {
-          SweetAlert.error('Gagal!', response.data?.message || 'Gagal menghapus data')
-        }
-      } catch (err: any) {
-        console.error('Delete error:', err)
-        SweetAlert.error('Error!', err.response?.data?.message || 'Terjadi kesalahan')
-      }
-    }
-  }
-
-  // ===== REFRESH HANDLER =====
-  const handleRefreshAll = async () => {
-    setLoading(true)
     try {
-      await fetchFlutes()
-      await fetchSinglefaceIndex()
-      SweetAlert.success('Berhasil!', 'Data berhasil diperbarui')
-    } catch (err) {
-      SweetAlert.error('Error!', 'Gagal memperbarui data')
-    } finally {
-      setLoading(false)
+      const res = await deleteItem(id)
+      if (res?.status === 200) {
+        SweetAlert.success('Berhasil!', 'Data berhasil dihapus')
+      } else {
+        SweetAlert.error('Gagal!', res?.message || 'Gagal menghapus data')
+      }
+    } catch (err: any) {
+      SweetAlert.error('Error!', getErrorMessage(err))
     }
   }
 
-  // ===== MODAL CLOSE HANDLERS =====
   const handleCloseAddModal = () => {
-    if (!isPosting) {
-      setShowAddModal(false)
-      setAddFormData({ ...BASE_FORM })
-      setFormErrors({})
-    }
+    if (isPosting) return
+    setShowAddModal(false)
+    setAddFormData({ ...BASE_FORM })
+    setFormErrors({})
   }
 
   const handleCloseEditModal = () => {
-    if (!isPosting) {
-      setShowEditModal(false)
-      setEditingItem(null)
-      setEditFormData({ ...BASE_FORM })
-      setFormErrors({})
+    if (isPosting) return
+    setShowEditModal(false)
+    setEditingItem(null)
+    setEditFormData({ ...BASE_FORM })
+    setFormErrors({})
+  }
+
+  // ---- Pagination pages renderer ----
+  const renderPaginationPages = () => {
+    const { currentPage, totalPages } = pagination
+    const pages: React.ReactNode[] = []
+    const maxVisible = 5
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2))
+    let end = Math.min(totalPages, start + maxVisible - 1)
+    if (end - start + 1 < maxVisible) start = Math.max(1, end - maxVisible + 1)
+
+    if (start > 1) {
+      pages.push(<button key={1} onClick={() => handlePageChange(1)} className="px-3 py-1 text-sm text-gray-600 hover:text-blue-600">1</button>)
+      if (start > 2) pages.push(<span key="d1" className="px-2 text-gray-400">...</span>)
     }
-  }
-
-  // ===== UTILITY FUNCTIONS =====
-  const formatCurrency = (amount: number): string => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
-
-  const formatSubstanceDisplay = (item: SinglefaceSubstance | FormData): string => {
-    return `${item.layer_1}${item.layer_1_type}/${item.layer_2}${item.layer_2_type}`
-  }
-
-  const getFluteBadgeVariant = (code: string): string => {
-    switch (code.toUpperCase()) {
-      case 'B': return 'primary'
-      case 'C': return 'success'
-      case 'CB': return 'warning'
-      case 'BC': return 'warning'
-      case 'EB': return 'info'
-      case 'E': return 'info'
-      default: return 'gray'
+    for (let i = start; i <= end; i++) {
+      pages.push(
+        <button key={i} onClick={() => handlePageChange(i)}
+          className={`px-3 py-1 text-sm rounded transition-colors ${i === currentPage ? 'bg-blue-600 text-white' : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'}`}>
+          {i}
+        </button>
+      )
     }
+    if (end < totalPages) {
+      if (end < totalPages - 1) pages.push(<span key="d2" className="px-2 text-gray-400">...</span>)
+      pages.push(<button key={totalPages} onClick={() => handlePageChange(totalPages)} className="px-3 py-1 text-sm text-gray-600 hover:text-blue-600">{totalPages}</button>)
+    }
+    return pages
   }
 
-  // ===== LOADING STATE =====
-  if (loading) {
+  // ---- Shared form section for layer config ----
+  const renderLayerConfig = (
+    formData: FormData,
+    onInputChange: (field: string, value: any) => void
+  ) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {([1, 2] as const).map(num => (
+        <div key={num} className="bg-gray-50 p-4 rounded-xl space-y-3">
+          <h4 className="font-medium text-gray-900">Layer {num}</h4>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Gramasi (gsm) <span className="text-red-500">*</span>
+            </label>
+            <Input
+              type="number"
+              value={formData[`layer_${num}` as 'layer_1' | 'layer_2']}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => onInputChange(`layer_${num}`, e.target.value)}
+              placeholder="125"
+              min="1"
+              step="1"
+              disabled={isPosting}
+              className={formErrors[`layer_${num}`] ? 'border-red-500' : ''}
+            />
+            {formErrors[`layer_${num}`] && <p className="text-xs text-red-600 mt-1">{formErrors[`layer_${num}`]}</p>}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Jenis Kertas <span className="text-red-500">*</span>
+            </label>
+            <Select
+              value={formData[`layer_${num}_type` as 'layer_1_type' | 'layer_2_type']}
+              onChange={(e: any) => onInputChange(`layer_${num}_type`, e.target.value)}
+              options={LAYER_TYPES.map(t => ({ value: t.value, label: t.label }))}
+              disabled={isPosting}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+
+  // ---- Shared flute selector ----
+  const renderFluteSelector = (
+    formData: FormData,
+    onFluteToggle: (code: string) => void,
+    onPriceChange: (code: string, val: string) => void
+  ) => (
+    <div className="space-y-4">
+      {flutes.length === 0 ? (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+          <Icon icon="mdi:alert" className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <p className="text-yellow-800 text-sm">Tidak ada flute tersedia. Tambahkan flute terlebih dahulu.</p>
+        </div>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            {flutes.map(flute => {
+              const isSelected = formData.flutes.includes(flute.code)
+              return (
+                <button
+                  key={flute.code}
+                  type="button"
+                  onClick={() => onFluteToggle(flute.code)}
+                  disabled={isPosting}
+                  className={`px-4 py-2 rounded-xl border text-sm font-medium transition-all flex items-center gap-2 ${
+                    isSelected
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200'
+                      : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold ${isSelected ? 'bg-white/20 text-white' : getFluteBadgeClass(flute.code)}`}>
+                    {flute.code}
+                  </span>
+                  {flute.name}
+                  {isSelected && <Icon icon="mdi:check" className="w-4 h-4" />}
+                </button>
+              )
+            })}
+          </div>
+
+          {formErrors.flutes && <p className="text-sm text-red-600">{formErrors.flutes}</p>}
+
+          {formData.flutes.length > 0 && (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {formData.flutes.map(code => {
+                const flute = flutes.find(f => f.code === code)
+                if (!flute) return null
+                return (
+                  <div key={code} className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${getFluteBadgeClass(code)}`}>{code}</span>
+                        <span className="font-medium text-gray-900 text-sm">{flute.name}</span>
+                      </div>
+                      <span className="text-xs text-red-500 font-medium">Wajib Diisi</span>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-600 mb-1">
+                        Harga per m² <span className="text-red-500">*</span>
+                      </label>
+                      <div className="relative">
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                          <span className="text-gray-400 text-sm">Rp</span>
+                        </div>
+                        <Input
+                          type="number"
+                          value={formData.price_per_m2[code] || ''}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => onPriceChange(code, e.target.value)}
+                          placeholder="0"
+                          min="1"
+                          disabled={isPosting}
+                          className={`pl-9 ${formErrors[`price_${code}`] ? 'border-red-500' : ''}`}
+                        />
+                      </div>
+                      {formErrors[`price_${code}`] && <p className="text-xs text-red-600 mt-1">{formErrors[`price_${code}`]}</p>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+
+  // ---- Preview card ----
+  const renderPreview = (form: FormData, isEdit = false) => {
+    if (!form.layer_1 || !form.layer_2) return null
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <Icon icon="mdi:loading" className="w-12 h-12 text-gray-400 animate-spin mx-auto" />
-          <p className="mt-4 text-gray-600">Memuat data...</p>
+      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+        <h4 className="font-medium text-green-900 mb-3 flex items-center gap-2">
+          <Icon icon="mdi:check-circle" className="w-4 h-4 text-green-600" />
+          Preview {isEdit ? 'Update' : 'Data'}
+        </h4>
+        <div className="grid grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-gray-500 mb-1">Substance:</p>
+            <p className="font-medium text-gray-900">{formatSubstanceDisplay(form)}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 mb-1">Kode:</p>
+            <p className="font-mono text-gray-900">{form.layer_1}{form.layer_1_type}/{form.layer_2}{form.layer_2_type}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 mb-1">Flute Dipilih:</p>
+            <p className="font-medium text-gray-900">{form.flutes.length} dari {flutes.length}</p>
+          </div>
+          <div>
+            <p className="text-gray-500 mb-1">Flutes:</p>
+            <div className="flex flex-wrap gap-1">
+              {form.flutes.map(code => (
+                <span key={code} className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${getFluteBadgeClass(code)}`}>{code}</span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
-  // ===== MAIN RENDER =====
+  // ============================================================
+  // RENDER
+  // ============================================================
+
+  if (loading && substances.length === 0 && !error) {
+    return <LoadingState message="Memuat Data Singleface..." />
+  }
+
+  if (error && substances.length === 0) {
+    return <ErrorState message={error} onRetry={refetch} />
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-6">
-      {/* Header */}
-      <div className="mb-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+    <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+
+      {/* ---- Header ---- */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+            <Icon icon="mdi:layers" className="w-6 h-6 text-white" />
+          </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
               Singleface Settings
             </h1>
-            <p className="text-gray-600 mt-1 text-sm">
-              Kelola harga bahan singleface berdasarkan flute type
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              Cache: {Object.keys(layerCache).length} items
+            <p className="text-gray-500 mt-0.5 text-sm">Kelola harga bahan singleface berdasarkan flute type</p>
+            <div className="flex flex-wrap gap-4 mt-1 text-xs text-gray-500">
+              <span><span className="font-semibold text-gray-700">Substances:</span> {stats.totalSubstances}</span>
+              <span><span className="font-semibold text-gray-700">Flute Types:</span> {flutes.length}</span>
+              <span><span className="font-semibold text-gray-700">Total Index:</span> {stats.totalIndices}</span>
             </div>
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {[
-            { 
-              title: 'Total Substances', 
-              value: stats.totalSubstances, 
-              icon: 'mdi:layers',
-              color: 'text-blue-600'
-            },
-            { 
-              title: 'Active', 
-              value: stats.activeSubstances, 
-              icon: 'mdi:check-circle',
-              color: stats.activeSubstances === stats.totalSubstances ? 'text-green-600' : 'text-yellow-600'
-            },
-            { 
-              title: 'Flute Types', 
-              value: flutes.length, 
-              icon: 'mdi:waveform',
-              color: 'text-purple-600' 
-            },
-            { 
-              title: 'Showing', 
-              value: `${paginatedData.length} / ${filteredSubstances.length}`, 
-              icon: 'mdi:table',
-              color: 'text-gray-600' 
-            }
-          ].map((stat, idx) => (
-            <div key={idx} className="bg-white rounded-lg border border-gray-200 p-4 shadow-sm">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                <Icon 
-                  icon={stat.icon as any} 
-                  className={`w-5 h-5 ${stat.color}`}
-                />
-              </div>
-              <p className="text-2xl font-semibold text-gray-900 mt-2">{stat.value}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Actions Bar */}
-        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleRefreshAll}
-                size="sm"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <Icon icon="mdi:refresh" className="w-4 h-4 mr-1" />
-                Refresh
-              </Button>
-              <Button
-                variant="outline"
-                onClick={clearAllLayerCache}
-                size="sm"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <Icon icon="mdi:trash-can-outline" className="w-4 h-4 mr-1" />
-                Clear Cache
-              </Button>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => router.push('/flute-settings')}
-                size="sm"
-                className="border-gray-300 text-gray-700 hover:bg-gray-50"
-              >
-                <Icon icon="mdi:cog-outline" className="w-4 h-4 mr-1" />
-                Kelola Flutes
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() => setShowAddModal(true)}
-                size="sm"
-                className="bg-gray-900 hover:bg-gray-800 text-white"
-                disabled={flutes.length === 0}
-              >
-                <Icon icon="mdi:plus" className="w-4 h-4 mr-1" />
-                Tambah Singleface
-              </Button>
-            </div>
-          </div>
+        <div className="flex gap-2">
+          <Button
+            variant="primary"
+            onClick={() => setShowAddModal(true)}
+            icon="mdi:plus"
+            disabled={flutes.length === 0 || loading}
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
+          >
+            Tambah Singleface
+          </Button>
         </div>
       </div>
 
-      {/* Error Message */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex items-center gap-2">
-            <Icon icon="mdi:alert-circle" className="w-5 h-5 text-red-600 flex-shrink-0" />
-            <p className="text-red-800 text-sm">{error}</p>
-          </div>
+      {/* Error banner (soft, data still shown) */}
+      {error && substances.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-2">
+          <Icon icon="mdi:information" className="w-5 h-5 text-blue-600 flex-shrink-0" />
+          <p className="text-blue-800 text-sm">{error}</p>
         </div>
       )}
 
-      {/* Table Container */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">
-              All Singleface Substances
+      {/* ---- Stats Cards ---- */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Total Substances', value: stats.totalSubstances, sub: 'kombinasi bahan', icon: 'mdi:layers', color: 'blue' },
+          { label: 'Active', value: stats.activeSubstances, sub: 'dengan layer valid', icon: 'mdi:check-circle', color: 'green' },
+          { label: 'Total Indices', value: stats.totalIndices, sub: 'record di database', icon: 'mdi:database', color: 'amber' },
+        ].map(({ label, value, sub, icon, color }) => (
+          <Card key={label} className="relative overflow-hidden group hover:shadow-xl transition-all">
+            <div className={`absolute top-0 right-0 w-20 h-20 bg-${color}-50 rounded-bl-full group-hover:bg-${color}-100 transition-all`}></div>
+            <div className="space-y-1 relative">
+              <p className={`text-sm text-gray-500 flex items-center gap-1.5`}>
+                <Icon icon={icon} className={`w-4 h-4 text-${color}-600`} />
+                {label}
+              </p>
+              <p className="text-3xl font-bold text-gray-900">{value}</p>
+              <p className="text-xs text-gray-400">{sub}</p>
+            </div>
+          </Card>
+        ))}
+      </div>
+
+      {/* ---- Main Table Card ---- */}
+      <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+        {/* Table header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900 flex items-center gap-2">
+              <Icon icon="mdi:clipboard-list-outline" className="w-5 h-5 text-blue-600" />
+              Daftar Singleface Substances
             </h3>
-            <div className="flex items-center gap-3">
-              <div className="text-sm text-gray-500">
-                <span className="font-medium">{pagination.currentPage}</span> of <span className="font-medium">{pagination.totalPages}</span>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {stats.totalSubstances} kombinasi × {flutes.length} flute types
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {loading && (
+              <div className="flex items-center gap-1.5 text-blue-500 text-sm">
+                <Icon icon="mdi:loading" className="w-4 h-4 animate-spin" />
+                Memuat...
               </div>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refetch}
+              className="border-gray-300 hover:bg-gray-50"
+              icon="mdi:refresh"
+            >
+              Refresh
+            </Button>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <span>Per halaman:</span>
+              <Select
+                value={pagination.itemsPerPage.toString()}
+                onChange={(e: any) => handleItemsPerPageChange(parseInt(e.target.value))}
+                options={[
+                  { value: '5', label: '5' },
+                  { value: '10', label: '10' },
+                  { value: '20', label: '20' },
+                  { value: '50', label: '50' },
+                ]}
+                className="w-20"
+              />
             </div>
           </div>
         </div>
 
-        {/* Table */}
-        {singlefaceSubstances.length === 0 ? (
-          <div className="text-center py-12">
-            <Icon
-              icon="mdi:database-off"
-              className="w-12 h-12 text-gray-300 mx-auto mb-4"
-            />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              Tidak ada data
-            </h3>
-            <p className="text-gray-500 mb-6 text-sm">
-              Belum ada singleface substance yang ditambahkan
-            </p>
-            <Button
-              onClick={() => setShowAddModal(true)}
-              variant="primary"
-              className="bg-gray-900 hover:bg-gray-800"
-              disabled={flutes.length === 0}
-            >
-              Tambah Substance Pertama
+        {substances.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Icon icon="mdi:layers-off" className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-base font-medium text-gray-900 mb-1">Belum ada data</h3>
+            <p className="text-sm text-gray-400 mb-5">Belum ada singleface substance yang tersedia</p>
+            <Button onClick={() => setShowAddModal(true)} variant="primary" icon="mdi:plus"
+              className="bg-gradient-to-r from-blue-600 to-indigo-600" disabled={flutes.length === 0}>
+              {flutes.length === 0 ? 'Tambah Flute Terlebih Dahulu' : 'Tambah Singleface Pertama'}
             </Button>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    No
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Substance
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Layer 1
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Layer 2
-                  </th>
-
-                  {/* Flute columns */}
-                  {flutes.map((flute) => (
-                    <th
-                      key={flute.code}
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
-                    >
-                      {flute.code}
-                    </th>
-                  ))}
-
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedData.map((substance, index) => {
-                  const actualIndex = (pagination.currentPage - 1) * pagination.itemsPerPage + index + 1
-                  const hasZeroLayer = substance.layer_1 === '0' || substance.layer_2 === '0'
-                  
-                  return (
-                    <tr
-                      key={substance.id}
-                      className={`hover:bg-gray-50 ${
-                        hasZeroLayer ? 'bg-yellow-50' : ''
-                      }`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {actualIndex}
-                          {hasZeroLayer && (
-                            <Icon 
-                              icon="mdi:alert" 
-                              className="w-4 h-4 text-yellow-500 inline ml-2"
-                            />
-                          )}
+          <>
+            {/* Table */}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50/80">
+                  <tr>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide w-12">No</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Substance</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Layer 1</th>
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Layer 2</th>
+                    {flutes.map((flute, idx) => (
+                      <th key={flute.id} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <div className="flex items-center gap-1">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold ${getFluteBadgeClass(flute.code)}`}>
+                            {flute.code}
+                          </span>
+                          <span className="text-gray-400">Flute</span>
                         </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatSubstanceDisplay(substance)}
-                        </div>
-                      </td>
-                      {['layer_1', 'layer_2'].map((layer) => (
-                        <td key={layer} className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              substance[`${layer}_type`] === 'K' 
-                                ? 'bg-yellow-100 text-yellow-800' 
-                                : substance[`${layer}_type`] === 'M'
-                                ? 'bg-gray-100 text-gray-800'
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {substance[layer]}
-                              {substance[`${layer}_type`]}
-                            </span>
+                      </th>
+                    ))}
+                    <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {paginatedData.map((substance, idx) => {
+                    const rowNum = (pagination.currentPage - 1) * pagination.itemsPerPage + idx + 1
+                    return (
+                      <tr key={substance.id} className="hover:bg-blue-50/40 transition-colors duration-100">
+                        <td className="px-5 py-4 text-sm font-medium text-gray-500">{rowNum}</td>
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                              <Icon icon="mdi:layers" className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-gray-900 text-sm">{formatSubstanceDisplay(substance)}</p>
+                              <p className="text-xs text-gray-400 font-mono">{substance.substance_code}</p>
+                            </div>
                           </div>
                         </td>
-                      ))}
+                        {(['layer_1', 'layer_2'] as const).map(layerKey => {
+                          const typeKey = `${layerKey}_type` as 'layer_1_type' | 'layer_2_type'
+                          return (
+                            <td key={layerKey} className="px-5 py-4">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold ${getLayerBadgeClass(substance[typeKey])}`}>
+                                {substance[layerKey]}{substance[typeKey]}
+                              </span>
+                            </td>
+                          )
+                        })}
+                        {flutes.map((flute, fIdx) => {
+                          const priceField = `${flute.code.toLowerCase()}_flute_price`
+                          const price = substance[priceField]
+                          const hasPrice = price !== undefined && price !== null && parseFloat(price) > 0
+                          return (
+                            <td key={flute.id} className="px-5 py-4">
+                              {hasPrice ? (
+                                <div>
+                                  <p className={`text-sm font-semibold ${getFluteTextColor(fIdx)}`}>{formatCurrency(price)}</p>
+                                  <p className="text-xs text-gray-400">/m²</p>
+                                </div>
+                              ) : (
+                                <span className="text-gray-300 text-sm">—</span>
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-5 py-4">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleEditClick(substance)}
+                              className="p-2 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Edit">
+                              <Icon icon="mdi:pencil" className="w-4 h-4" />
+                            </button>
+                            <button onClick={() => handleDelete(substance.id, substance.substance_code)}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Hapus">
+                              <Icon icon="mdi:delete" className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
 
-                      {/* Flute prices */}
-                      {flutes.map((flute, idx) => {
-                        const priceField = `${flute.code.toLowerCase()}_flute_price`
-                        const price = substance[priceField] || 0
-                        const hasPrice = price > 0
-
-                        return (
-                          <td key={flute.code} className="px-6 py-4">
-                            <div className={`text-sm ${hasPrice ? 'text-gray-900' : 'text-gray-400'}`}>
-                              {hasPrice ? formatCurrency(price) : '-'}
-                            </div>
-                          </td>
-                        )
-                      })}
-
-                      <td className="px-6 py-4">
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEditClick(substance)}
-                            className="text-blue-700 border-blue-200 hover:bg-blue-50 cursor-pointer"
-                            disabled={flutes.length === 0}
-                          >
-                            <Icon
-                              icon="mdi:pencil"
-                              className="w-4 h-4 mr-1"
-                            />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleDelete(
-                                substance.id,
-                                substance.substance_code
-                              )
-                            }
-                            className="text-red-700 border-red-200 hover:bg-red-50 cursor-pointer"
-                          >
-                            <Icon
-                              icon="mdi:delete"
-                              className="w-4 h-4 mr-1"
-                            />
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Pagination */}
-        {singlefaceSubstances.length > 0 && (
-          <div className="px-4 py-3 border-t border-gray-200 sm:px-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-sm text-gray-700">
-                Menampilkan <span className="font-medium">{(pagination.currentPage - 1) * pagination.itemsPerPage + 1}</span> sampai{' '}
-                <span className="font-medium">
-                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
-                </span> dari{' '}
-                <span className="font-medium">{pagination.totalItems}</span> results
-              </div>
-              
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-700">Rows per page:</span>
-                  <Select
-                    value={pagination.itemsPerPage.toString()}
-                    onChange={(e: any) => handleItemsPerPageChange(parseInt(e.target.value))}
-                    options={[
-                      { value: '10', label: '10' },
-                      { value: '25', label: '25' },
-                      { value: '50', label: '50' },
-                      { value: '100', label: '100' }
-                    ]}
-                    className="w-20 text-sm"
-                  />
-                </div>
-                
-                <nav className="flex items-center gap-1">
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage - 1)}
-                    disabled={pagination.currentPage === 1}
-                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Icon icon="mdi:chevron-left" className="w-5 h-5" />
-                  </button>
-                  
-                  <div className="flex items-center">
-                    {(() => {
-                      const pages = []
-                      const maxVisiblePages = 5
-                      let startPage = Math.max(1, pagination.currentPage - Math.floor(maxVisiblePages / 2))
-                      let endPage = Math.min(pagination.totalPages, startPage + maxVisiblePages - 1)
-                      
-                      if (endPage - startPage + 1 < maxVisiblePages) {
-                        startPage = Math.max(1, endPage - maxVisiblePages + 1)
-                      }
-                      
-                      for (let i = startPage; i <= endPage; i++) {
-                        pages.push(
-                          <button
-                            key={i}
-                            onClick={() => handlePageChange(i)}
-                            className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                              pagination.currentPage === i
-                                ? 'z-10 bg-gray-900 border-gray-900 text-white'
-                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                            }`}
-                          >
-                            {i}
-                          </button>
-                        )
-                      }
-                      
-                      return pages
-                    })()}
-                  </div>
-                  
-                  <button
-                    onClick={() => handlePageChange(pagination.currentPage + 1)}
-                    disabled={pagination.currentPage === pagination.totalPages}
-                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Icon icon="mdi:chevron-right" className="w-5 h-5" />
-                  </button>
-                </nav>
+            {/* Pagination */}
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-3 px-6 py-4 border-t border-gray-100 bg-gray-50/50">
+              <p className="text-sm text-gray-500">
+                Menampilkan {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}–
+                {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} dari{' '}
+                <span className="font-semibold text-gray-700">{pagination.totalItems}</span>
+              </p>
+              <div className="flex items-center gap-1">
+                <Button onClick={() => handlePageChange(1)} disabled={pagination.currentPage === 1}
+                  className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500">
+                  <Icon icon="mdi:skip-backward" className="w-4 h-4" />
+                </Button>
+                <Button onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage === 1}
+                  className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500">
+                  <Icon icon="mdi:chevron-left" className="w-4 h-4" />
+                </Button>
+                <div className="flex items-center gap-0.5">{renderPaginationPages()}</div>
+                <Button onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={pagination.currentPage === pagination.totalPages}
+                  className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500">
+                  <Icon icon="mdi:chevron-right" className="w-4 h-4" />
+                </Button>
+                <Button onClick={() => handlePageChange(pagination.totalPages)} disabled={pagination.currentPage === pagination.totalPages}
+                  className="p-1.5 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed text-gray-500">
+                  <Icon icon="mdi:skip-forward" className="w-4 h-4" />
+                </Button>
               </div>
             </div>
-          </div>
+          </>
         )}
-      </div>
+      </Card>
 
-      {/* Add Modal */}
+      {/* ============================================================
+          ADD MODAL
+      ============================================================ */}
       <Modal
         isOpen={showAddModal}
         onClose={handleCloseAddModal}
-        title="Tambah Singleface Substance"
-        size="lg"
+        title="➕ Tambah Singleface Substance"
+        size="xl"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="outline" 
-              onClick={handleCloseAddModal} 
-              disabled={isPosting}
-              className="border-gray-300"
-            >
-              Batal
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleAddSave}
-              loading={isPosting}
-              disabled={isPosting || flutes.length === 0}
-              className="bg-gray-900 hover:bg-gray-800"
-            >
-              Simpan
+            <Button variant="outline" onClick={handleCloseAddModal} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" onClick={handleAddSave} loading={isPosting} disabled={isPosting || flutes.length === 0}>
+              {isPosting ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </div>
         }
       >
         <div className="space-y-6">
-          {/* Layer Configuration */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-gray-900">Konfigurasi Layer</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {[1, 2].map((num) => (
-                <div key={num} className="space-y-3">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Gramasi Layer {num} *
-                    </label>
-                    <input
-                      type="number"
-                      value={addFormData[`layer_${num}` as keyof FormData] as string}
-                      onChange={(e) => handleAddInputChange(`layer_${num}`, e.target.value)}
-                      placeholder="125"
-                      min="1"
-                      step="1"
-                      disabled={isPosting}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 text-gray-900"
-                    />
-                    {formErrors[`layer_${num}`] && (
-                      <p className="mt-1 text-sm text-red-600">{formErrors[`layer_${num}`]}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Jenis Kertas *
-                    </label>
-                    <Select
-                      value={addFormData[`layer_${num}_type` as keyof FormData] as string}
-                      onChange={(e: any) => handleAddInputChange(`layer_${num}_type`, e.target.value)}
-                      options={[
-                        { value: 'K', label: 'Kraft (Coklat Tua)' },
-                        { value: 'M', label: 'Medium (Coklat)' },
-                        { value: 'W', label: 'White (Putih)' }
-                      ]}
-                      disabled={isPosting}
-                      className="text-gray-900"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
+          {/* Info banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center gap-3">
+            <Icon icon="mdi:information" className="w-5 h-5 text-blue-600 flex-shrink-0" />
+            <p className="text-sm text-blue-700">Isi semua field yang bertanda <span className="text-red-500">*</span> untuk menambah data baru.</p>
           </div>
 
-          {/* Flute Selection */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-gray-900">Pilih Flute Types</h3>
-              <span className="text-xs text-gray-500">
-                {addFormData.flutes.length} dipilih dari {flutes.length}
-              </span>
-            </div>
-            
-            {flutes.length === 0 ? (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                <div className="flex items-center gap-2">
-                  <Icon icon="mdi:alert" className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                  <p className="text-sm text-yellow-800">
-                    Tidak ada flute yang tersedia. Harap tambahkan flute terlebih dahulu.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex flex-wrap gap-2">
-                  {flutes.map((flute) => {
-                    const isSelected = addFormData.flutes.includes(flute.code)
-                    return (
-                      <button
-                        key={flute.code}
-                        type="button"
-                        onClick={() => handleAddFluteToggle(flute.code)}
-                        className={`px-3 py-2 rounded-md border text-sm transition-colors ${
-                          isSelected
-                            ? 'bg-gray-900 border-gray-900 text-white'
-                            : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span>{flute.code}</span>
-                          <span className="text-xs opacity-75">{flute.name}</span>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-                {formErrors.flutes && (
-                  <p className="text-sm text-red-600">{formErrors.flutes}</p>
-                )}
+          {/* Layer config */}
+          <div>
+            <h3 className="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Icon icon="mdi:layers" className="w-5 h-5 text-blue-600" /> Konfigurasi Layer
+            </h3>
+            {renderLayerConfig(addFormData, handleAddInputChange)}
+          </div>
 
-                {/* Flute Pricing */}
-                {addFormData.flutes.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-medium text-gray-900">Harga per Flute yang Dipilih</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {addFormData.flutes.map((fluteCode) => {
-                        const flute = flutes.find(f => f.code === fluteCode)
-                        if (!flute) return null
-
-                        return (
-                          <div key={fluteCode} className="space-y-2">
-                            <label className="block text-sm font-medium text-gray-700">
-                              {flute.code}-Flute ({flute.name})
-                            </label>
-                            <div className="relative">
-                              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="text-gray-500">Rp</span>
-                              </div>
-                              <input
-                                type="number"
-                                value={addFormData.price_per_m2[fluteCode] || ''}
-                                onChange={(e) => {
-                                  setAddFormData(prev => ({
-                                    ...prev,
-                                    price_per_m2: { 
-                                      ...prev.price_per_m2, 
-                                      [fluteCode]: e.target.value 
-                                    }
-                                  }))
-                                }}
-                                placeholder="0"
-                                min="1"
-                                disabled={isPosting}
-                                className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-                              />
-                            </div>
-                            {formErrors[`price_${fluteCode}`] && (
-                              <p className="text-sm text-red-600">{formErrors[`price_${fluteCode}`]}</p>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
-              </>
+          {/* Flute types */}
+          <div>
+            <h3 className="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Icon icon="mdi:waveform" className="w-5 h-5 text-blue-600" /> Pilih Flute Types & Harga
+            </h3>
+            {renderFluteSelector(
+              addFormData,
+              handleAddFluteToggle,
+              (code, val) => {
+                setAddFormData(prev => ({ ...prev, price_per_m2: { ...prev.price_per_m2, [code]: val } }))
+                setFormErrors(prev => ({ ...prev, [`price_${code}`]: '' }))
+              }
             )}
           </div>
+
+          {/* Preview */}
+          {renderPreview(addFormData)}
         </div>
       </Modal>
 
-      {/* Edit Modal */}
+      {/* ============================================================
+          EDIT MODAL
+      ============================================================ */}
       <Modal
         isOpen={showEditModal}
         onClose={handleCloseEditModal}
-        title="Edit Singleface Substance"
-        size="lg"
+        title="✏️ Edit Singleface Substance"
+        size="xl"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="outline" 
-              onClick={handleCloseEditModal} 
-              disabled={isPosting}
-              className="border-gray-300"
-            >
-              Batal
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleEditSave}
-              loading={isPosting}
-              disabled={isPosting || flutes.length === 0}
-              className="bg-gray-900 hover:bg-gray-800"
-            >
-              Simpan
+            <Button variant="outline" onClick={handleCloseEditModal} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" onClick={handleEditSave} loading={isPosting} disabled={isPosting || flutes.length === 0}>
+              {isPosting ? 'Menyimpan...' : 'Update'}
             </Button>
           </div>
         }
       >
         {editingItem && (
           <div className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium text-gray-900">Konfigurasi Layer</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[1, 2].map((num) => (
-                  <div key={num} className="space-y-3">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Gramasi Layer {num} *
-                      </label>
-                      <input
-                        type="number"
-                        value={editFormData[`layer_${num}` as keyof FormData] as string}
-                        onChange={(e) => handleEditInputChange(`layer_${num}`, e.target.value)}
-                        placeholder="125"
-                        min="1"
-                        step="1"
-                        disabled={isPosting}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900 text-gray-900"
-                      />
-                      {formErrors[`layer_${num}`] && (
-                        <p className="mt-1 text-sm text-red-600">{formErrors[`layer_${num}`]}</p>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Jenis Kertas *
-                      </label>
-                      <Select
-                        value={editFormData[`layer_${num}_type` as keyof FormData] as string}
-                        onChange={(e: any) => handleEditInputChange(`layer_${num}_type`, e.target.value)}
-                        options={[
-                          { value: 'K', label: 'Kraft (Coklat Tua)' },
-                          { value: 'M', label: 'Medium (Coklat)' },
-                          { value: 'W', label: 'White (Putih)' }
-                        ]}
-                        disabled={isPosting}
-                        className="text-gray-900"
-                      />
-                    </div>
-                  </div>
-                ))}
+            {/* Current data info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+              <p className="text-xs text-blue-500 font-semibold uppercase tracking-wide mb-2">Data Saat Ini</p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-blue-600 text-xs mb-0.5">Substance</p>
+                  <p className="font-semibold text-blue-900">{formatSubstanceDisplay(editingItem)}</p>
+                </div>
+                <div>
+                  <p className="text-blue-600 text-xs mb-0.5">Kode</p>
+                  <p className="font-mono text-blue-900">{editingItem.substance_code}</p>
+                </div>
+                <div>
+                  <p className="text-blue-600 text-xs mb-0.5">ID</p>
+                  <p className="font-mono text-blue-900 text-xs">#{editingItem.id}</p>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-900">Pilih Flute Types</h3>
-                <span className="text-xs text-gray-500">
-                  {editFormData.flutes.length} dipilih dari {flutes.length}
-                </span>
-              </div>
-              
-              {flutes.length === 0 ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-                  <div className="flex items-center gap-2">
-                    <Icon icon="mdi:alert" className="w-5 h-5 text-yellow-600 flex-shrink-0" />
-                    <p className="text-sm text-yellow-800">
-                      Tidak ada flute yang tersedia.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div className="flex flex-wrap gap-2">
-                    {flutes.map((flute) => {
-                      const isSelected = editFormData.flutes.includes(flute.code)
-                      return (
-                        <button
-                          key={flute.code}
-                          type="button"
-                          onClick={() => handleEditFluteToggle(flute.code)}
-                          className={`px-3 py-2 rounded-md border text-sm transition-colors ${
-                            isSelected
-                              ? 'bg-gray-900 border-gray-900 text-white'
-                              : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2">
-                            <span>{flute.code}</span>
-                            <span className="text-xs opacity-75">{flute.name}</span>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {formErrors.flutes && (
-                    <p className="text-sm text-red-600">{formErrors.flutes}</p>
-                  )}
+            {/* Layer config */}
+            <div>
+              <h3 className="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Icon icon="mdi:layers" className="w-5 h-5 text-blue-600" /> Konfigurasi Layer
+              </h3>
+              {renderLayerConfig(editFormData, handleEditInputChange)}
+            </div>
 
-                  {editFormData.flutes.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-sm font-medium text-gray-900">Harga per Flute yang Dipilih</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {editFormData.flutes.map((fluteCode) => {
-                          const flute = flutes.find(f => f.code === fluteCode)
-                          if (!flute) return null
-
-                          return (
-                            <div key={fluteCode} className="space-y-2">
-                              <label className="block text-sm font-medium text-gray-700">
-                                {flute.code}-Flute ({flute.name})
-                              </label>
-                              <div className="relative">
-                                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                  <span className="text-gray-500">Rp</span>
-                                </div>
-                                <input
-                                  type="number"
-                                  value={editFormData.price_per_m2[fluteCode] || ''}
-                                  onChange={(e) => {
-                                    setEditFormData(prev => ({
-                                      ...prev,
-                                      price_per_m2: { 
-                                        ...prev.price_per_m2, 
-                                        [fluteCode]: e.target.value 
-                                      }
-                                    }))
-                                  }}
-                                  placeholder="0"
-                                  min="1"
-                                  disabled={isPosting}
-                                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-gray-900 focus:border-gray-900"
-                                />
-                              </div>
-                              {formErrors[`price_${fluteCode}`] && (
-                                <p className="text-sm text-red-600">{formErrors[`price_${fluteCode}`]}</p>
-                              )}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </>
+            {/* Flute types */}
+            <div>
+              <h3 className="text-base font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Icon icon="mdi:waveform" className="w-5 h-5 text-blue-600" /> Pilih Flute Types & Harga
+              </h3>
+              {renderFluteSelector(
+                editFormData,
+                handleEditFluteToggle,
+                (code, val) => {
+                  setEditFormData(prev => ({ ...prev, price_per_m2: { ...prev.price_per_m2, [code]: val } }))
+                  setFormErrors(prev => ({ ...prev, [`price_${code}`]: '' }))
+                }
               )}
             </div>
+
+            {/* Preview */}
+            {renderPreview(editFormData, true)}
           </div>
         )}
       </Modal>

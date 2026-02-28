@@ -1,17 +1,19 @@
-// app/(protected)/duplex-dk/page.tsx
-
+// app/(protected)/Duplex/Rumus_dk/page.tsx
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react' // Tambah useMemo
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Icon } from '@iconify/react'
+import Swal from 'sweetalert2'
+import axios from '@/lib/axios'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Badge from '@/components/UI/Badge'
 import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
-import SweetAlert from '@/components/UI/SweetAlert'
-import { Icon } from '@iconify/react'
-import axiosInstance from '@/lib/axios'
+import LoadingState from '@/components/UI/LoadingState'
+import ErrorState from '@/components/UI/ErrorState'
+import EmptyState from '@/components/UI/EmptyState'
 
 // ===== TYPE DEFINITIONS =====
 interface DuplexDataDK {
@@ -23,8 +25,7 @@ interface DuplexDataDK {
   type: 'DK'
   pl?: string
   sheet_size_id?: string
-  gramasi_id?: string
-  created_at?: string
+  gramasi_id?: string   // now stores gramasi.id (UUID), not gsm string
 }
 
 interface FormData {
@@ -39,6 +40,7 @@ interface GramasiItem {
   gsm: string
 }
 
+// panjang_sh & lebar_sh diisi dari panjang_mm & lebar_mm
 interface SheetSizeItem {
   id_sh: string
   panjang_sh: string
@@ -51,6 +53,42 @@ interface Stats {
   totalCombinations: number
 }
 
+// ===== API TYPES =====
+interface ApiResponse<T = unknown> {
+  status: number
+  message?: string
+  data?: T
+}
+
+interface DuplexMduplekItem {
+  id: string
+  gsm: string
+  sheet_size_id: string
+  harga_lembar: string
+  id_sh: string
+  panjang_mm: string
+  lebar_mm: string
+  // gramasi_id may be returned separately; fallback to matching by gsm
+  gramasi_id?: string
+}
+
+interface GramasiApiResponse {
+  status: number
+  data?: GramasiItem[]
+}
+
+interface CreateDuplexRequest {
+  gramasi: string
+  pl: string
+  harga_per_lembar: string
+}
+
+interface UpdateDuplexRequest {
+  gramasi: string
+  pl: string
+  harga_per_lembar: number
+}
+
 // ===== CONSTANTS =====
 const BASE_FORM: FormData = {
   sheet_size_id: '',
@@ -58,25 +96,64 @@ const BASE_FORM: FormData = {
   harga_per_lembar: ''
 }
 
-// Helper untuk parse string "650x1050" (mm) menjadi panjang dan lebar (cm)
-const parsePL = (pl: string): { panjang: number; lebar: number } => {
-  try {
-    const [panjang, lebar] = pl.split('x').map(Number)
-    return {
-      panjang: panjang / 10,
-      lebar: lebar / 10
-    }
-  } catch (error) {
-    return { panjang: 0, lebar: 0 }
-  }
+// ===== SWEET ALERT UTILITIES =====
+const showSuccess = (title: string, message: string) => {
+  Swal.fire({
+    icon: 'success',
+    title,
+    text: message,
+    timer: 2000,
+    showConfirmButton: false,
+    position: 'top-end',
+    toast: true
+  })
 }
 
+const showError = (title: string, message: string) => {
+  Swal.fire({
+    icon: 'error',
+    title,
+    text: message,
+    confirmButtonColor: '#EF4444'
+  })
+}
+
+const showWarning = (title: string, message: string) => {
+  Swal.fire({
+    icon: 'warning',
+    title,
+    text: message,
+    confirmButtonColor: '#F59E0B'
+  })
+}
+
+const showInfo = (title: string, message: string) => {
+  Swal.fire({
+    icon: 'info',
+    title,
+    text: message,
+    confirmButtonColor: '#3B82F6'
+  })
+}
+
+const showConfirmDelete = async (message: string = 'Data yang dihapus tidak dapat dikembalikan') => {
+  const result = await Swal.fire({
+    title: 'Apakah Anda yakin?',
+    text: message,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#EF4444',
+    cancelButtonColor: '#6B7280',
+    confirmButtonText: 'Ya, Hapus!',
+    cancelButtonText: 'Batal'
+  })
+  return result
+}
+
+// ===== UTILITIES =====
 const formatUkuranDisplay = (panjang: number, lebar: number): string => {
+  if (!panjang || !lebar || panjang === 0 || lebar === 0) return '-'
   return `${panjang} × ${lebar} cm`
-}
-
-const formatPLFromSheet = (panjang_mm: string, lebar_mm: string): string => {
-  return `${panjang_mm}x${lebar_mm}`
 }
 
 const formatCurrency = (amount: number): string => {
@@ -88,7 +165,6 @@ const formatCurrency = (amount: number): string => {
   }).format(amount)
 }
 
-// Helper untuk format harga dengan pengecekan 0
 const formatHargaDisplay = (amount: number): string => {
   if (amount === 0) return '-'
   return formatCurrency(amount)
@@ -100,190 +176,232 @@ const getGSMBadgeClass = (gsm: number): string => {
   return 'bg-red-100 text-red-800 border border-red-200'
 }
 
-// ===== MAIN COMPONENT =====
-export default function DuplexDKPage() {
-  // ===== STATE =====
-  const [dataDK, setDataDK] = useState<DuplexDataDK[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isPosting, setIsPosting] = useState(false)
+// Build label ukuran dari mm -> cm
+const buildSheetLabel = (panjang_mm: string, lebar_mm: string): string => {
+  const panjangCm = parseInt(panjang_mm) / 10
+  const lebarCm = parseInt(lebar_mm) / 10
+  if (!isNaN(panjangCm) && !isNaN(lebarCm) && panjangCm > 0 && lebarCm > 0) {
+    return `${panjangCm} × ${lebarCm} cm`
+  }
+  return `${panjang_mm} × ${lebar_mm} mm`
+}
 
-  // Data master
+// ===== CUSTOM HOOK =====
+const useDuplexDK = () => {
+  const [dataDK, setDataDK] = useState<DuplexDataDK[]>([])
   const [gramasiList, setGramasiList] = useState<GramasiItem[]>([])
   const [sheetSizeList, setSheetSizeList] = useState<SheetSizeItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [loadingGramasi, setLoadingGramasi] = useState(false)
-  const [loadingSheetSize, setLoadingSheetSize] = useState(false)
 
-  // Modal states
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [editingItem, setEditingItem] = useState<DuplexDataDK | null>(null)
-
-  // Form states
-  const [addFormData, setAddFormData] = useState<FormData>({ ...BASE_FORM })
-  const [editFormData, setEditFormData] = useState<FormData>({ ...BASE_FORM })
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-
-  // Stats
-  const [stats, setStats] = useState<Stats>({
-    totalRecords: 0,
-    averagePrice: 0,
-    totalCombinations: 0
-  })
-
-  // ===== SORTED DATA BY GSM =====
-  // Mengurutkan data berdasarkan GSM (dari terkecil ke terbesar)
-  const sortedDataDK = useMemo(() => {
-    return [...dataDK].sort((a, b) => {
-      // Urutkan berdasarkan GSM (ascending)
-      if (a.gsm !== b.gsm) {
-        return a.gsm - b.gsm
-      }
-      // Jika GSM sama, urutkan berdasarkan ukuran (panjang * lebar)
-      const luasA = a.panjang * a.lebar
-      const luasB = b.panjang * b.lebar
-      return luasA - luasB
-    })
-  }, [dataDK])
-
-  // ===== FETCH GRAMASI =====
   const fetchGramasi = useCallback(async () => {
     try {
       setLoadingGramasi(true)
-      const response = await axiosInstance.get('Admin/Duplek/gramasiIndex')
+      const response = await axios.get<GramasiApiResponse>('Admin/Duplek/gramasiIndex')
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
-        setGramasiList(response.data.data)
+        // Deduplicate by id
+        const seen = new Set<string>()
+        const unique = response.data.data.filter(item => {
+          if (!item.id || seen.has(item.id)) return false
+          seen.add(item.id)
+          return true
+        })
+        setGramasiList(unique)
+      } else {
+        setGramasiList([])
       }
     } catch (err) {
       console.error('Error fetching gramasi:', err)
+      setGramasiList([])
     } finally {
       setLoadingGramasi(false)
     }
   }, [])
 
-  // ===== FETCH SHEET SIZES =====
-  const fetchSheetSizes = useCallback(async () => {
-    try {
-      setLoadingSheetSize(true)
-      const response = await axiosInstance.get('Admin/Duplek/shetSizeIndex')
-      if (response.data?.status === 200 && Array.isArray(response.data.data)) {
-        setSheetSizeList(response.data.data)
-      }
-    } catch (err) {
-      console.error('Error fetching sheet sizes:', err)
-    } finally {
-      setLoadingSheetSize(false)
-    }
-  }, [])
-
-  // ===== FETCH DUPLEX DK =====
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      
-      const response = await axiosInstance.get('Admin/Duplek/duplekKraftPrices')
-      
-      console.log('Fetch Response:', response.data) // Debug log
-      
-      let priceData: any[] = []
-      if (Array.isArray(response.data?.data)) {
-        priceData = response.data.data
-      } else if (Array.isArray(response.data)) {
-        priceData = response.data
-      }
 
-      console.log('Price Data:', priceData) // Debug log
+      const response = await axios.get<ApiResponse<DuplexMduplekItem[]>>('Admin/Duplek/duplekMduplekPrices')
+
+      let priceData: DuplexMduplekItem[] = []
+      if (response.data?.status === 200 && Array.isArray(response.data.data)) {
+        priceData = response.data.data
+      }
 
       if (priceData.length === 0) {
         setDataDK([])
+        setSheetSizeList([])
         setError('Belum ada data DK. Silakan tambah data baru.')
         return
       }
 
-      const processed: DuplexDataDK[] = priceData
-        .map((item: any, index: number) => {
-          try {
-            if (!item.panjang_sh || !item.lebar_sh || !item.gsm) return null
-
-            const plValue = formatPLFromSheet(item.panjang_sh, item.lebar_sh)
-            const { panjang, lebar } = parsePL(plValue)
-
-            return {
-              id: parseInt(item.id_mp) || index + 1,
-              panjang,
-              lebar,
-              harga_per_lembar: parseFloat(item.harga_per_lembar) || 0,
-              gsm: parseInt(item.gsm) || 0,
-              type: 'DK',
-              pl: plValue,
-              sheet_size_id: item.sheet_size_id,
-              gramasi_id: item.gramasi_id,
-              created_at: item.created_at
-            }
-          } catch {
-            return null
-          }
+      // ===== FIX: Extract unique sheet sizes from price data =====
+      const seenSheets = new Set<string>()
+      const extractedSheetSizes: SheetSizeItem[] = priceData
+        .filter(item => item.id_sh && item.panjang_mm && item.lebar_mm)
+        .filter(item => {
+          if (seenSheets.has(item.id_sh)) return false
+          seenSheets.add(item.id_sh)
+          return true
         })
-        .filter((item): item is DuplexDataDK => item !== null)
+        .map(item => ({
+          id_sh: item.id_sh,
+          panjang_sh: item.panjang_mm,   // stored as mm, label builder divides by 10
+          lebar_sh: item.lebar_mm
+        }))
+      setSheetSizeList(extractedSheetSizes)
 
-      console.log('Processed Data:', processed) // Debug log
+      // ===== PROCESS PRICES DATA =====
+      // FIX: also accept sheet_size_id from API if available; use gramasi_id if present
+      const processed: DuplexDataDK[] = priceData
+      .filter(item => item.panjang_mm && item.lebar_mm && item.gsm)
+      .map(item => ({
+        id: parseInt(item.id),
+        panjang: parseInt(item.panjang_mm) / 10,
+        lebar: parseInt(item.lebar_mm) / 10,
+        gsm: parseInt(item.gsm),
+        harga_per_lembar: parseFloat(item.harga_lembar) || 0,
+        type: 'DK' as const,
+        pl: `${item.panjang_mm}x${item.lebar_mm}`,
+        sheet_size_id: item.id_sh,
+        gramasi_id: item.gramasi_id || item.sheet_size_id
+      }))
 
       setDataDK(processed)
-      calculateStats(processed)
-      
-    } catch (err: any) {
-      console.error('Fetch Error:', err) // Debug log
-      setError(err.response?.data?.message || 'Gagal mengambil data DK')
+      setError(null)
+
+    } catch (err: unknown) {
+      console.error('Error fetching data:', err)
+
+      if (err && typeof err === 'object' && 'response' in err) {
+        const e = err as { response?: { data?: { message?: string }, status?: number } }
+        if (e.response?.status === 404) {
+          setError('Endpoint tidak ditemukan. Silakan cek konfigurasi API.')
+        } else {
+          setError(e.response?.data?.message || 'Gagal mengambil data DK')
+        }
+      } else {
+        setError('Terjadi kesalahan yang tidak diketahui')
+      }
+
+      setDataDK([])
     } finally {
       setLoading(false)
     }
   }, [])
 
-  // ===== CALCULATE STATS =====
-  const calculateStats = (data: DuplexDataDK[]) => {
+  const calculateStats = (data: DuplexDataDK[]): Stats => {
     const totalRecords = data.length
     const dataWithPrice = data.filter(item => item.harga_per_lembar > 0)
     const totalPrice = dataWithPrice.reduce((sum, item) => sum + item.harga_per_lembar, 0)
     const uniqueCombinations = new Set(
       data.map(item => `${item.panjang}x${item.lebar}x${item.gsm}`)
     ).size
-
-    setStats({
+    return {
       totalRecords,
       averagePrice: dataWithPrice.length > 0 ? totalPrice / dataWithPrice.length : 0,
       totalCombinations: uniqueCombinations
-    })
+    }
   }
 
+  useEffect(() => {
+    fetchGramasi()
+    fetchData()
+  }, [fetchGramasi, fetchData])
+
+  const stats = useMemo(() => calculateStats(dataDK), [dataDK])
+
+  return {
+    dataDK,
+    gramasiList,
+    sheetSizeList,
+    loading,
+    error,
+    loadingGramasi,
+    stats,
+    refetch: fetchData
+  }
+}
+
+// ===== MAIN COMPONENT =====
+export default function DuplexDKPage() {
+  const {
+    dataDK,
+    gramasiList,
+    sheetSizeList,
+    loading,
+    error,
+    loadingGramasi,
+    stats,
+    refetch
+  } = useDuplexDK()
+
+  const [isPosting, setIsPosting] = useState(false)
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<DuplexDataDK | null>(null)
+
+  const [addFormData, setAddFormData] = useState<FormData>({ ...BASE_FORM })
+  const [editFormData, setEditFormData] = useState<FormData>({ ...BASE_FORM })
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+
+  const [selectedSize, setSelectedSize] = useState<SheetSizeItem | null>(null)
+  const [selectedGramasi, setSelectedGramasi] = useState<GramasiItem | null>(null)
+  const [editSelectedSize, setEditSelectedSize] = useState<SheetSizeItem | null>(null)
+  const [editSelectedGramasi, setEditSelectedGramasi] = useState<GramasiItem | null>(null)
+
+  const sortedDataDK = useMemo(() => {
+    return [...dataDK].sort((a, b) => {
+      if (a.gsm !== b.gsm) return a.gsm - b.gsm
+      return (a.panjang * a.lebar) - (b.panjang * b.lebar)
+    })
+  }, [dataDK])
+
+  // ===== BUILD OPTIONS =====
+  // FIX: sheetSizeList is now populated, so these options will have data
+  const sheetSizeOptions = useMemo(() =>
+    sheetSizeList.map((item, idx) => ({
+      value: item.id_sh,
+      label: buildSheetLabel(item.panjang_sh, item.lebar_sh),
+      key: `sh-${item.id_sh}-${idx}`
+    })),
+    [sheetSizeList]
+  )
+
+  const gramasiOptions = useMemo(() =>
+    gramasiList.map((item, idx) => ({
+      value: item.id,
+      label: `${item.gsm} GSM`,
+      key: `gr-${item.id}-${idx}`
+    })),
+    [gramasiList]
+  )
+
   // ===== VALIDATION =====
-  const validateForm = (formData: FormData, isEdit: boolean = false): Record<string, string> => {
+  const validateForm = (formData: FormData, isEdit = false): Record<string, string> => {
     const errors: Record<string, string> = {}
 
     if (!formData.sheet_size_id) errors.sheet_size_id = 'Ukuran tidak boleh kosong'
     if (!formData.gramasi_id) errors.gramasi_id = 'GSM tidak boleh kosong'
-    
-    // Harga boleh kosong atau 0, validasi hanya jika diisi
+
     if (formData.harga_per_lembar && formData.harga_per_lembar.trim() !== '') {
       const harga = parseFloat(formData.harga_per_lembar)
       if (isNaN(harga)) errors.harga_per_lembar = 'Harga harus berupa angka'
       else if (harga < 0) errors.harga_per_lembar = 'Harga tidak boleh negatif'
     }
 
-    // Cek duplicate untuk add (tidak untuk edit)
     if (!isEdit && formData.sheet_size_id && formData.gramasi_id) {
       const isDuplicate = dataDK.some(item =>
         item.sheet_size_id === formData.sheet_size_id &&
         item.gramasi_id === formData.gramasi_id
       )
-
       if (isDuplicate) {
-        const sheetSize = sheetSizeList.find(s => s.id_sh === formData.sheet_size_id)
-        const gramasi = gramasiList.find(g => g.id === formData.gramasi_id)
-        
-        if (sheetSize && gramasi) {
-          const { panjang, lebar } = parsePL(formatPLFromSheet(sheetSize.panjang_sh, sheetSize.lebar_sh))
-          errors.general = `Kombinasi ${formatUkuranDisplay(panjang, lebar)} (${gramasi.gsm} GSM) sudah ada`
+        const size = sheetSizeList.find(s => s.id_sh === formData.sheet_size_id)
+        if (size) {
+          errors.general = `Kombinasi ${buildSheetLabel(size.panjang_sh, size.lebar_sh)} (${formData.gramasi_id} GSM) sudah ada`
         }
       }
     }
@@ -291,148 +409,117 @@ export default function DuplexDKPage() {
     return errors
   }
 
-  // ===== ADD HANDLER =====
+  // ===== API HANDLERS =====
   const handleAdd = async () => {
     const errors = validateForm(addFormData, false)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
-      SweetAlert.error('Validasi Error', 'Periksa kembali data yang diisi')
+      showError('Validasi Error', 'Periksa kembali data yang diisi')
       return
     }
 
-    // Proses harga seperti di kode singleface
-    let hargaValue = 0
-    if (addFormData.harga_per_lembar && addFormData.harga_per_lembar.trim() !== '') {
-      hargaValue = parseFloat(addFormData.harga_per_lembar)
-    }
-
-    // Kirim sebagai number 0 jika kosong
-    const payload = {
+    const payload: CreateDuplexRequest = {
       gramasi: addFormData.gramasi_id,
       pl: addFormData.sheet_size_id,
-       harga_per_lembar: hargaValue.toString()
+      harga_per_lembar: addFormData.harga_per_lembar || '0'
     }
-
-    console.log('Add Payload:', payload) // Debug log
 
     try {
       setIsPosting(true)
-      
-      const response = await axiosInstance.post('Admin/Duplek/duplekKraftPricesAdd', payload)
-      
-      console.log('Add Response:', response) // Debug log
-      
-      const isSuccess = response.status === 200 || response.data?.status === 200
-      
-      if (isSuccess) {
-        await fetchData()
-        SweetAlert.success('Berhasil!', 'Data Duplex DK berhasil ditambahkan')
+      const response = await axios.post<ApiResponse>('Admin/Duplek/duplekKraftPricesAdd', payload)
+
+      if (response.status === 200 || response.data?.status === 200) {
+        await refetch()
+        showSuccess('Berhasil!', 'Data Duplex DK berhasil ditambahkan')
         setShowAddModal(false)
         resetAddForm()
       } else {
         throw new Error(response.data?.message || 'Gagal menambahkan data')
       }
-    } catch (err: any) {
-      console.error('Add Error:', err) // Debug log
-      SweetAlert.error('Error!', err.response?.data?.message || err.message)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }, message?: string })
+        ?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
+      showError('Error!', msg)
     } finally {
       setIsPosting(false)
     }
   }
 
-  // ===== EDIT HANDLER =====
   const handleEdit = async () => {
     if (!editingItem) return
 
     const errors = validateForm(editFormData, true)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
-      SweetAlert.error('Validasi Error', 'Periksa kembali data yang diisi')
+      showError('Validasi Error', 'Periksa kembali data yang diisi')
       return
     }
 
-    // Proses harga seperti di kode singleface
-    let hargaValue = 0
-    if (editFormData.harga_per_lembar && editFormData.harga_per_lembar.trim() !== '') {
-      hargaValue = parseFloat(editFormData.harga_per_lembar)
-    }
-
-    const payload = {
+    const payload: UpdateDuplexRequest = {
       gramasi: editFormData.gramasi_id,
       pl: editFormData.sheet_size_id,
-      harga_per_lembar: hargaValue  // Kirim sebagai number, bukan string
+      harga_per_lembar: parseFloat(editFormData.harga_per_lembar || '0')
     }
-
-    console.log('Edit Payload:', payload, 'ID:', editingItem.id) // Debug log
 
     try {
       setIsPosting(true)
-      
-      const response = await axiosInstance.put(
+      const response = await axios.put<ApiResponse>(
         `Admin/Duplek/duplekKraftPricesEdit/${editingItem.id}`,
         payload
       )
-      
-      console.log('Edit Response:', response) // Debug log
-      
-      const isSuccess = response.status === 200 || response.data?.status === 200
-      
-      if (isSuccess) {
-        await fetchData()
-        SweetAlert.success('Berhasil!', 'Data Duplex DK berhasil diperbarui')
+
+      if (response.status === 200 || response.data?.status === 200) {
+        await refetch()
+        showSuccess('Berhasil!', 'Data Duplex DK berhasil diperbarui')
         setShowEditModal(false)
         setEditingItem(null)
         resetEditForm()
       } else {
         throw new Error(response.data?.message || 'Gagal mengupdate data')
       }
-    } catch (err: any) {
-      console.error('Edit Error:', err) // Debug log
-      SweetAlert.error('Error!', err.response?.data?.message || err.message)
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }, message?: string })
+        ?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
+      showError('Error!', msg)
     } finally {
       setIsPosting(false)
     }
   }
 
-  // ===== DELETE HANDLER =====
-  const handleDelete = async (id: number, displayName: string) => {
-    const result = await SweetAlert.confirmDelete(
-      `Hapus ukuran ${displayName}?`,
-      'Data yang dihapus tidak dapat dikembalikan'
-    )
-
+  const handleDelete = async (id: number) => {
+    const result = await showConfirmDelete('Data yang dihapus tidak dapat dikembalikan')
     if (!result.isConfirmed) return
 
     try {
       setIsPosting(true)
-      
-      const response = await axiosInstance.delete(
-        `Admin/Duplek/duplekKraftPricesDel/${id}`
-      )
-      
+      const response = await axios.delete<ApiResponse>(`Admin/Duplek/duplekKraftPricesDel/${id}`)
+
       if (response.status === 200) {
-        await fetchData()
-        SweetAlert.success('Berhasil!', 'Data Duplex DK berhasil dihapus')
+        await refetch()
+        showSuccess('Berhasil!', 'Data Duplex DK berhasil dihapus')
+      } else {
+        throw new Error(response.data?.message || 'Gagal menghapus data')
       }
-    } catch (err: any) {
-      SweetAlert.error('Error!', err.response?.data?.message || 'Gagal menghapus data')
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { message?: string } }, message?: string })
+        ?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
+      showError('Error!', msg)
     } finally {
       setIsPosting(false)
     }
   }
 
-  // ===== FORM RESET =====
-  const resetAddForm = () => {
-    setAddFormData({ ...BASE_FORM })
-    setFormErrors({})
+  // ===== UI HANDLERS =====
+  // FIX: removed the sheetSizeList.length === 0 guard — sheetSizeList is now populated
+  const handleAddClick = () => {
+    resetAddForm()
+    if (gramasiList.length === 0) {
+      showWarning('Peringatan', 'Data GSM belum tersedia, coba refresh halaman')
+      return
+    }
+    setShowAddModal(true)
   }
 
-  const resetEditForm = () => {
-    setEditFormData({ ...BASE_FORM })
-    setFormErrors({})
-  }
-
-  // ===== HANDLE EDIT CLICK =====
   const handleEditClick = (item: DuplexDataDK) => {
     setEditingItem(item)
     setEditFormData({
@@ -447,69 +534,65 @@ export default function DuplexDKPage() {
   // ===== FORM HANDLERS =====
   const handleAddInputChange = (field: string, value: string) => {
     setAddFormData(prev => ({ ...prev, [field]: value }))
-    if (formErrors[field]) setFormErrors(prev => ({ ...prev, [field]: '' }))
-    if (field === 'sheet_size_id' || field === 'gramasi_id') {
-      if (formErrors.general) setFormErrors(prev => ({ ...prev, general: '' }))
-    }
+    setFormErrors(prev => ({ ...prev, [field]: '', general: '' }))
   }
 
   const handleEditInputChange = (field: string, value: string) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
-    if (formErrors[field]) setFormErrors(prev => ({ ...prev, [field]: '' }))
+    setFormErrors(prev => ({ ...prev, [field]: '' }))
   }
 
-  // ===== INITIAL LOAD =====
+  const resetAddForm = () => {
+    setAddFormData({ ...BASE_FORM })
+    setSelectedSize(null)
+    setSelectedGramasi(null)
+    setFormErrors({})
+  }
+
+  const resetEditForm = () => {
+    setEditFormData({ ...BASE_FORM })
+    setEditSelectedSize(null)
+    setEditSelectedGramasi(null)
+    setFormErrors({})
+  }
+
+  const handleCloseAddModal = () => {
+    if (!isPosting) { setShowAddModal(false); resetAddForm() }
+  }
+
+  const handleCloseEditModal = () => {
+    if (!isPosting) { setShowEditModal(false); setEditingItem(null); resetEditForm() }
+  }
+
+  // ===== SYNC SELECTED ITEMS =====
   useEffect(() => {
-    const loadInitialData = async () => {
-      await Promise.all([fetchGramasi(), fetchSheetSizes()])
-    }
-    loadInitialData()
-  }, [fetchGramasi, fetchSheetSizes])
+    setSelectedSize(sheetSizeList.find(i => i.id_sh === addFormData.sheet_size_id) || null)
+  }, [addFormData.sheet_size_id, sheetSizeList])
 
   useEffect(() => {
-    if (sheetSizeList.length > 0 && gramasiList.length > 0) {
-      fetchData()
-    }
-  }, [sheetSizeList, gramasiList, fetchData])
+    setSelectedGramasi(gramasiList.find(i => i.id === addFormData.gramasi_id) || null)
+  }, [addFormData.gramasi_id, gramasiList])
 
-  // ===== RENDER =====
-  if (loading && dataDK.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-            <Icon icon="mdi:package-variant" className="w-8 h-8 text-blue-600 absolute inset-0 m-auto animate-pulse" />
-          </div>
-          <p className="mt-6 text-lg font-medium text-gray-700">Memuat Data Duplex DK...</p>
-          <p className="text-sm text-gray-500 mt-2">Harap tunggu sebentar</p>
-        </div>
-      </div>
-    )
+  useEffect(() => {
+    setEditSelectedSize(sheetSizeList.find(i => i.id_sh === editFormData.sheet_size_id) || null)
+  }, [editFormData.sheet_size_id, sheetSizeList])
+
+  useEffect(() => {
+    setEditSelectedGramasi(gramasiList.find(i => i.id === editFormData.gramasi_id) || null)
+  }, [editFormData.gramasi_id, gramasiList])
+
+  // ===== RENDER STATES =====
+  if (loading && dataDK.length === 0 && !error) {
+    return <LoadingState message="Memuat Data Duplex DK..." />
   }
 
   if (error && dataDK.length === 0) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <Card className="max-w-lg w-full border-red-200 bg-red-50">
-          <div className="text-center">
-            <div className="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Icon icon="mdi:alert-circle" className="w-10 h-10 text-red-600" />
-            </div>
-            <h3 className="text-xl font-bold text-red-800 mb-2">Error Loading Data</h3>
-            <p className="text-red-700 mb-6">{error}</p>
-            <Button onClick={fetchData} variant="danger" className="mx-auto">
-              <Icon icon="mdi:refresh" className="w-4 h-4 mr-2" />
-              Coba Lagi
-            </Button>
-          </div>
-        </Card>
-      </div>
-    )
+    return <ErrorState message={error} onRetry={refetch} />
   }
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+
       {/* ===== HEADER ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
@@ -521,15 +604,16 @@ export default function DuplexDKPage() {
               Duplex DK
             </h1>
             <p className="text-gray-600 mt-1">Kelola ukuran dan harga Duplex Rumus DK</p>
+            <div className="flex flex-wrap gap-4 mt-2 text-sm">
+              <span className="text-gray-600"><span className="font-medium">Total Records:</span> {stats.totalRecords}</span>
+              <span className="text-gray-600"><span className="font-medium">Gramasi:</span> {gramasiList.length} data</span>
+              <span className="text-gray-600"><span className="font-medium">Ukuran:</span> {sheetSizeList.length} data</span>
+            </div>
           </div>
         </div>
-        
         <Button
           variant="primary"
-          onClick={() => {
-            resetAddForm()
-            setShowAddModal(true)
-          }}
+          onClick={handleAddClick}
           className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
           icon="mdi:plus"
         >
@@ -540,35 +624,30 @@ export default function DuplexDKPage() {
       {/* ===== STATS CARDS ===== */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full group-hover:bg-blue-100 transition-all"></div>
+          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full group-hover:bg-blue-100 transition-all" />
           <div className="space-y-2 relative">
             <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:database" className="w-4 h-4 text-blue-600" />
-              Total Records
+              <Icon icon="mdi:database" className="w-4 h-4 text-blue-600" /> Total Records
             </p>
             <p className="text-3xl font-bold text-gray-900">{stats.totalRecords.toLocaleString()}</p>
             <p className="text-xs text-gray-500">data tersimpan</p>
           </div>
         </Card>
-
         <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full group-hover:bg-green-100 transition-all"></div>
+          <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full group-hover:bg-green-100 transition-all" />
           <div className="space-y-2 relative">
             <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:ruler-square" className="w-4 h-4 text-green-600" />
-              Kombinasi Ukuran
+              <Icon icon="mdi:ruler-square" className="w-4 h-4 text-green-600" /> Kombinasi Ukuran
             </p>
             <p className="text-3xl font-bold text-gray-900">{stats.totalCombinations}</p>
             <p className="text-xs text-gray-500">unik kombinasi</p>
           </div>
         </Card>
-
         <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-50 rounded-bl-full group-hover:bg-purple-100 transition-all"></div>
+          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-50 rounded-bl-full group-hover:bg-purple-100 transition-all" />
           <div className="space-y-2 relative">
             <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-purple-600" />
-              Rata-rata Harga
+              <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-purple-600" /> Rata-rata Harga
             </p>
             <p className="text-3xl font-bold text-gray-900">{formatHargaDisplay(stats.averagePrice)}</p>
             <p className="text-xs text-gray-500">per lembar</p>
@@ -578,7 +657,6 @@ export default function DuplexDKPage() {
 
       {/* ===== MAIN CARD ===== */}
       <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-        {/* Card Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 px-6 pt-6">
           <div>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -590,7 +668,6 @@ export default function DuplexDKPage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {/* Info sorting - berdasarkan GSM */}
             <Badge className="bg-blue-100 text-blue-800">
               <Icon icon="mdi:sort-numeric-ascending" className="w-3 h-3 mr-1" />
               Urut berdasarkan GSM
@@ -598,7 +675,7 @@ export default function DuplexDKPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchData}
+              onClick={refetch}
               className="border-gray-300 hover:bg-gray-50"
               icon="mdi:refresh"
             >
@@ -607,24 +684,15 @@ export default function DuplexDKPage() {
           </div>
         </div>
 
-        {/* Table - Gunakan sortedDataDK, bukan dataDK */}
         {sortedDataDK.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Icon icon="mdi:package-variant" className="w-10 h-10 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada data Duplex DK</h3>
-            <p className="text-gray-500 mb-6">Silakan tambah data baru</p>
-            <Button
-              onClick={() => {
-                resetAddForm()
-                setShowAddModal(true)
-              }}
-              variant="primary"
-              icon="mdi:plus"
-            >
-              Tambah Data
-            </Button>
+          <div className="px-6 pb-6">
+            <EmptyState
+              icon="mdi:package-variant"
+              title="Belum ada data Duplex DK"
+              message="Silakan tambah data baru"
+              actionLabel="Tambah Data"
+              onAction={handleAddClick}
+            />
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -644,14 +712,12 @@ export default function DuplexDKPage() {
                   const hargaPerM2 = item.harga_per_lembar > 0 ? item.harga_per_lembar / luasM2 : 0
 
                   return (
-                    <tr key={item.id} className="hover:bg-blue-50/50 transition-colors duration-150">
+                    <tr key={`dk-${item.id}`} className="hover:bg-blue-50/50 transition-colors duration-150">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-gray-700">{index + 1}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge className={getGSMBadgeClass(item.gsm)}>
-                          {item.gsm} GSM
-                        </Badge>
+                        <Badge className={getGSMBadgeClass(item.gsm)}>{item.gsm} GSM</Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -679,10 +745,7 @@ export default function DuplexDKPage() {
                             <Icon icon="mdi:pencil" className="w-5 h-5" />
                           </button>
                           <button
-                            onClick={() => handleDelete(
-                              item.id,
-                              `${item.panjang}×${item.lebar} cm (${item.gsm} GSM)`
-                            )}
+                            onClick={() => handleDelete(item.id)}
                             className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
                             title="Hapus"
                           >
@@ -698,14 +761,13 @@ export default function DuplexDKPage() {
           </div>
         )}
 
-        {/* Table Footer */}
         {sortedDataDK.length > 0 && (
           <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50/50">
             <div className="text-sm text-gray-600">
               Menampilkan {sortedDataDK.length} dari {stats.totalRecords} data
             </div>
             <button
-              onClick={() => SweetAlert.info('Export', 'Exporting duplex DK data...')}
+              onClick={() => showInfo('Export', 'Exporting duplex DK data...')}
               className="text-blue-600 hover:text-blue-700 flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition-colors"
             >
               <Icon icon="mdi:export" className="w-4 h-4" />
@@ -718,48 +780,28 @@ export default function DuplexDKPage() {
       {/* ===== ADD MODAL ===== */}
       <Modal
         isOpen={showAddModal}
-        onClose={() => {
-          setShowAddModal(false)
-          resetAddForm()
-        }}
+        onClose={handleCloseAddModal}
         title="➕ Tambah Ukuran Duplex DK"
         size="lg"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowAddModal(false)
-                resetAddForm()
-              }}
-              disabled={isPosting}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleAdd}
-              loading={isPosting}
-              disabled={isPosting}
-            >
+            <Button variant="outline" onClick={handleCloseAddModal} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" onClick={handleAdd} loading={isPosting} disabled={isPosting}>
               {isPosting ? 'Menyimpan...' : 'Simpan'}
             </Button>
           </div>
         }
       >
         <div className="space-y-5">
-          {/* Info Box */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-blue-900 mb-1">Informasi</h4>
-                <p className="text-sm text-blue-700">
-                  GSM dan Ukuran wajib diisi. Harga per lembar boleh dikosongkan atau diisi 0 jika belum ada harga (akan ditampilkan sebagai "-").
-                </p>
-              </div>
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 flex items-start gap-3">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-blue-800">Informasi</p>
+              <p className="text-xs text-blue-600 mt-1">
+                Pilih GSM dan Ukuran yang tersedia. Harga boleh dikosongkan atau diisi 0 jika belum ada.
+              </p>
             </div>
           </div>
 
@@ -768,20 +810,22 @@ export default function DuplexDKPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               GSM <span className="text-red-500">*</span>
             </label>
-            <Select
-              value={addFormData.gramasi_id}
-              onChange={(e) => handleAddInputChange('gramasi_id', e.target.value)}
-              options={gramasiList.map(item => ({
-                value: item.id,
-                label: `${item.gsm} GSM`
-              }))}
-              placeholder="Pilih GSM"
-              disabled={isPosting}
-              className={formErrors.gramasi_id ? 'border-red-500' : ''}
-            />
-            {formErrors.gramasi_id && (
-              <p className="text-xs text-red-600 mt-2">{formErrors.gramasi_id}</p>
+            {loadingGramasi ? (
+              <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-xl bg-gray-50">
+                <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
+                <span className="text-sm text-gray-600">Memuat data gramasi...</span>
+              </div>
+            ) : (
+              <Select
+                value={addFormData.gramasi_id}
+                onChange={(e) => handleAddInputChange('gramasi_id', e.target.value)}
+                options={gramasiOptions}
+                placeholder="-- Pilih GSM --"
+                disabled={isPosting}
+                className={formErrors.gramasi_id ? 'border-red-500' : ''}
+              />
             )}
+            {formErrors.gramasi_id && <p className="text-xs text-red-600 mt-2">{formErrors.gramasi_id}</p>}
           </div>
 
           {/* Ukuran */}
@@ -792,28 +836,17 @@ export default function DuplexDKPage() {
             <Select
               value={addFormData.sheet_size_id}
               onChange={(e) => handleAddInputChange('sheet_size_id', e.target.value)}
-              options={sheetSizeList.map(item => {
-                const { panjang, lebar } = parsePL(formatPLFromSheet(item.panjang_sh, item.lebar_sh))
-                return {
-                  value: item.id_sh,
-                  label: formatUkuranDisplay(panjang, lebar)
-                }
-              })}
-              placeholder="Pilih Ukuran"
+              options={sheetSizeOptions}
+              placeholder="-- Pilih Ukuran --"
               disabled={isPosting}
               className={formErrors.sheet_size_id ? 'border-red-500' : ''}
             />
-            {formErrors.sheet_size_id && (
-              <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>
-            )}
+            {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
           </div>
 
           {/* Harga */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Harga per Lembar
-              <span className="text-gray-500 text-xs ml-2">(opsional - kosongkan atau isi 0 jika belum ada harga)</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Harga per Lembar</label>
             <Input
               type="number"
               value={addFormData.harga_per_lembar}
@@ -821,62 +854,50 @@ export default function DuplexDKPage() {
               placeholder="0"
               leftIcon="mdi:cash"
               disabled={isPosting}
-              className={formErrors.harga_per_lembar ? 'border-red-500' : ''}
+              className={`${formErrors.harga_per_lembar ? 'border-red-500' : ''} text-gray-700`}
               min="0"
               step="100"
             />
-            {formErrors.harga_per_lembar && (
-              <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>
-            )}
+            {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
           </div>
 
           {/* Preview */}
-          {addFormData.sheet_size_id && addFormData.gramasi_id && (
+          {selectedSize && selectedGramasi && (
             <div className="bg-green-50 p-4 rounded-xl border border-green-200">
               <h4 className="font-medium text-green-900 mb-3 flex items-center gap-2">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
-                </div>
+                <Icon icon="mdi:check-circle" className="w-5 h-5 text-green-600" />
                 Preview Data
               </h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                {(() => {
-                  const sheetSize = sheetSizeList.find(s => s.id_sh === addFormData.sheet_size_id)
-                  const gramasi = gramasiList.find(g => g.id === addFormData.gramasi_id)
-                  if (!sheetSize || !gramasi) return null
-                  
-                  const { panjang, lebar } = parsePL(formatPLFromSheet(sheetSize.panjang_sh, sheetSize.lebar_sh))
-                  const hargaValue = parseFloat(addFormData.harga_per_lembar || '0')
-                  
-                  return (
-                    <>
-                      <div>
-                        <p className="text-gray-600 mb-1">Ukuran:</p>
-                        <p className="font-medium text-gray-900">{formatUkuranDisplay(panjang, lebar)}</p>
-                      </div>
-                      <div>
-                        <p className="text-gray-600 mb-1">GSM:</p>
-                        <p className="font-medium text-gray-900">{gramasi.gsm} GSM</p>
-                      </div>
-                      <div className="col-span-2">
-                        <p className="text-gray-600 mb-1">Harga:</p>
-                        <p className="font-medium text-green-600">
-                          {hargaValue === 0 ? '-' : formatCurrency(hargaValue)}
-                        </p>
-                      </div>
-                    </>
-                  )
-                })()}
+                <div>
+                  <p className="text-gray-600 mb-1">Ukuran:</p>
+                  <p className="font-medium text-gray-900">{buildSheetLabel(selectedSize.panjang_sh, selectedSize.lebar_sh)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 mb-1">GSM:</p>
+                  <p className="font-medium text-gray-900">{selectedGramasi.gsm} GSM</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 mb-1">PL Format:</p>
+                  <p className="font-mono text-gray-900">{selectedSize.panjang_sh}x{selectedSize.lebar_sh}</p>
+                </div>
+                <div>
+                  <p className="text-gray-600 mb-1">Harga:</p>
+                  <p className="font-medium text-gray-900">
+                    {addFormData.harga_per_lembar && parseFloat(addFormData.harga_per_lembar) > 0
+                      ? formatCurrency(parseFloat(addFormData.harga_per_lembar))
+                      : <span className="text-gray-400 italic">(kosong / 0)</span>
+                    }
+                  </p>
+                </div>
               </div>
             </div>
           )}
 
           {formErrors.general && (
-            <div className="bg-red-50 p-4 rounded-xl border border-red-200">
-              <div className="flex items-start gap-3">
-                <Icon icon="mdi:alert-circle" className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-red-800">{formErrors.general}</p>
-              </div>
+            <div className="bg-red-50 p-4 rounded-xl border border-red-200 flex items-start gap-3">
+              <Icon icon="mdi:alert-circle" className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-800">{formErrors.general}</p>
             </div>
           )}
         </div>
@@ -885,32 +906,13 @@ export default function DuplexDKPage() {
       {/* ===== EDIT MODAL ===== */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false)
-          setEditingItem(null)
-          resetEditForm()
-        }}
+        onClose={handleCloseEditModal}
         title="✏️ Edit Ukuran Duplex DK"
         size="lg"
         footer={
           <div className="flex justify-end gap-3">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowEditModal(false)
-                setEditingItem(null)
-                resetEditForm()
-              }}
-              disabled={isPosting}
-            >
-              Batal
-            </Button>
-            <Button
-              variant="primary"
-              onClick={handleEdit}
-              loading={isPosting}
-              disabled={isPosting}
-            >
+            <Button variant="outline" onClick={handleCloseEditModal} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" onClick={handleEdit} loading={isPosting} disabled={isPosting}>
               {isPosting ? 'Menyimpan...' : 'Update'}
             </Button>
           </div>
@@ -918,15 +920,15 @@ export default function DuplexDKPage() {
       >
         {editingItem && (
           <div className="space-y-5">
-            {/* Current Data Info */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+            {/* Current Data */}
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
                 </div>
-                <div>
-                  <h4 className="font-semibold text-blue-900 mb-1">Data Saat Ini</h4>
-                  <div className="grid grid-cols-3 gap-4 mt-2 text-sm">
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-900 mb-2">Data Saat Ini</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
                     <div>
                       <p className="text-blue-700 mb-1">Ukuran:</p>
                       <p className="font-medium text-blue-900">{formatUkuranDisplay(editingItem.panjang, editingItem.lebar)}</p>
@@ -952,13 +954,12 @@ export default function DuplexDKPage() {
               <Select
                 value={editFormData.gramasi_id}
                 onChange={(e) => handleEditInputChange('gramasi_id', e.target.value)}
-                options={gramasiList.map(item => ({
-                  value: item.id,
-                  label: `${item.gsm} GSM`
-                }))}
-                placeholder="Pilih GSM"
+                options={gramasiOptions}
+                placeholder="-- Pilih GSM --"
                 disabled={isPosting}
+                className={formErrors.gramasi_id ? 'border-red-500' : ''}
               />
+              {formErrors.gramasi_id && <p className="text-xs text-red-600 mt-2">{formErrors.gramasi_id}</p>}
             </div>
 
             {/* Ukuran Baru */}
@@ -969,24 +970,17 @@ export default function DuplexDKPage() {
               <Select
                 value={editFormData.sheet_size_id}
                 onChange={(e) => handleEditInputChange('sheet_size_id', e.target.value)}
-                options={sheetSizeList.map(item => {
-                  const { panjang, lebar } = parsePL(formatPLFromSheet(item.panjang_sh, item.lebar_sh))
-                  return {
-                    value: item.id_sh,
-                    label: formatUkuranDisplay(panjang, lebar)
-                  }
-                })}
-                placeholder="Pilih Ukuran"
+                options={sheetSizeOptions}
+                placeholder="-- Pilih Ukuran --"
                 disabled={isPosting}
+                className={formErrors.sheet_size_id ? 'border-red-500' : ''}
               />
+              {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
             </div>
 
             {/* Harga Baru */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Harga Baru
-                <span className="text-gray-500 text-xs ml-2">(opsional - kosongkan atau isi 0 jika belum ada harga)</span>
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Harga Baru</label>
               <Input
                 type="number"
                 value={editFormData.harga_per_lembar}
@@ -994,48 +988,42 @@ export default function DuplexDKPage() {
                 placeholder="0"
                 leftIcon="mdi:cash"
                 disabled={isPosting}
+                className={`${formErrors.harga_per_lembar ? 'border-red-500' : ''} text-gray-700`}
                 min="0"
                 step="100"
               />
+              {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
             </div>
 
             {/* Preview Update */}
-            {editFormData.sheet_size_id && editFormData.gramasi_id && (
+            {editSelectedSize && editSelectedGramasi && (
               <div className="bg-green-50 p-4 rounded-xl border border-green-200">
                 <h4 className="font-medium text-green-900 mb-3 flex items-center gap-2">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                    <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
-                  </div>
+                  <Icon icon="mdi:check-circle" className="w-5 h-5 text-green-600" />
                   Preview Update
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  {(() => {
-                    const sheetSize = sheetSizeList.find(s => s.id_sh === editFormData.sheet_size_id)
-                    const gramasi = gramasiList.find(g => g.id === editFormData.gramasi_id)
-                    if (!sheetSize || !gramasi) return null
-                    
-                    const { panjang, lebar } = parsePL(formatPLFromSheet(sheetSize.panjang_sh, sheetSize.lebar_sh))
-                    const hargaValue = parseFloat(editFormData.harga_per_lembar || '0')
-                    
-                    return (
-                      <>
-                        <div>
-                          <p className="text-gray-600 mb-1">Ukuran Baru:</p>
-                          <p className="font-medium text-gray-900">{formatUkuranDisplay(panjang, lebar)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600 mb-1">GSM Baru:</p>
-                          <p className="font-medium text-gray-900">{gramasi.gsm} GSM</p>
-                        </div>
-                        <div className="col-span-2">
-                          <p className="text-gray-600 mb-1">Harga Baru:</p>
-                          <p className="font-medium text-green-600">
-                            {hargaValue === 0 ? '-' : formatCurrency(hargaValue)}
-                          </p>
-                        </div>
-                      </>
-                    )
-                  })()}
+                  <div>
+                    <p className="text-gray-600 mb-1">Ukuran Baru:</p>
+                    <p className="font-medium text-gray-900">{buildSheetLabel(editSelectedSize.panjang_sh, editSelectedSize.lebar_sh)}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 mb-1">GSM Baru:</p>
+                    <p className="font-medium text-gray-900">{editSelectedGramasi.gsm} GSM</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 mb-1">PL Format:</p>
+                    <p className="font-mono text-gray-900">{editSelectedSize.panjang_sh}x{editSelectedSize.lebar_sh}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-600 mb-1">Harga Baru:</p>
+                    <p className="font-medium text-gray-900">
+                      {editFormData.harga_per_lembar && parseFloat(editFormData.harga_per_lembar) > 0
+                        ? formatCurrency(parseFloat(editFormData.harga_per_lembar))
+                        : <span className="text-gray-400 italic">(kosong / 0)</span>
+                      }
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

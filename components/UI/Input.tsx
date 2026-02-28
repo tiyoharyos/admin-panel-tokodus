@@ -31,7 +31,6 @@ export default function Input({
       return <Icon icon={icon} className={`w-5 h-5 ${disabled ? 'text-gray-300' : 'text-gray-400'}`} />
     }
     
-    // Jika icon adalah ReactNode (komponen seperti <span>Rp</span>)
     return icon
   }
 
@@ -55,7 +54,7 @@ export default function Input({
             focus:ring-2 focus:ring-blue-500 focus:border-blue-500
             transition-all duration-200
             placeholder:text-gray-400
-            disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500
+            disabled:bg-gray-100 disabled:cursor-not-allowed disabled:text-gray-500 text-gray-700
             ${leftIcon ? 'pl-10' : ''}
             ${rightIcon ? 'pr-10' : ''}
             ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : 'border-gray-300 hover:border-gray-400'}

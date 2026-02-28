@@ -1,0 +1,2394 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>KARDOOS — Box Pricing Engine</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════
+   ROOT / THEME TOKENS — Modern Glass UI
+═══════════════════════════════════════════ */
+:root {
+  --bg:         #f0f0ed;
+  --surface:    rgba(255,255,255,.82);
+  --surface2:   rgba(250,249,246,.7);
+  --surface3:   rgba(240,238,233,.8);
+  --border:     rgba(0,0,0,.06);
+  --border2:    rgba(0,0,0,.1);
+  --text:       #1a1a18;
+  --text2:      #6b6960;
+  --text3:      #9e9a8f;
+  --accent:     #e85d30;
+  --accent-soft:#fff0eb;
+  --accent-bg:  rgba(232,93,48,.07);
+  --accent-dim: #c44a22;
+  --green:      #1a9a5a;
+  --green-bg:   rgba(26,154,90,.08);
+  --green-soft: #ecfdf3;
+  --gold:       #b8860b;
+  --gold-bg:    rgba(184,134,11,.08);
+  --blue:       #3572c6;
+  --blue-bg:    rgba(53,114,198,.08);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.04);
+  --shadow:     0 2px 8px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.04);
+  --shadow-lg:  0 8px 40px rgba(0,0,0,.08);
+  --shadow-glow:0 0 0 4px rgba(232,93,48,.12);
+  --radius:     14px;
+  --radius-sm:  10px;
+  --radius-xs:  7px;
+  --font:       'Plus Jakarta Sans', -apple-system, sans-serif;
+  --mono:       'JetBrains Mono', monospace;
+  --blur:       saturate(1.8) blur(20px);
+  --transition: .2s cubic-bezier(.4,0,.2,1);
+}
+[data-theme="dark"] {
+  --bg:         #0e0e0c;
+  --surface:    rgba(28,27,24,.85);
+  --surface2:   rgba(36,34,30,.75);
+  --surface3:   rgba(44,42,38,.8);
+  --border:     rgba(255,255,255,.06);
+  --border2:    rgba(255,255,255,.1);
+  --text:       #eae6db;
+  --text2:      #9a9385;
+  --text3:      #5f5a50;
+  --accent:     #f06a3e;
+  --accent-soft:rgba(240,106,62,.12);
+  --accent-bg:  rgba(240,106,62,.08);
+  --green:      #34d27a;
+  --green-bg:   rgba(52,210,122,.1);
+  --green-soft: rgba(52,210,122,.08);
+  --gold:       #d4a017;
+  --gold-bg:    rgba(212,160,23,.1);
+  --blue:       #5a9cf5;
+  --blue-bg:    rgba(90,156,245,.1);
+  --shadow-sm:  0 1px 2px rgba(0,0,0,.2);
+  --shadow:     0 2px 8px rgba(0,0,0,.15), 0 8px 24px rgba(0,0,0,.12);
+  --shadow-lg:  0 8px 40px rgba(0,0,0,.3);
+  --shadow-glow:0 0 0 4px rgba(240,106,62,.18);
+}
+
+*,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+html { font-size:13px; scroll-behavior:smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: background .35s, color .35s;
+}
+
+/* Subtle grain overlay */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999;
+  pointer-events: none;
+  opacity: .022;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-size: 128px 128px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* ═══════════════════════════════════════════
+   TOPBAR — Frosted Glass
+═══════════════════════════════════════════ */
+.topbar {
+  height: 56px;
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  -webkit-backdrop-filter: var(--blur);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 0;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 200;
+}
+.topbar-logo {
+  display: flex; align-items: center; gap: 12px;
+  padding-right: 24px;
+  border-right: 1px solid var(--border);
+  margin-right: 24px;
+}
+.logo-sq {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--accent), #ff8a5c);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 15px; font-weight: 600;
+  color: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(232,93,48,.3);
+  transition: transform .2s;
+}
+.logo-sq:hover { transform: scale(1.05) rotate(-2deg); }
+.logo-wordmark {
+  font-size: 17px; font-weight: 800;
+  letter-spacing: -.3px;
+  color: var(--text);
+}
+.logo-sub {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  letter-spacing: 1.5px; text-transform: uppercase; margin-top: 1px;
+}
+.topbar-status {
+  display: flex; align-items: center; gap: 8px;
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+  background: var(--surface3);
+  padding: 5px 12px;
+  border-radius: 20px;
+  letter-spacing: .3px;
+}
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 8px rgba(26,154,90,.4);
+  animation: pulse-dot 2.5s ease-in-out infinite;
+}
+@keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.5;transform:scale(.85);} }
+.topbar-actions {
+  margin-left: auto;
+  display: flex; gap: 8px; align-items: center;
+}
+.theme-btn {
+  width: 36px; height: 36px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  backdrop-filter: var(--blur);
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px;
+  transition: all var(--transition);
+  color: var(--text2);
+}
+.theme-btn:hover { border-color: var(--border2); background: var(--surface3); transform: rotate(15deg); }
+.tb-btn {
+  font-family: var(--mono); font-size: 10px;
+  padding: 8px 18px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  backdrop-filter: var(--blur);
+  color: var(--text2);
+  border-radius: 10px;
+  cursor: pointer;
+  letter-spacing: .5px;
+  transition: all var(--transition);
+  font-weight: 500;
+}
+.tb-btn:hover { border-color: var(--border2); color: var(--text); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.tb-btn.primary {
+  background: linear-gradient(135deg, var(--accent), #f07a52);
+  border-color: transparent; color: #fff;
+  box-shadow: 0 2px 12px rgba(232,93,48,.25);
+}
+.tb-btn.primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(232,93,48,.35); }
+
+/* ═══════════════════════════════════════════
+   WORKSPACE
+═══════════════════════════════════════════ */
+.workspace {
+  display: grid;
+  grid-template-columns: 380px 1fr 320px;
+  flex: 1;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════
+   LEFT CONFIGURATOR — Card-based sections
+═══════════════════════════════════════════ */
+.configurator {
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  min-height: 0; /* fix flex overflow */
+}
+.config-scroll {
+  overflow-y: auto; flex: 1;
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+  min-height: 0; /* CRITICAL: fix flex overflow scroll */
+}
+
+/* Section — Cards with rounded corners */
+.cfg-section {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: box-shadow .25s, border-color .25s;
+}
+.cfg-section:hover {
+  border-color: var(--border2);
+  box-shadow: var(--shadow-sm);
+}
+.cfg-head {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 16px;
+  cursor: default;
+  user-select: none;
+}
+.cfg-step {
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  color: #fff;
+  min-width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--accent), #f07a52);
+  border-radius: 8px;
+  letter-spacing: 0;
+  box-shadow: 0 2px 6px rgba(232,93,48,.2);
+}
+.cfg-title {
+  font-size: 13px; font-weight: 700; letter-spacing: -.2px;
+  color: var(--text); flex: 1;
+}
+.cfg-tag {
+  font-family: var(--mono); font-size: 8px;
+  padding: 3px 8px;
+  background: var(--surface3);
+  border-radius: 6px;
+  color: var(--text3); letter-spacing: .5px;
+  font-weight: 500;
+}
+.cfg-tag.opt { background: var(--gold-bg); color: var(--gold); }
+.cfg-body { padding: 0 16px 14px; }
+
+/* Model grid — Playful cards */
+.model-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  padding-top: 2px;
+}
+.model-card {
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.4,0,.2,1);
+  background: var(--surface);
+  position: relative;
+  overflow: hidden;
+}
+.model-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), #ff8a5c);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform .25s cubic-bezier(.4,0,.2,1);
+}
+.model-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
+.model-card:hover::before { transform: scaleX(1); }
+.model-card.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--shadow-glow);
+}
+.model-card.active::before { transform: scaleX(1); }
+.mc-name { font-size: 12px; font-weight: 700; line-height: 1.3; letter-spacing: -.1px; }
+.mc-desc { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-top: 3px; line-height: 1.3; }
+
+/* Form */
+.f-row { display: grid; gap: 8px; margin-bottom: 10px; }
+.f-row.col2 { grid-template-columns: 1fr 1fr; }
+.f-row.col3 { grid-template-columns: 1fr 1fr 1fr; }
+.f-group { display: flex; flex-direction: column; gap: 5px; }
+.f-label-wrap {
+  display: flex; align-items: center; gap: 5px;
+}
+.f-label {
+  font-family: var(--mono); font-size: 9px;
+  color: var(--text3); letter-spacing: .5px; text-transform: uppercase;
+  font-weight: 500;
+}
+.info-btn {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--surface3);
+  border: 1px solid var(--border);
+  color: var(--text3);
+  font-family: var(--mono); font-size: 8px; font-weight: 600;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+  transition: all .2s;
+  flex-shrink: 0;
+}
+.info-btn:hover { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); transform: scale(1.1); }
+.info-btn .tooltip {
+  position: absolute;
+  left: 22px; top: -4px;
+  background: var(--text);
+  color: var(--bg);
+  padding: 10px 14px;
+  border-radius: 12px;
+  width: 230px;
+  font-family: var(--font); font-size: 10px; line-height: 1.5;
+  font-weight: 400; letter-spacing: 0; text-transform: none;
+  z-index: 999;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateX(-6px) scale(.96);
+  transition: all .2s cubic-bezier(.4,0,.2,1);
+  white-space: normal;
+  box-shadow: var(--shadow-lg);
+}
+.info-btn:hover .tooltip { opacity: 1; transform: translateX(0) scale(1); }
+
+.f-input, .f-select {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  padding: 9px 12px;
+  font-family: var(--mono); font-size: 11px;
+  border-radius: var(--radius-xs);
+  transition: all .2s;
+  -webkit-appearance: none; appearance: none;
+  width: 100%;
+  font-weight: 500;
+}
+.f-input:focus, .f-select:focus {
+  outline: none; border-color: var(--accent);
+  background: var(--surface);
+  box-shadow: var(--shadow-glow);
+}
+.f-input:disabled, .f-select:disabled { opacity: .35; cursor: not-allowed; }
+.f-select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239a9589'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: calc(100% - 12px) 50%;
+  padding-right: 30px; cursor: pointer;
+}
+
+/* Material side label */
+.mat-side-label {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px; margin-top: 12px;
+}
+.mat-side-label:first-child { margin-top: 0; }
+.msl-text {
+  font-size: 12px; font-weight: 700; color: var(--text2); letter-spacing: -.1px;
+}
+.msl-type {
+  font-family: var(--mono); font-size: 9px;
+  padding: 3px 10px; border-radius: 6px;
+  background: var(--surface3); color: var(--text3);
+  font-weight: 600;
+}
+.msl-type.type-K { color: var(--gold); background: var(--gold-bg); }
+.msl-type.type-W { color: var(--blue); background: var(--blue-bg); }
+.msl-type.type-D { color: var(--accent); background: var(--accent-bg); }
+
+/* Flute chips — Pill style */
+.flute-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+.flute-chip {
+  font-family: var(--mono); font-size: 10px;
+  padding: 7px 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface); color: var(--text2);
+  cursor: pointer; letter-spacing: .5px;
+  transition: all .2s;
+  font-weight: 600;
+}
+.flute-chip:hover:not(:disabled) { border-color: var(--border2); color: var(--text); transform: translateY(-1px); }
+.flute-chip.active {
+  background: var(--text); color: var(--bg); border-color: var(--text);
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.flute-chip:disabled, .flute-chip[data-hidden="true"] { opacity: .3; cursor: not-allowed; }
+.flute-chip[data-hidden="true"] { display: none; }
+
+/* Wall type — Modern toggle cards */
+.wall-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 4px; }
+.wall-opt {
+  padding: 11px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer; transition: all .2s;
+  background: var(--surface);
+  position: relative;
+}
+.wall-opt:hover:not(.disabled) { border-color: var(--border2); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.wall-opt.active { border-color: var(--accent); background: var(--accent-soft); box-shadow: var(--shadow-glow); }
+.wall-opt.disabled { opacity: .3; cursor: not-allowed; pointer-events: none; }
+.wo-name { font-size: 12px; font-weight: 700; letter-spacing: -.1px; }
+.wo-desc { font-family: var(--mono); font-size: 8px; color: var(--text3); margin-top: 3px; font-weight: 500; }
+
+/* Cetak block */
+.cetak-block {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px; margin-bottom: 7px;
+  transition: border-color .2s;
+}
+.cetak-block:hover { border-color: var(--border2); }
+.cb-title {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px;
+  font-weight: 600;
+}
+.cetak-sisi-row { margin-top: 6px; display: none; }
+
+/* Pisau Pond — Status card */
+.pisau-status {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  background: var(--surface);
+  display: flex; align-items: center; gap: 10px;
+  transition: border-color .2s;
+}
+.pisau-badge {
+  font-family: var(--mono); font-size: 10px;
+  padding: 5px 12px; border-radius: 8px; font-weight: 600;
+  letter-spacing: .3px;
+}
+.pisau-badge.new { background: var(--accent-soft); color: var(--accent); }
+.pisau-badge.repeat { background: var(--green-soft); color: var(--green); }
+.pisau-badge.none { background: var(--surface3); color: var(--text3); }
+.pisau-badge.forced { background: var(--gold-bg); color: var(--gold); }
+.pisau-info { font-size: 10px; color: var(--text2); flex: 1; line-height: 1.5; }
+.pisau-loading { font-family: var(--mono); font-size: 10px; color: var(--text3); font-weight: 500; }
+
+/* Divider */
+.cfg-divider { height: 1px; background: var(--border); margin: 10px 0; }
+
+/* ═══════════════════════════════════════════
+   MIDDLE VIEWPORT — Enhanced 3D space
+═══════════════════════════════════════════ */
+.viewport {
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  position: relative; overflow: hidden;
+}
+.viewport::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 1px 1px, var(--border2) .6px, transparent 0);
+  background-size: 28px 28px;
+  opacity: .4;
+  pointer-events: none;
+}
+.viewport::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 60% at 50% 48%, transparent 30%, var(--bg) 100%);
+  pointer-events: none;
+}
+
+/* HUD overlays — Glassmorphism */
+.vp-hud-tl, .vp-hud-tr {
+  position: absolute; top: 16px;
+  z-index: 10;
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow);
+  display: flex;
+  overflow: hidden;
+}
+.vp-hud-tl { left: 16px; }
+.vp-hud-tr { right: 16px; }
+.hud-cell {
+  padding: 10px 16px;
+  border-right: 1px solid var(--border);
+}
+.hud-cell:last-child { border-right: none; }
+.hud-label {
+  font-family: var(--mono); font-size: 8px;
+  color: var(--text3); letter-spacing: 1px; text-transform: uppercase;
+  margin-bottom: 4px; font-weight: 500;
+}
+.hud-val {
+  font-family: var(--mono); font-size: 13px;
+  color: var(--text); font-weight: 600;
+}
+.hud-val .unit { font-size: 9px; color: var(--text3); font-weight: 400; }
+.hud-val.accent { color: var(--accent); }
+
+/* Bottom controls */
+.vp-hud-br {
+  position: absolute; bottom: 16px; right: 16px;
+  z-index: 10; display: flex; gap: 2px;
+}
+.view-btn {
+  font-family: var(--mono); font-size: 9px;
+  padding: 8px 16px; letter-spacing: .5px; text-transform: uppercase;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  color: var(--text3);
+  cursor: pointer; transition: all .2s;
+  border-radius: 0;
+  font-weight: 600;
+}
+.view-btn:first-child { border-radius: 8px 0 0 8px; }
+.view-btn:last-child { border-radius: 0 8px 8px 0; }
+.view-btn.active, .view-btn:hover { background: var(--text); color: var(--bg); border-color: var(--text); }
+
+.vp-hud-bl {
+  position: absolute; bottom: 16px; left: 16px;
+  z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  box-shadow: var(--shadow);
+}
+.zoom-btn {
+  font-family: var(--mono); font-size: 16px;
+  background: none; border: none; color: var(--text3);
+  cursor: pointer; padding: 0; transition: all .15s; line-height: 1;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+}
+.zoom-btn:hover { color: var(--text); background: var(--surface3); }
+.zoom-val {
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text3); min-width: 36px; text-align: center;
+  font-weight: 600;
+}
+.sep { width: 1px; height: 16px; background: var(--border); }
+.open-lbl { font-family: var(--mono); font-size: 9px; color: var(--text3); font-weight: 500; }
+.open-range {
+  width: 80px; accent-color: var(--accent); cursor: pointer;
+  height: 4px;
+}
+
+/* Rumus watermark */
+.rumus-indicator {
+  position: absolute;
+  font-family: var(--mono); font-size: 90px; font-weight: 700;
+  color: var(--border);
+  letter-spacing: 8px;
+  user-select: none; pointer-events: none;
+  z-index: 1;
+  transition: color .3s;
+  opacity: .6;
+}
+
+/* 3D Box */
+.box-stage {
+  perspective: 900px;
+  position: relative; z-index: 5;
+  display: flex; align-items: center; justify-content: center;
+  width: 320px; height: 320px;
+}
+.box-wrap { animation: float 5s ease-in-out infinite; }
+@keyframes float { 0%,100%{transform:translateY(0);} 50%{transform:translateY(-12px);} }
+.box-3d {
+  width: 180px; height: 130px;
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(-18deg) rotateY(-34deg);
+  transition: transform .5s cubic-bezier(.4,0,.2,1);
+}
+.face {
+  position: absolute;
+  border: 1px solid rgba(0,0,0,.12);
+  transition: background .3s, all .4s ease;
+  border-radius: 2px;
+}
+.face.front {
+  width: 180px; height: 130px;
+  background: #b5a98a;
+  transform: translateZ(45px);
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.face.top {
+  width: 180px; height: 90px;
+  background: #c9be9e;
+  transform: rotateX(90deg) translateZ(45px); top: -45px;
+}
+.face.right {
+  width: 90px; height: 130px;
+  background: #9a8f78;
+  transform: rotateY(90deg) translateZ(135px); right: -90px;
+}
+.box-label {
+  font-family: var(--mono); font-size: 16px; font-weight: 600;
+  letter-spacing: 3px; color: rgba(0,0,0,.08);
+  pointer-events: none; white-space: nowrap;
+}
+.view-2d {
+  display: none; position: relative; z-index: 5;
+  flex-direction: column; align-items: center; justify-content: center;
+  width: 520px; height: 320px;
+}
+.v2d-inner {
+  width: 100%; height: 100%;
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 10px;
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+}
+
+/* ═══════════════════════════════════════════
+   RIGHT PRICE PANEL — Premium feel
+═══════════════════════════════════════════ */
+.price-panel {
+  background: var(--surface);
+  backdrop-filter: var(--blur);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.pp-top {
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, var(--accent-bg) 0%, transparent 100%);
+}
+.pp-kode {
+  font-family: var(--mono); font-size: 9px; color: var(--accent);
+  letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 6px;
+  font-weight: 600;
+}
+.pp-name {
+  font-size: 20px; font-weight: 800; color: var(--text);
+  line-height: 1.2; margin-bottom: 6px;
+  letter-spacing: -.3px;
+}
+.pp-spec { font-family: var(--mono); font-size: 9px; color: var(--text3); line-height: 1.5; font-weight: 500; }
+
+/* QTY — Interactive quantity selector */
+.pp-qty { padding: 18px 22px; border-bottom: 1px solid var(--border); }
+.qty-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.qty-num {
+  font-size: 32px; font-weight: 800; color: var(--text);
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.qty-unit { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-left: 4px; font-weight: 500; }
+.qty-tier {
+  font-family: var(--mono); font-size: 9px; padding: 4px 10px;
+  border-radius: 8px; letter-spacing: .3px; font-weight: 600;
+}
+.qty-tier.low { background: var(--accent-soft); color: var(--accent); }
+.qty-tier.high { background: var(--green-soft); color: var(--green); }
+.qty-slider {
+  width: 100%; accent-color: var(--accent);
+  margin-bottom: 10px; cursor: pointer;
+  height: 4px;
+}
+.qty-manual {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  color: var(--text);
+  padding: 9px 14px;
+  font-family: var(--mono); font-size: 12px;
+  border-radius: var(--radius-xs);
+  transition: all .2s;
+  text-align: center;
+  font-weight: 600;
+}
+.qty-manual:focus { outline: none; border-color: var(--accent); box-shadow: var(--shadow-glow); }
+
+/* Result area */
+.pp-result {
+  flex: 1; overflow-y: auto; display: flex; flex-direction: column;
+}
+
+/* Idle / loading / error */
+.result-idle {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 40px;
+}
+.idle-icon { font-size: 40px; opacity: .15; }
+.idle-text {
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
+  text-align: center; line-height: 2; letter-spacing: .5px; text-transform: uppercase;
+  font-weight: 500;
+}
+.result-loading {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 16px;
+}
+.spinner {
+  width: 30px; height: 30px;
+  border: 2.5px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .65s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 1px; font-weight: 500; }
+.result-error {
+  padding: 20px 22px 10px;
+  font-family: var(--mono); font-size: 10px; color: var(--accent);
+  line-height: 1.6; font-weight: 500;
+}
+
+/* Breakdown — Clean card rows */
+.breakdown { padding: 18px 22px; border-bottom: 1px solid var(--border); }
+.bk-title {
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+  letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px;
+  font-weight: 600;
+}
+.rumus-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 12px; margin-bottom: 14px;
+  background: var(--surface2);
+}
+.rp-label { font-family: var(--mono); font-size: 8px; color: var(--text3); font-weight: 600; }
+.rp-val { font-family: var(--mono); font-size: 10px; color: var(--accent); font-weight: 700; }
+.bk-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--border);
+}
+.bk-row:last-child { border-bottom: none; }
+.bk-row.modal {
+  border-top: 2px solid var(--border2);
+  margin-top: 8px; padding-top: 12px;
+}
+.bk-key { font-size: 11px; color: var(--text2); font-weight: 500; }
+.bk-val { font-family: var(--mono); font-size: 11px; color: var(--text); font-weight: 600; }
+
+/* Final price — Hero section */
+.pp-final {
+  padding: 20px 22px;
+  background: linear-gradient(180deg, transparent 0%, var(--accent-bg) 100%);
+}
+.pf-label { font-family: var(--mono); font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+.pf-main { display: flex; align-items: baseline; gap: 4px; margin: 6px 0 14px; }
+.pf-currency { font-size: 18px; font-weight: 700; color: var(--text2); }
+.pf-price {
+  font-size: 44px; font-weight: 800; color: var(--text);
+  line-height: 1; letter-spacing: -1px;
+}
+.pf-slash { height: 1px; background: var(--border); margin: 12px 0; }
+.pf-total {
+  display: flex; justify-content: space-between; align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: var(--radius-sm);
+}
+.pf-total-label { font-family: var(--mono); font-size: 9px; color: var(--text3); font-weight: 600; }
+.pf-total-val {
+  font-size: 18px; font-weight: 800; color: var(--accent);
+  letter-spacing: -.3px;
+}
+
+/* Utilities */
+.mt8 { margin-top: 8px; }
+.mt12 { margin-top: 12px; }
+.hidden { display: none !important; }
+
+/* Min order alert banners */
+.min-order-alert {
+  padding: 10px 14px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-xs);
+  font-family: var(--mono); font-size: 10px;
+  color: var(--accent); font-weight: 600;
+  line-height: 1.5;
+  margin-bottom: 8px;
+  display: none;
+}
+.min-order-alert.visible { display: block; }
+.min-order-alert.info {
+  background: var(--blue-bg);
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+/* Disabled overlay for sections */
+.cfg-section.disabled-section {
+  opacity: .45;
+  pointer-events: none;
+  position: relative;
+}
+.cfg-section.disabled-section::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--surface3);
+  opacity: .3;
+  border-radius: var(--radius);
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════
+   MICRO ANIMATIONS
+═══════════════════════════════════════════ */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.cfg-section {
+  animation: slideUp .4s cubic-bezier(.4,0,.2,1) backwards;
+}
+.cfg-section:nth-child(1) { animation-delay: .05s; }
+.cfg-section:nth-child(2) { animation-delay: .1s; }
+.cfg-section:nth-child(3) { animation-delay: .15s; }
+.cfg-section:nth-child(4) { animation-delay: .2s; }
+.cfg-section:nth-child(5) { animation-delay: .25s; }
+.cfg-section:nth-child(6) { animation-delay: .3s; }
+.cfg-section:nth-child(7) { animation-delay: .35s; }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">
+    <div class="logo-sq">K</div>
+    <div>
+      <div class="logo-wordmark">KARDOOS</div>
+      <div class="logo-sub">Box Pricing Engine</div>
+    </div>
+  </div>
+  <div class="topbar-status">
+    <div class="status-dot"></div>
+    <span id="apiStatus">Connecting...</span>
+  </div>
+  <div class="topbar-actions">
+    <button class="theme-btn" onclick="toggleTheme()" title="Toggle Dark/Light">🌓</button>
+    <button class="tb-btn" onclick="location.reload()">↺ Reset</button>
+    <button class="tb-btn primary" onclick="triggerCalculate()">⚡ Hitung Harga</button>
+  </div>
+</div>
+
+<!-- WORKSPACE -->
+<div class="workspace">
+
+  <!-- ══ LEFT CONFIGURATOR ══ -->
+  <div class="configurator">
+    <div class="config-scroll">
+
+      <!-- 01 MODEL BOX -->
+      <div class="cfg-section">
+        <div class="cfg-head">
+          <span class="cfg-step">01</span>
+          <span class="cfg-title">Model Box</span>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+          <div class="model-grid" id="modelGrid">
+            <div style="grid-column:1/-1;font-family:var(--mono);font-size:10px;color:var(--text3);padding:10px 0;">Memuat...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 02 UKURAN -->
+      <div class="cfg-section">
+        <div class="cfg-head">
+          <span class="cfg-step">02</span>
+          <span class="cfg-title">Ukuran Dalam</span>
+          <span class="cfg-tag">cm</span>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+          <div class="f-row col3">
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Panjang</label></div>
+              <input class="f-input" type="number" id="inp-p" value="20" min="1" oninput="onDimChange()"/>
+            </div>
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Lebar</label></div>
+              <input class="f-input" type="number" id="inp-l" value="15" min="1" oninput="onDimChange()"/>
+            </div>
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Tinggi</label></div>
+              <input class="f-input" type="number" id="inp-t" value="10" min="1" oninput="onDimChange()"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 03 MATERIAL -->
+      <div class="cfg-section">
+        <div class="cfg-head">
+          <span class="cfg-step">03</span>
+          <span class="cfg-title">Material</span>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+
+          <!-- Sisi Luar -->
+          <div class="mat-side-label">
+            <span class="msl-text">Sisi Luar</span>
+            <span class="msl-type" id="outer-type-badge">—</span>
+          </div>
+          <div class="f-row col2">
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Material</label></div>
+              <select class="f-select" id="outer-mat" onchange="onOuterMatChange()">
+                <option value="">— Pilih —</option>
+              </select>
+            </div>
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Gramasi</label></div>
+              <select class="f-select" id="outer-gsm" onchange="triggerCalculate()" disabled>
+                <option value="">— GSM —</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cfg-divider"></div>
+
+          <!-- Sisi Dalam -->
+          <div id="inner-mat-section">
+          <div class="mat-side-label" style="margin-top:0;">
+            <span class="msl-text">Sisi Dalam</span>
+            <span class="msl-type" id="inner-type-badge">—</span>
+          </div>
+          <div class="f-row col2">
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Material</label></div>
+              <select class="f-select" id="inner-mat" onchange="onInnerMatChange()">
+                <option value="">— Pilih —</option>
+              </select>
+            </div>
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Gramasi</label></div>
+              <select class="f-select" id="inner-gsm" onchange="triggerCalculate()" disabled>
+                <option value="">— GSM —</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="cfg-divider"></div>
+          </div>
+
+          <!-- Flute -->
+          <div id="cfg-flute-section">
+          <div class="f-label-wrap" style="margin-bottom:7px;">
+            <span class="f-label">Jenis Flute</span>
+            <button class="info-btn">i
+              <div class="tooltip">
+                <strong>Jenis Flute (gelombang karton):</strong><br/>
+                <b>B Flute</b> — Tebal ~3mm. Paling umum, cocok untuk produk makanan, kosmetik, elektronik ringan.<br/>
+                <b>C Flute</b> — Tebal ~4mm. Lebih kuat dari B, cocok untuk pengiriman produk berat.<br/>
+                <b>E Flute</b> — Tipis ~1.5mm. Premium, detail cetak lebih tajam. Cocok untuk gift box.<br/>
+                <b>CB (Double)</b> — Gabungan C+B, sangat tebal & kuat. Wajib untuk double wall.
+              </div>
+            </button>
+          </div>
+          <div class="flute-row" id="fluteRow"></div>
+          </div>
+
+          <div class="cfg-divider"></div>
+
+          <!-- Wall type -->
+          <div id="cfg-wall-section">
+          <div class="f-label-wrap" style="margin-bottom:7px;">
+            <span class="f-label">Ketebalan Dinding</span>
+            <button class="info-btn">i
+              <div class="tooltip">
+                <b>Single Wall</b> — 1 lapisan gelombang. Standar untuk kemasan produk umum. Flute B, C, atau E.<br/><br/>
+                <b>Double Wall</b> — 2 lapisan gelombang (CB flute). Jauh lebih kuat, ideal untuk barang berat atau shipping jarak jauh. Otomatis pakai flute CB.
+              </div>
+            </button>
+          </div>
+          <div class="wall-row">
+            <div class="wall-opt active" data-wall="single" id="wallSingle" onclick="selectWall(this)">
+              <div class="wo-name">Single Wall</div>
+              <div class="wo-desc">B / C / E flute</div>
+            </div>
+            <div class="wall-opt" data-wall="double" id="wallDouble" onclick="selectWall(this)">
+              <div class="wo-name">Double Wall</div>
+              <div class="wo-desc">CB flute · extra tebal</div>
+            </div>
+          </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 03.5 TALI -->
+      <div class="cfg-section" id="cfg-tali-section" style="display:none;">
+        <div class="cfg-head">
+          <span class="cfg-step">✦</span>
+          <span class="cfg-title">Tali Paperbag</span>
+          <span class="cfg-tag opt">Opsional</span>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+          <div class="f-row">
+            <div class="f-group">
+              <div class="f-label-wrap">
+                <label class="f-label">Jenis Tali</label>
+                <button class="info-btn">i
+                  <div class="tooltip">
+                    Pilih jenis tali yang diinginkan untuk paperbag.<br/><br/>
+                    Harga tali sudah dihitung per 1 paperbag (2 tali). Pilih <b>Tanpa Tali</b> jika paperbag menggunakan lubang/diecut saja.
+                  </div>
+                </button>
+              </div>
+              <select class="f-select" id="tali-kode" onchange="onTaliChange()">
+                <option value="tanpa_tali">Tanpa Tali</option>
+              </select>
+            </div>
+          </div>
+          <div id="tali-harga-info" style="display:none;margin-top:6px;padding:8px 12px;background:var(--surface3);border-radius:8px;font-size:10px;color:var(--text2);font-family:var(--mono);font-weight:500;"></div>
+        </div>
+      </div>
+
+      <!-- 04 CETAKAN -->
+      <div class="cfg-section" id="cfg-cetak-section">
+        <div class="cfg-head">
+          <span class="cfg-step">04</span>
+          <span class="cfg-title">Cetakan</span>
+          <span class="cfg-tag opt">Opsional</span>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+          <div class="cetak-block">
+            <div class="cb-title">Cetakan 1</div>
+            <div class="f-row col2">
+              <div class="f-group">
+                <div class="f-label-wrap">
+                  <label class="f-label">Jenis</label>
+                  <button class="info-btn">i
+                    <div class="tooltip">
+                      <b>Blok</b> — Cetakan dengan 1 warna solid. Cocok jika warna dasar box sudah berwarna dan logo/teks berwarna putih.<br/><br/>
+                      <b>Tulisan</b> — Cetak teks/logo dengan warna tertentu, bisa multi-warna.<br/><br/>
+                      <b>Separasi</b> — Cetak foto/gradasi warna penuh (CMYK). Biaya fixed, tidak dihitung per warna.
+                    </div>
+                  </button>
+                </div>
+                <select class="f-select" id="cetak1-code" onchange="onCetakChange()">
+                  <option value="none">Tanpa Cetakan</option>
+                </select>
+              </div>
+              <div class="f-group">
+                <div class="f-label-wrap"><label class="f-label">Jml Warna</label></div>
+                <input class="f-input" type="number" id="cetak1-warna" value="1" min="1" max="6" disabled oninput="triggerCalculate()"/>
+              </div>
+            </div>
+            <div class="cetak-sisi-row f-row" id="cetak1-sisi-row">
+              <div class="f-group">
+                <div class="f-label-wrap"><label class="f-label">Sisi Cetak</label></div>
+                <select class="f-select" id="cetak1-sisi" onchange="triggerCalculate()">
+                  <option value="1">Luar Saja</option>
+                  <option value="1_in">Dalam Saja</option>
+                  <option value="2">Luar &amp; Dalam</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          <div class="cetak-block" id="cetak2-block">
+            <div class="cb-title">Cetakan 2 <span style="color:var(--text3);font-size:8px;">— kombinasi opsional</span></div>
+            <div class="f-row col2">
+              <div class="f-group">
+                <div class="f-label-wrap"><label class="f-label">Jenis</label></div>
+                <select class="f-select" id="cetak2-code" onchange="onCetakChange()">
+                  <option value="none">Tanpa Cetakan</option>
+                </select>
+              </div>
+              <div class="f-group">
+                <div class="f-label-wrap"><label class="f-label">Jml Warna</label></div>
+                <input class="f-input" type="number" id="cetak2-warna" value="1" min="1" max="6" disabled oninput="triggerCalculate()"/>
+              </div>
+            </div>
+            <div class="cetak-sisi-row f-row" id="cetak2-sisi-row">
+              <div class="f-group">
+                <div class="f-label-wrap"><label class="f-label">Sisi Cetak</label></div>
+                <select class="f-select" id="cetak2-sisi" onchange="triggerCalculate()">
+                  <option value="1">Luar Saja</option>
+                  <option value="1_in">Dalam Saja</option>
+                  <option value="2">Luar &amp; Dalam</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 05 SABLON -->
+      <div class="cfg-section" id="cfg-sablon-section">
+        <div class="cfg-head">
+          <span class="cfg-step">05</span>
+          <span class="cfg-title">Sablon</span>
+          <span class="cfg-tag opt">Min 100 pcs</span>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+          <div class="f-row">
+            <div class="f-group">
+              <div class="f-label-wrap">
+                <label class="f-label">Jenis Sablon</label>
+                <button class="info-btn">i
+                  <div class="tooltip">
+                    <b>Sablon Biasa</b> — Sablon dengan tinta berwarna apa pun. Hasil bersih dan tajam.<br/><br/>
+                    <b>Sablon Spesial (Emas/Silver)</b> — Tinta sablon berbahan glitter/metalik. Memberikan kesan mewah.
+                  </div>
+                </button>
+              </div>
+              <select class="f-select" id="sablon-code" onchange="onSablonChange()">
+                <option value="none">Tanpa Sablon</option>
+              </select>
+            </div>
+          </div>
+          <div class="f-row col2" id="sablon-detail" style="display:none;">
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Jml Warna</label></div>
+              <input class="f-input" type="number" id="sablon-warna" value="1" min="1" max="6" oninput="triggerCalculate()"/>
+            </div>
+            <div class="f-group">
+              <div class="f-label-wrap"><label class="f-label">Jumlah Sisi</label></div>
+              <select class="f-select" id="sablon-sisi" onchange="triggerCalculate()">
+                <option value="1">1 Sisi</option>
+                <option value="2">2 Sisi</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 06 LAMINASI -->
+      <div class="cfg-section" id="cfg-laminasi-section">
+        <div class="cfg-head">
+          <span class="cfg-step">06</span>
+          <span class="cfg-title">Laminasi</span>
+          <span class="cfg-tag opt">Opsional</span>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+          <div id="laminasi-kraft-alert" class="hidden" style="padding:10px 12px;background:var(--surface3);border:1px solid var(--border2);border-radius:8px;font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:8px;line-height:1.5;font-weight:500;">
+            ⚠ Laminasi hanya tersedia jika minimal salah satu sisi menggunakan material Premium White.
+          </div>
+          <div id="laminasi-controls">
+            <div class="f-row col2">
+              <div class="f-group">
+                <div class="f-label-wrap">
+                  <label class="f-label">Jenis</label>
+                  <button class="info-btn">i
+                    <div class="tooltip">
+                      <b>Doff</b> — Permukaan matte. Elegan dan premium.<br/><br/>
+                      <b>Glossy</b> — Mengkilap. Warna lebih cerah dan vivid.<br/><br/>
+                      <b>UV</b> — Glossy ekstra tebal dan keras. Tahan air.<br/><br/>
+                      <b>WB Glossy/Doff</b> — Water-based, ramah lingkungan.
+                    </div>
+                  </button>
+                </div>
+                <select class="f-select" id="laminasi-code" onchange="onLaminasiChange()">
+                  <option value="none">Tanpa Laminasi</option>
+                </select>
+              </div>
+              <div class="f-group">
+                <div class="f-label-wrap"><label class="f-label">Sisi</label></div>
+                <select class="f-select" id="laminasi-sisi" onchange="triggerCalculate()" disabled>
+                  <option value="1">Luar Saja</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 07 PISAU POND -->
+      <div class="cfg-section">
+        <div class="cfg-head">
+          <span class="cfg-step">07</span>
+          <span class="cfg-title">Pisau Pond</span>
+          <div style="margin-left:auto;">
+            <button class="info-btn">i
+              <div class="tooltip">
+                Pisau Pond digunakan untuk memotong/emboss box. Sistem secara otomatis mengecek apakah ukuran box sudah pernah dibuat sebelumnya.<br/><br/>
+                <b>Pisau Baru</b> — Ukuran baru, ada biaya tambahan.<br/>
+                <b>Repeat</b> — Ukuran pernah dibuat, gratis (Rp 0).
+              </div>
+            </button>
+          </div>
+        </div>
+        <div class="cfg-body" style="padding-top:0;">
+          <div class="pisau-status" id="pisauStatus">
+            <div class="pisau-loading">Lengkapi ukuran untuk cek otomatis...</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══ MIDDLE VIEWPORT ══ -->
+  <div class="viewport">
+
+    <div class="vp-hud-tl">
+      <div class="hud-cell">
+        <div class="hud-label">Bahan (mm)</div>
+        <div class="hud-val" id="hudBahan">— × —</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Luas</div>
+        <div class="hud-val" id="hudLuas">— <span class="unit">m²</span></div>
+      </div>
+    </div>
+
+    <div class="vp-hud-tr">
+      <div class="hud-cell">
+        <div class="hud-label">Rumus</div>
+        <div class="hud-val accent" id="hudRumus">—</div>
+      </div>
+      <div class="hud-cell">
+        <div class="hud-label">Flute</div>
+        <div class="hud-val" id="hudFlute">B</div>
+      </div>
+    </div>
+
+    <div class="rumus-indicator" id="rumusWM">—</div>
+
+    <div class="box-stage" id="box3dStage">
+      <div class="box-wrap">
+        <div class="box-3d" id="box3d">
+          <div class="face front" id="faceFront">
+            <span class="box-label" id="boxLabel">KARDOOS</span>
+          </div>
+          <div class="face top" id="faceTop"></div>
+          <div class="face right" id="faceRight"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view-2d" id="view2d">
+      <div class="v2d-inner">
+        <div style="font-size:28px;opacity:.2">⬡</div>
+        <div>Dieline Preview</div>
+        <div style="font-size:9px;letter-spacing:1px;">COMING SOON</div>
+      </div>
+    </div>
+
+    <div class="vp-hud-bl">
+      <button class="zoom-btn" onclick="zoom(-1)">−</button>
+      <span class="zoom-val" id="zoomVal">100%</span>
+      <button class="zoom-btn" onclick="zoom(1)">+</button>
+      <div class="sep"></div>
+      <span class="open-lbl">BUKA</span>
+      <input type="range" class="open-range" id="openSlider" min="0" max="100" value="100" oninput="updateOpen(this.value)"/>
+      <span class="open-lbl">TUTUP</span>
+    </div>
+
+    <div class="vp-hud-br">
+      <button class="view-btn active" id="btn3d" onclick="setView('3d')">3D</button>
+      <button class="view-btn" id="btn2d" onclick="setView('2d')">FLAT</button>
+    </div>
+
+  </div>
+
+  <!-- ══ RIGHT PRICE PANEL ══ -->
+  <div class="price-panel">
+    <div class="pp-top">
+      <div class="pp-kode">KARDOOS / PRICE ENGINE</div>
+      <div class="pp-name" id="ppName">Pilih model box</div>
+      <div class="pp-spec" id="ppSpec">Lengkapi konfigurasi untuk kalkulasi</div>
+    </div>
+
+    <div class="pp-qty">
+      <div class="qty-top">
+        <div>
+          <span class="qty-num" id="qtyNum">300</span>
+          <span class="qty-unit">pcs</span>
+        </div>
+        <div class="qty-tier low" id="qtyTierBadge">&lt;1000 · margin 15%</div>
+      </div>
+      <input type="range" class="qty-slider" id="qtySlider"
+             min="100" max="5000" step="50" value="300"
+             oninput="onQtySlider(this.value)"/>
+      <input type="number" class="qty-manual" id="qtyManual"
+             value="300" min="1" placeholder="Input manual qty..."
+             oninput="onQtyManual(this.value)"/>
+    </div>
+
+    <div class="pp-result" id="resultArea">
+      <div class="result-idle">
+        <div class="idle-icon">◻</div>
+        <div class="idle-text">LENGKAPI KONFIGURASI<br/>UNTUK KALKULASI HARGA</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+//  CONFIG
+// ═══════════════════════════════════════════════════════
+const API = 'https://prenegligent-delia-unglozed.ngrok-free.dev/Api_TokoDus/User/Box';
+
+// ═══════════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════════
+const S = {
+  box_model_id:       null,
+  box_model_slug:     null,
+  is_paperbag:        false,
+  is_shipping:        false,
+  tali_kode:          'tanpa_tali',
+  panjang_cm:         20,
+  lebar_cm:           15,
+  tinggi_cm:          10,
+  outer_material_id:  null,
+  outer_gsm:          null,
+  outer_mat_type:     null,
+  outer_mat_name:     '',
+  inner_material_id:  null,
+  inner_gsm:          null,
+  inner_mat_type:     null,
+  inner_mat_name:     '',
+  flute_code:         'B',
+  wall_type:          'single',
+  cetak_1_code:       'none',
+  cetak_1_warna:      1,
+  cetak_1_sisi:       1,
+  cetak_2_code:       'none',
+  cetak_2_warna:      1,
+  cetak_2_sisi:       1,
+  sablon_code:        'none',
+  sablon_warna:       1,
+  sablon_sisi:        1,
+  laminasi_code:      'none',
+  laminasi_sisi:      1,
+  pisau_pond:         'none',
+  qty:                300,
+};
+
+let _debounce = null;
+let _pisauDebounce = null;
+let _zoom = 1;
+let _allFlutes = [];
+
+// Min order config (loaded from DB)
+let MIN_ORDER = {
+  min_cetak: 1000,
+  min_sablon: 100,
+  min_laminasi: 1000,
+  min_premium_white: 1000,
+  min_non_kraft: 1000,
+  min_paperbag: 1000,
+};
+
+const BOX_COLORS = {
+  'Brown Kraft':   {front:'#b5a98a', top:'#c9bea2', right:'#9a8e74'},
+  'White Kraft':   {front:'#ddd7cc', top:'#e8e3da', right:'#c2bdb2'},
+  'Premium White': {front:'#ede9e2', top:'#f5f2ed', right:'#d4cfc8'},
+  'Duplex':        {front:'#c8c0b0', top:'#d8d2c5', right:'#aea69a'},
+  'Ivory':         {front:'#f5f0e4', top:'#faf7f0', right:'#dcd7ca'},
+  'Art Paper':     {front:'#e8e4dc', top:'#f0ece4', right:'#d0ccc4'},
+  'Kraft':         {front:'#b5a98a', top:'#c9bea2', right:'#9a8e74'},
+};
+let _currentColors = BOX_COLORS['Brown Kraft'];
+
+// ═══════════════════════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════════════════════
+function toggleTheme() {
+  const html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  localStorage.setItem('theme', html.dataset.theme);
+}
+(function() {
+  const saved = localStorage.getItem('theme');
+  if (saved) document.documentElement.dataset.theme = saved;
+})();
+
+// ═══════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', async () => {
+  await Promise.all([
+    loadModels(), loadFlutes(), loadMaterials(),
+    loadPrinting(), loadSablon(), loadLaminasi(), loadTali(),
+    loadMinOrderConfig(),
+  ]);
+  setApiStatus(true);
+  updateBox3D();
+  updatePisauStatus();
+  applyQtyConstraints(); // Apply constraints on init
+});
+
+function setApiStatus(ok) {
+  const el = document.getElementById('apiStatus');
+  el.textContent = ok ? 'API Connected' : 'API Offline';
+  el.style.color = ok ? 'var(--green)' : 'var(--accent)';
+}
+
+// ═══════════════════════════════════════════════════════
+//  MIN ORDER CONFIG (from DB)
+// ═══════════════════════════════════════════════════════
+async function loadMinOrderConfig() {
+  try {
+    const data = await api('MinOrderConfig');
+    if (data && typeof data === 'object') {
+      Object.assign(MIN_ORDER, data);
+    }
+  } catch(e) {
+    console.warn('MinOrderConfig not loaded, using defaults');
+  }
+}
+
+/**
+ * Apply qty-based constraints on UI:
+ * 1. Cetakan (blok/tulisan/separasi): DISABLED if qty < min_cetak.
+ *    Sablon tetap aktif (min dari min_sablon).
+ * 2. Laminasi: DISABLED if qty < min_laminasi.
+ * 3. Premium White: tidak tampil di dropdown material jika qty < min_premium_white.
+ * 4. Paperbag: qty < min_paperbag → tampilkan peringatan.
+ * 5. Material non-kraft (WK, PW): qty < min_non_kraft → pakai rumus KK_SHEET.
+ */
+function applyQtyConstraints() {
+  const qty = S.qty;
+
+  // ── 1. Cetakan restriction ──
+  const cetakSection = document.getElementById('cfg-cetak-section');
+  if (cetakSection) {
+    const cetakDisabled = qty < MIN_ORDER.min_cetak && !S.is_paperbag;
+    cetakSection.classList.toggle('disabled-section', cetakDisabled);
+
+    let alertEl = cetakSection.querySelector('.min-order-alert');
+    if (!alertEl) {
+      alertEl = document.createElement('div');
+      alertEl.className = 'min-order-alert';
+      cetakSection.querySelector('.cfg-body').prepend(alertEl);
+    }
+    if (cetakDisabled) {
+      alertEl.textContent = `⚡ Cetakan tersedia mulai ${MIN_ORDER.min_cetak.toLocaleString('id-ID')} pcs. Gunakan sablon untuk qty di bawahnya.`;
+      alertEl.classList.add('visible');
+      // Force reset cetak values
+      document.getElementById('cetak1-code').value = 'none';
+      document.getElementById('cetak2-code').value = 'none';
+      S.cetak_1_code = 'none';
+      S.cetak_2_code = 'none';
+    } else {
+      alertEl.classList.remove('visible');
+    }
+  }
+
+  // ── 2. Sablon tetap aktif, tapi enforce min_sablon ──
+  const sablonSection = document.getElementById('cfg-sablon-section');
+  if (sablonSection) {
+    const sablonDisabled = qty < MIN_ORDER.min_sablon && !S.is_paperbag;
+    sablonSection.classList.toggle('disabled-section', sablonDisabled);
+
+    // Update tag text dynamically
+    const sablonTag = sablonSection.querySelector('.cfg-tag');
+    if (sablonTag) {
+      sablonTag.textContent = `Min ${MIN_ORDER.min_sablon} pcs`;
+    }
+  }
+
+  // ── 3. Laminasi restriction ──
+  const lamiSection = document.getElementById('cfg-laminasi-section');
+  if (lamiSection) {
+    const lamiDisabled = qty < MIN_ORDER.min_laminasi && !S.is_paperbag;
+    lamiSection.classList.toggle('disabled-section', lamiDisabled);
+
+    let alertEl = lamiSection.querySelector('.min-order-alert');
+    if (!alertEl) {
+      alertEl = document.createElement('div');
+      alertEl.className = 'min-order-alert';
+      lamiSection.querySelector('.cfg-body').prepend(alertEl);
+    }
+    if (lamiDisabled) {
+      alertEl.textContent = `⚡ Laminasi tersedia mulai ${MIN_ORDER.min_laminasi.toLocaleString('id-ID')} pcs.`;
+      alertEl.classList.add('visible');
+      // Force reset laminasi
+      document.getElementById('laminasi-code').value = 'none';
+      S.laminasi_code = 'none';
+    } else {
+      alertEl.classList.remove('visible');
+    }
+  }
+
+  // ── 4. Premium White material restriction ──
+  // Hide/show PW option in material dropdowns based on qty
+  ['outer-mat', 'inner-mat'].forEach(selId => {
+    const sel = document.getElementById(selId);
+    if (!sel) return;
+    Array.from(sel.options).forEach(opt => {
+      if (opt.dataset.isPremium === '1') {
+        const shouldHide = qty < MIN_ORDER.min_premium_white;
+        opt.disabled = shouldHide;
+        opt.style.display = shouldHide ? 'none' : '';
+        // If currently selected and now disabled, reset
+        if (shouldHide && sel.value === opt.value) {
+          sel.value = '';
+          if (selId === 'outer-mat') onOuterMatChange();
+          else onInnerMatChange();
+        }
+      }
+    });
+  });
+
+  // ── 5. Paperbag min order ──
+  // Handled in doCalculate (backend returns 422), but show hint in qty area
+  if (S.is_paperbag && qty < MIN_ORDER.min_paperbag) {
+    updateQtyTierCustom(`Min ${MIN_ORDER.min_paperbag.toLocaleString('id-ID')} pcs`, 'low');
+  }
+}
+
+/**
+ * Custom qty tier badge for special messages
+ */
+function updateQtyTierCustom(text, cls) {
+  const el = document.getElementById('qtyTierBadge');
+  el.textContent = text;
+  el.className = 'qty-tier ' + cls;
+}
+
+/**
+ * Filter material options for innerbox (non-paperbag, non-shipping).
+ * Innerbox hanya: Brown Kraft (id=1), White Kraft (id=2), Premium White (id=3)
+ */
+function filterMaterialsForInnerbox(data) {
+  const allowedIds = [1, 2, 3]; // Brown Kraft, White Kraft, Premium White
+  return data.filter(m => allowedIds.includes(parseInt(m.id)));
+}
+
+// ═══════════════════════════════════════════════════════
+//  LOADERS
+// ═══════════════════════════════════════════════════════
+async function api(endpoint) {
+  const r = await fetch(`${API}/${endpoint}`, {
+    headers: {
+      'ngrok-skip-browser-warning': 'true'
+    }
+  });
+  const j = await r.json();
+  return j.status === 200 ? j.data : [];
+}
+
+async function apiGet(endpoint, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  const url = `${API}/${endpoint}${query ? '?' + query : ''}`;
+  const r = await fetch(url, { headers: HEADERS });
+  const j = await r.json();
+  return j.status === 200 ? j.data : [];
+}
+
+async function loadModels() {
+  try {
+    const data = await api('BoxModels');
+    const grid = document.getElementById('modelGrid');
+    grid.innerHTML = '';
+    data.forEach(m => {
+      const d = document.createElement('div');
+      d.className = 'model-card';
+      d.dataset.id = m.id_bm;
+      d.dataset.slug = m.slug || m.name || '';
+      d.dataset.isPaperbag = m.is_paperbag || '0';
+      d.dataset.isShipping = m.is_shipping_box || '0';
+      d.innerHTML = `<div class="mc-name">${m.name}</div><div class="mc-desc">${m.description || ''}</div>`;
+      d.onclick = () => selectModel(d);
+      grid.appendChild(d);
+    });
+  } catch(e) {
+    document.getElementById('modelGrid').innerHTML =
+      '<div style="grid-column:1/-1;font-family:var(--mono);font-size:10px;color:var(--accent);padding:10px 0;">Gagal memuat model</div>';
+  }
+}
+
+async function loadFlutes() {
+  try {
+    const data = await api('Flutes');
+    _allFlutes = data;
+    renderFlutes();
+  } catch(e) {}
+}
+
+function renderFlutes() {
+  const row = document.getElementById('fluteRow');
+  row.innerHTML = '';
+  const allowed = ['B','C','E','CB'];
+  const isPW = isAnyPremiumWhite();
+  const isDouble = S.wall_type === 'double';
+
+  _allFlutes.filter(f => allowed.includes(f.code)).forEach(f => {
+    const b = document.createElement('button');
+    b.className = 'flute-chip';
+    b.dataset.flute = f.code;
+    b.textContent = f.code;
+    b.onclick = () => selectFlute(b);
+
+    let hide = false;
+    if (isDouble) {
+      if (f.code !== 'CB') hide = true;
+      else b.classList.add('active');
+    } else {
+      if (f.code === 'CB') hide = true;
+      if (isPW && f.code === 'C') hide = true;
+    }
+
+    if (hide) b.dataset.hidden = 'true';
+    row.appendChild(b);
+  });
+
+  const chips = row.querySelectorAll('.flute-chip:not([data-hidden="true"])');
+  let found = false;
+  chips.forEach(c => {
+    if (c.dataset.flute === S.flute_code) { c.classList.add('active'); found = true; }
+  });
+  if (!found && chips.length > 0) {
+    chips[0].classList.add('active');
+    S.flute_code = chips[0].dataset.flute;
+    document.getElementById('hudFlute').textContent = S.flute_code;
+  }
+}
+
+async function loadMaterials() {
+  try {
+    const data = await api('MaterialOptions');
+    ['outer-mat','inner-mat'].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = '<option value="">— Pilih Material —</option>';
+      data.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m.id; o.textContent = m.name;
+        o.dataset.type = m.material_type;
+        o.dataset.name = m.name;
+        sel.appendChild(o);
+      });
+    });
+  } catch(e) {}
+}
+
+async function loadGramasi(materialId, targetId) {
+  const sel = document.getElementById(targetId);
+  sel.innerHTML = '<option value="">Loading...</option>';
+  sel.disabled = true;
+  try {
+    const r = await fetch(`${API}/Gramasi?material_type_id=${materialId}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    const j = await r.json();
+    sel.innerHTML = '<option value="">— Pilih GSM —</option>';
+    if (j.status === 200) {
+      const seenGsm = new Set();
+      j.data.forEach(g => {
+        if (seenGsm.has(g.gsm)) return;
+        seenGsm.add(g.gsm);
+        const o = document.createElement('option');
+        o.value = g.gsm; o.textContent = `${g.gsm} GSM`;
+        sel.appendChild(o);
+      });
+      sel.disabled = false;
+      if (sel.options.length > 1) sel.selectedIndex = 1;
+      triggerCalculate();
+    }
+  } catch(e) { sel.innerHTML = '<option>Error</option>'; }
+}
+
+async function loadPrinting() {
+  try {
+    const data = await api('PrintingOptions');
+    ['cetak1-code','cetak2-code'].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = '';
+      data.forEach(p => {
+        const o = document.createElement('option');
+        o.value = p.code; o.textContent = p.label;
+        sel.appendChild(o);
+      });
+    });
+  } catch(e) {}
+}
+
+async function loadSablon() {
+  try {
+    const data = await api('SablonOptions');
+    const sel = document.getElementById('sablon-code');
+    sel.innerHTML = '';
+    data.forEach(s => {
+      const o = document.createElement('option');
+      o.value = s.code; o.textContent = s.label;
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+async function loadLaminasi() {
+  try {
+    const data = await api('LaminasiOptions');
+    const sel = document.getElementById('laminasi-code');
+    sel.innerHTML = '<option value="none">Tanpa Laminasi</option>';
+    data.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.code; o.textContent = l.label;
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+async function loadTali() {
+  try {
+    const data = await api('TaliOptions');
+    const sel = document.getElementById('tali-kode');
+    sel.innerHTML = '';
+    data.forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.kode;
+      o.textContent = t.nama + (Number(t.harga_per_pcs) > 0 ? ` · Rp${Number(t.harga_per_pcs).toLocaleString('id')}` : ' · Gratis');
+      o.dataset.harga = t.harga_per_pcs;
+      o.dataset.desc  = t.deskripsi || '';
+      sel.appendChild(o);
+    });
+  } catch(e) {}
+}
+
+function onTaliChange() {
+  const sel = document.getElementById('tali-kode');
+  const opt = sel.options[sel.selectedIndex];
+  S.tali_kode = sel.value;
+  const info = document.getElementById('tali-harga-info');
+  if (opt && opt.dataset.desc) {
+    info.style.display = '';
+    info.textContent   = opt.dataset.desc;
+  } else {
+    info.style.display = 'none';
+  }
+  triggerCalculate();
+}
+
+// ═══════════════════════════════════════════════════════
+//  MATERIAL HELPERS
+// ═══════════════════════════════════════════════════════
+function isPremiumWhite(matName) {
+  if (S.is_paperbag) return false;
+  return (matName || '').toLowerCase().includes('premium white');
+}
+function isKraft(matName) {
+  return (matName || '').toLowerCase().includes('kraft');
+}
+function isAnyPremiumWhite() {
+  return isPremiumWhite(S.outer_mat_name) || isPremiumWhite(S.inner_mat_name);
+}
+function bothPremiumWhite() {
+  return isPremiumWhite(S.outer_mat_name) && isPremiumWhite(S.inner_mat_name);
+}
+
+// ═══════════════════════════════════════════════════════
+//  SELECTION HANDLERS
+// ═══════════════════════════════════════════════════════
+function selectModel(el) {
+  document.querySelectorAll('.model-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  S.box_model_id   = el.dataset.id;
+  S.box_model_slug = el.dataset.slug || '';
+  S.is_paperbag    = el.dataset.isPaperbag === '1';
+  S.is_shipping    = el.dataset.isShipping === '1';
+  document.getElementById('ppName').textContent = el.querySelector('.mc-name').textContent;
+  applyModelMode();
+  updatePisauStatus();
+  applyQtyConstraints();
+  triggerCalculate();
+}
+
+function applyModelMode() {
+  const isPB = S.is_paperbag;
+  document.getElementById('inner-mat-section').style.display   = isPB ? 'none' : '';
+  document.getElementById('cfg-flute-section').style.display   = isPB ? 'none' : '';
+  document.getElementById('cfg-wall-section').style.display    = isPB ? 'none' : '';
+  document.getElementById('cfg-tali-section').style.display    = isPB ? '' : 'none';
+  document.getElementById('cetak2-block').style.display        = isPB ? 'none' : '';
+
+  if (isPB) {
+    document.getElementById('hudFlute').textContent = '—';
+    document.getElementById('hudRumus').textContent = '—';
+    document.getElementById('hudBahan').innerHTML   = '— <span class="unit">×</span> —';
+    document.getElementById('hudLuas').innerHTML    = '— <span class="unit">m²</span>';
+    document.getElementById('rumusWM').textContent  = '';
+  } else {
+    document.getElementById('hudFlute').textContent = S.flute_code || 'B';
+    updateRumusHUD();
+  }
+
+  loadMaterialsForModel(S.box_model_id).then(() => {
+    applyMaterialConstraints();
+    applyQtyConstraints(); // re-apply PW restriction after materials reload
+  });
+}
+
+async function loadMaterialsForModel(model_id) {
+  try {
+    const endpoint = model_id ? 'MaterialOptions?box_model_id=' + model_id : 'MaterialOptions';
+    let data = await api(endpoint);
+
+    if (S.is_paperbag) {
+      // Paperbag: exclude Premium White (is_premium=1)
+      data = data.filter(m => parseInt(m.is_premium || 0) !== 1);
+    } else if (!S.is_shipping) {
+      // Innerbox (bukan shipping, bukan paperbag):
+      // Hanya tampilkan Brown Kraft, White Kraft, Premium White
+      data = filterMaterialsForInnerbox(data);
+    }
+
+    ['outer-mat','inner-mat'].forEach(id => {
+      const sel = document.getElementById(id);
+      sel.innerHTML = '<option value="">— Pilih Material —</option>';
+      data.forEach(m => {
+        const o = document.createElement('option');
+        o.value = m.id; o.textContent = m.name;
+        o.dataset.type      = m.material_type;
+        o.dataset.name      = m.name;
+        o.dataset.isPremium = m.is_premium || '0';
+        sel.appendChild(o);
+      });
+    });
+
+    S.outer_material_id = null; S.outer_gsm = null;
+    S.outer_mat_type = ''; S.outer_mat_name = '';
+    S.inner_material_id = null; S.inner_gsm = null;
+    document.getElementById('outer-gsm').innerHTML = '<option value="">— GSM —</option>';
+    document.getElementById('outer-gsm').disabled = true;
+    document.getElementById('inner-gsm').innerHTML = '<option value="">— GSM —</option>';
+    document.getElementById('inner-gsm').disabled = true;
+  } catch(e) { console.error('loadMaterialsForModel error', e); }
+}
+
+function selectFlute(el) {
+  if (el.disabled || el.dataset.hidden === 'true') return;
+  document.querySelectorAll('.flute-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  S.flute_code = el.dataset.flute;
+  document.getElementById('hudFlute').textContent = S.flute_code;
+  triggerCalculate();
+}
+
+function selectWall(el) {
+  if (isAnyPremiumWhite() && el.dataset.wall === 'double') return;
+  document.querySelectorAll('.wall-opt').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  S.wall_type = el.dataset.wall;
+  renderFlutes();
+  if (S.wall_type === 'double') {
+    S.flute_code = 'CB';
+    document.getElementById('hudFlute').textContent = 'CB';
+  }
+  updateRumusHUD();
+  triggerCalculate();
+}
+
+async function onOuterMatChange() {
+  const sel = document.getElementById('outer-mat');
+  const opt = sel.options[sel.selectedIndex];
+  S.outer_material_id = sel.value || null;
+  S.outer_gsm = null;
+  S.outer_mat_type    = opt?.dataset?.type      || '';
+  S.outer_mat_name    = opt?.dataset?.name      || '';
+  S.outer_is_premium  = opt?.dataset?.isPremium === '1';
+
+  const badge = document.getElementById('outer-type-badge');
+  badge.textContent = S.outer_mat_type || '—';
+  badge.className = 'msl-type' + (S.outer_mat_type ? ` type-${S.outer_mat_type}` : '');
+
+  applyBoxColor(S.outer_mat_name);
+
+  if (S.is_paperbag) {
+    const matShort = {
+      'D':  'DUPLEX', 'IV': 'IVORY', 'AP': 'ARTPAPER', 'KP': 'KRAFT'
+    }[S.outer_mat_type] || S.outer_mat_type || '—';
+    document.getElementById('hudFlute').textContent = matShort;
+    updateRumusHUD();
+  }
+
+  if (S.outer_material_id) {
+    await loadGramasi(S.outer_material_id, 'outer-gsm');
+    S.outer_gsm = document.getElementById('outer-gsm').value || null;
+  } else {
+    const g = document.getElementById('outer-gsm');
+    g.innerHTML = '<option>— pilih material —</option>'; g.disabled = true;
+  }
+
+  applyMaterialConstraints();
+  updateRumusHUD();
+  triggerCalculate();
+}
+
+async function onInnerMatChange() {
+  const sel = document.getElementById('inner-mat');
+  const opt = sel.options[sel.selectedIndex];
+  S.inner_material_id = sel.value || null;
+  S.inner_gsm = null;
+  S.inner_mat_type = opt?.dataset?.type || '';
+  S.inner_mat_name = opt?.dataset?.name || '';
+
+  const badge = document.getElementById('inner-type-badge');
+  badge.textContent = S.inner_mat_type || '—';
+  badge.className = 'msl-type' + (S.inner_mat_type ? ` type-${S.inner_mat_type}` : '');
+
+  if (S.inner_material_id) {
+    await loadGramasi(S.inner_material_id, 'inner-gsm');
+    S.inner_gsm = document.getElementById('inner-gsm').value || null;
+  } else {
+    const g = document.getElementById('inner-gsm');
+    g.innerHTML = '<option>— pilih material —</option>'; g.disabled = true;
+  }
+
+  applyMaterialConstraints();
+  updateRumusHUD();
+  triggerCalculate();
+}
+
+function applyMaterialConstraints() {
+  const pw_outer = isPremiumWhite(S.outer_mat_name);
+  const pw_inner = isPremiumWhite(S.inner_mat_name);
+  const pw_any   = pw_outer || pw_inner;
+  const pw_both  = pw_outer && pw_inner;
+  const kraft_any = isKraft(S.outer_mat_name) || isKraft(S.inner_mat_name);
+  const kraft_both = isKraft(S.outer_mat_name) && isKraft(S.inner_mat_name);
+
+  const wallDouble = document.getElementById('wallDouble');
+  if (pw_any) {
+    wallDouble.classList.add('disabled');
+    if (S.wall_type === 'double') {
+      document.getElementById('wallSingle').classList.add('active');
+      wallDouble.classList.remove('active');
+      S.wall_type = 'single';
+    }
+  } else {
+    wallDouble.classList.remove('disabled');
+  }
+
+  renderFlutes();
+
+  const kraftAlert = document.getElementById('laminasi-kraft-alert');
+  const laminasiControls = document.getElementById('laminasi-controls');
+  const lamiSisiSel = document.getElementById('laminasi-sisi');
+
+  if (S.is_paperbag) {
+    kraftAlert.classList.add('hidden');
+    laminasiControls.classList.remove('hidden');
+    lamiSisiSel.innerHTML = `
+      <option value="1">Luar Saja</option>
+      <option value="2">Luar &amp; Dalam</option>
+    `;
+    return;
+  }
+  if (!pw_any) {
+    kraftAlert.classList.remove('hidden');
+    laminasiControls.classList.add('hidden');
+    S.laminasi_code = 'none';
+    document.getElementById('laminasi-code').value = 'none';
+  } else {
+    kraftAlert.classList.add('hidden');
+    laminasiControls.classList.remove('hidden');
+
+    lamiSisiSel.innerHTML = '';
+    if (pw_both) {
+      lamiSisiSel.innerHTML = `
+        <option value="1">Luar Saja</option>
+        <option value="1_in">Dalam Saja</option>
+        <option value="2">Luar &amp; Dalam</option>
+      `;
+    } else if (pw_outer && !pw_inner) {
+      lamiSisiSel.innerHTML = `<option value="1">Luar Saja</option>`;
+    } else if (pw_inner && !pw_outer) {
+      lamiSisiSel.innerHTML = `<option value="1_in">Dalam Saja</option>`;
+    }
+  }
+
+  ['cetak1-sisi-row','cetak2-sisi-row'].forEach(id => {
+    const el = document.getElementById(id);
+    if (pw_both) {
+      el.style.display = 'grid';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+function onCetakChange() {
+  S.cetak_1_code = document.getElementById('cetak1-code').value;
+  S.cetak_2_code = document.getElementById('cetak2-code').value;
+  document.getElementById('cetak1-warna').disabled = (S.cetak_1_code === 'none' || S.cetak_1_code === 'separasi');
+  document.getElementById('cetak2-warna').disabled = (S.cetak_2_code === 'none' || S.cetak_2_code === 'separasi');
+  triggerCalculate();
+}
+
+function onSablonChange() {
+  S.sablon_code = document.getElementById('sablon-code').value;
+  document.getElementById('sablon-detail').style.display = S.sablon_code === 'none' ? 'none' : 'grid';
+  triggerCalculate();
+}
+
+function onLaminasiChange() {
+  S.laminasi_code = document.getElementById('laminasi-code').value;
+  document.getElementById('laminasi-sisi').disabled = S.laminasi_code === 'none';
+  triggerCalculate();
+}
+
+// ═══════════════════════════════════════════════════════
+//  PISAU POND
+// ═══════════════════════════════════════════════════════
+async function updatePisauStatus() {
+  const statusEl = document.getElementById('pisauStatus');
+
+  if (!S.box_model_id || !S.panjang_cm || !S.lebar_cm || !S.tinggi_cm) {
+    statusEl.innerHTML = `<div class="pisau-loading">Lengkapi ukuran untuk cek otomatis...</div>`;
+    S.pisau_pond = 'none';
+    return;
+  }
+
+  statusEl.innerHTML = `<div class="pisau-loading">Mengecek database pisau pond...</div>`;
+
+  try {
+    const params = new URLSearchParams({
+      box_model_id: S.box_model_id,
+      panjang_cm:   S.panjang_cm,
+      lebar_cm:     S.lebar_cm,
+      tinggi_cm:    S.tinggi_cm,
+    });
+    const r = await fetch(`${API}/CheckPisauPond?${params}`, {
+      headers: {
+        'ngrok-skip-browser-warning': 'true'
+      }
+    });
+    const j = await r.json();
+
+    if (j.status === 200) {
+      const d = j.data;
+      S.pisau_pond = d.pisau_pond;
+
+      if (d.pisau_pond === 'none') {
+        statusEl.innerHTML = `
+          <span class="pisau-badge none">TIDAK DIPERLUKAN</span>
+          <div class="pisau-info">${d.reason || 'Model ini tidak memerlukan pisau pond.'}</div>`;
+      } else if (d.pisau_pond === 'repeat') {
+        statusEl.innerHTML = `
+          <span class="pisau-badge repeat">REPEAT · Rp 0</span>
+          <div class="pisau-info">Ukuran ini sudah ada di database. Tidak ada biaya tambahan pisau pond.</div>`;
+      } else {
+        statusEl.innerHTML = `
+          <span class="pisau-badge new">PISAU BARU</span>
+          <div class="pisau-info">Ukuran baru — biaya pisau pond akan ditambahkan ke kalkulasi.</div>`;
+      }
+    } else {
+      statusEl.innerHTML = `<div class="pisau-loading">${j.message || 'Tidak dapat mengecek pisau pond.'}</div>`;
+      S.pisau_pond = 'none';
+    }
+  } catch(e) {
+    statusEl.innerHTML = `<div class="pisau-loading">Tidak dapat terhubung ke API.</div>`;
+    S.pisau_pond = 'none';
+  }
+}
+
+function debouncedPisauCheck() {
+  clearTimeout(_pisauDebounce);
+  _pisauDebounce = setTimeout(updatePisauStatus, 600);
+}
+
+// ═══════════════════════════════════════════════════════
+//  QTY
+// ═══════════════════════════════════════════════════════
+function onQtySlider(v) {
+  v = parseInt(v);
+  S.qty = v;
+  document.getElementById('qtyNum').textContent = v.toLocaleString('id-ID');
+  document.getElementById('qtyManual').value = v;
+  updateQtyTier(v);
+  applyQtyConstraints();
+  triggerCalculate();
+}
+
+function onQtyManual(v) {
+  v = parseInt(v) || 1;
+  S.qty = v;
+  document.getElementById('qtyNum').textContent = v.toLocaleString('id-ID');
+  document.getElementById('qtySlider').value = Math.min(5000, v);
+  updateQtyTier(v);
+  applyQtyConstraints();
+  triggerCalculate();
+}
+
+function updateQtyTier(v) {
+  const el = document.getElementById('qtyTierBadge');
+  if (v >= 1000) {
+    el.textContent = '≥1000 · margin 10%';
+    el.className = 'qty-tier high';
+  } else {
+    el.textContent = '<1000 · margin 15%';
+    el.className = 'qty-tier low';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  RUMUS HUD
+// ═══════════════════════════════════════════════════════
+function updateRumusHUD() {
+  let rumus = '—';
+  if (S.is_paperbag) {
+    rumus = S.outer_mat_type ? 'PAPERBAG' : '—';
+  } else {
+    const ot = S.outer_mat_type || '';
+    const it = S.inner_mat_type || '';
+    if (ot && it) {
+      if (S.wall_type === 'double' || (ot==='D' && it==='D')) rumus = 'DMD';
+      else if (ot==='D' || it==='D') rumus = 'D+K';
+      else rumus = 'SHEET';
+    }
+  }
+  document.getElementById('hudRumus').textContent = rumus;
+  document.getElementById('rumusWM').textContent = rumus === '—' ? '' : rumus;
+}
+
+// ═══════════════════════════════════════════════════════
+//  SYNC + CALCULATE
+// ═══════════════════════════════════════════════════════
+function syncState() {
+  S.outer_gsm     = document.getElementById('outer-gsm').value || null;
+  S.inner_gsm     = document.getElementById('inner-gsm').value || null;
+  S.cetak_1_warna = parseInt(document.getElementById('cetak1-warna').value) || 1;
+  S.cetak_2_warna = parseInt(document.getElementById('cetak2-warna').value) || 1;
+  S.sablon_warna  = parseInt(document.getElementById('sablon-warna').value) || 1;
+  S.sablon_sisi   = parseInt(document.getElementById('sablon-sisi').value) || 1;
+  S.cetak_1_code  = document.getElementById('cetak1-code').value;
+  S.cetak_2_code  = document.getElementById('cetak2-code').value;
+  S.sablon_code   = document.getElementById('sablon-code').value;
+  S.laminasi_code = document.getElementById('laminasi-code').value;
+  S.laminasi_sisi_raw = document.getElementById('laminasi-sisi').value;
+  S.laminasi_sisi = S.laminasi_sisi_raw === '2' ? 2 : 1;
+  S.cetak_1_sisi_raw = document.getElementById('cetak1-sisi').value;
+  S.cetak_2_sisi_raw = document.getElementById('cetak2-sisi').value;
+  S.cetak_1_sisi = S.cetak_1_sisi_raw === '2' ? 2 : 1;
+  S.cetak_2_sisi = S.cetak_2_sisi_raw === '2' ? 2 : 1;
+}
+
+function triggerCalculate() {
+  clearTimeout(_debounce);
+  _debounce = setTimeout(doCalculate, 450);
+}
+
+async function doCalculate() {
+  syncState();
+  const needInner = !S.is_paperbag;
+  if (!S.box_model_id || !S.outer_material_id || !S.outer_gsm || !S.qty) {
+    showIdle(); return;
+  }
+  if (needInner && (!S.inner_material_id || !S.inner_gsm)) {
+    showIdle(); return;
+  }
+  showLoading();
+  try {
+    const payload = new URLSearchParams({
+      box_model_id:      S.box_model_id,
+      panjang_cm:        S.panjang_cm,
+      lebar_cm:          S.lebar_cm,
+      tinggi_cm:         S.tinggi_cm,
+      outer_material_id: S.outer_material_id,
+      tali_kode:          S.tali_kode,
+      outer_gsm:         S.outer_gsm,
+      inner_material_id: S.is_paperbag ? S.outer_material_id : S.inner_material_id,
+      inner_gsm:         S.is_paperbag ? S.outer_gsm : S.inner_gsm,
+      flute_code:        S.flute_code,
+      wall_type:         S.wall_type,
+      cetak_1_code:      S.cetak_1_code,
+      cetak_1_warna:     S.cetak_1_warna,
+      cetak_1_sisi:      S.cetak_1_sisi,
+      cetak_2_code:      S.cetak_2_code,
+      cetak_2_warna:     S.cetak_2_warna,
+      cetak_2_sisi:      S.cetak_2_sisi,
+      sablon_code:       S.sablon_code,
+      sablon_warna:      S.sablon_warna,
+      sablon_sisi:       S.sablon_sisi,
+      laminasi_code:     S.laminasi_code,
+      laminasi_sisi:     S.laminasi_sisi,
+      laminasi_sisi_raw: S.laminasi_sisi_raw,
+      pisau_pond:        S.pisau_pond,
+      qty:               S.qty,
+    });
+    const res = await fetch(`${API}/CalculatePrice`, { method:'POST', body: payload });
+    const j = await res.json();
+    if (j.status === 200) {
+      renderResult(j.data);
+      if (j.data.dimensi) {
+        const d = j.data.dimensi;
+        document.getElementById('hudBahan').innerHTML = `${d.hasil_panjang_mm} <span class="unit">×</span> ${d.hasil_lebar_mm}`;
+        document.getElementById('hudLuas').innerHTML = `${d.luas_m2} <span class="unit">m²</span>`;
+        updateBox3D(d);
+      }
+      if (j.data.rumus) {
+        document.getElementById('hudRumus').textContent = j.data.rumus;
+        document.getElementById('rumusWM').textContent = j.data.rumus;
+      }
+    } else {
+      showError(j.message || 'Kalkulasi gagal');
+    }
+  } catch(e) {
+    showError('Tidak dapat terhubung ke API\n' + e.message);
+    setApiStatus(false);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  RESULT RENDERING
+// ═══════════════════════════════════════════════════════
+const fmt = v => 'Rp ' + Math.round(v||0).toLocaleString('id-ID');
+
+function showIdle() {
+  document.getElementById('resultArea').innerHTML = `
+    <div class="result-idle">
+      <div class="idle-icon">◻</div>
+      <div class="idle-text">LENGKAPI KONFIGURASI<br/>UNTUK KALKULASI HARGA</div>
+    </div>`;
+}
+
+function showLoading() {
+  document.getElementById('resultArea').innerHTML = `
+    <div class="result-loading">
+      <div class="spinner"></div>
+      <div class="loading-text">Menghitung...</div>
+    </div>`;
+}
+
+function showError(msg) {
+  document.getElementById('resultArea').innerHTML = `
+    <div class="result-error">⚠ ${msg.replace(/\n/g,'<br/>')}</div>
+    <div class="result-idle" style="flex:0;padding:20px 30px;">
+      <div class="idle-text">Pastikan server API aktif<br/>dan semua field terisi dengan benar</div>
+    </div>`;
+}
+
+function renderResult(d) {
+  const b = d.breakdown || {};
+  const rumusLabel = {
+    'SHEET':          'SHEET',
+    'DK':             'D + K',
+    'DMD':            'D + M + D',
+    'KK_SHEET':       'KK · Kraft Sheet',
+    'SHIPPING_SHEET': 'SHIPPING · Bahan Besar',
+    'SHIPPING_INDEX': 'SHIPPING · Index/m²',
+    'PAPERBAG':       'PAPERBAG · Terefisien',
+  }[d.rumus] || d.rumus || '—';
+
+  const rows = [
+    ['Harga Bahan',     b.harga_bahan],
+    ['Biaya Produksi',  b.biaya_produksi],
+    ...(b.biaya_lem   ? [['Biaya Lem',      b.biaya_lem]]   : []),
+    ['Harga Cetak',     b.harga_cetak],
+    ['Sablon',          b.harga_sablon],
+    ['Laminasi',        b.harga_laminasi],
+    ['Pisau Pond',      b.harga_pisau],
+    ...(b.harga_tali != null ? [['Tali Paperbag', b.harga_tali]] : []),
+  ];
+
+  const rowsHtml = rows.map(([k, v]) => v > 0 ? `
+    <div class="bk-row">
+      <span class="bk-key">${k}</span>
+      <span class="bk-val">${fmt(v)}</span>
+    </div>` : '').join('');
+
+  const marginAmt = (d.harga_per_pcs || 0) - (d.harga_modal || 0);
+  if (S.is_paperbag) {
+    document.getElementById('ppSpec').textContent = `${S.outer_mat_name} ${S.outer_gsm}gsm · Tali: ${S.tali_kode.replace('tali_','').replace('_',' ')}`;
+  } else {
+    document.getElementById('ppSpec').textContent = `${S.outer_mat_name} ${S.outer_gsm}gsm / ${S.inner_mat_name} ${S.inner_gsm}gsm · ${S.flute_code}`;
+  }
+
+  document.getElementById('resultArea').innerHTML = `
+    <div class="breakdown">
+      <div class="bk-title">Rincian Biaya / pcs</div>
+      <div class="rumus-pill">
+        <span class="rp-label">RUMUS</span>
+        <span class="rp-val">${rumusLabel}</span>
+      </div>
+      ${rowsHtml}
+      <div class="bk-row modal">
+        <span class="bk-key">Harga Modal</span>
+        <span class="bk-val">${fmt(d.harga_modal)}</span>
+      </div>
+      <div class="bk-row">
+        <span class="bk-key">Margin ${d.margin_pct || ''}</span>
+        <span class="bk-val">+ ${fmt(marginAmt)}</span>
+      </div>
+    </div>
+    <div class="pp-final">
+      <div class="pf-label">Harga / pcs</div>
+      <div class="pf-main">
+        <span class="pf-currency">Rp</span>
+        <span class="pf-price">${Math.round(d.harga_per_pcs||0).toLocaleString('id-ID')}</span>
+      </div>
+      <div class="pf-slash"></div>
+      <div class="pf-total">
+        <span class="pf-total-label">TOTAL ${S.qty.toLocaleString('id-ID')} PCS</span>
+        <span class="pf-total-val">Rp ${Math.round(d.total||0).toLocaleString('id-ID')}</span>
+      </div>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════════
+//  3D BOX
+// ═══════════════════════════════════════════════════════
+function updateBox3D(dim) {
+  const p = S.panjang_cm || 20;
+  const l = S.lebar_cm   || 15;
+  const t = S.tinggi_cm  || 10;
+  const sp = Math.max(.45, Math.min(1.9, p/20));
+  const sl = Math.max(.45, Math.min(1.9, l/15));
+  const st = Math.max(.45, Math.min(1.9, t/10));
+  const W = Math.round(160*sp), H = Math.round(120*st), D = Math.round(80*sl);
+
+  const ff = document.getElementById('faceFront');
+  const ft = document.getElementById('faceTop');
+  const fr = document.getElementById('faceRight');
+
+  ff.style.cssText = `width:${W}px;height:${H}px;background:${_currentColors.front};transform:translateZ(${D/2}px);display:flex;align-items:center;justify-content:center;overflow:hidden;border:1px solid rgba(0,0,0,.12);border-radius:2px;`;
+  ft.style.cssText = `width:${W}px;height:${D}px;background:${_currentColors.top};top:${-D/2}px;transform:rotateX(90deg) translateZ(${H/2}px);border:1px solid rgba(0,0,0,.12);border-radius:2px;`;
+  fr.style.cssText = `width:${D}px;height:${H}px;background:${_currentColors.right};right:${-D}px;transform:rotateY(90deg) translateZ(${W}px);border:1px solid rgba(0,0,0,.12);border-radius:2px;`;
+
+  document.getElementById('boxLabel').textContent = dim
+    ? `${dim.hasil_panjang_mm}×${dim.hasil_lebar_mm}`
+    : 'KARDOOS';
+}
+
+function applyBoxColor(materialName) {
+  const colors = Object.entries(BOX_COLORS).find(([k]) => materialName.toLowerCase().includes(k.toLowerCase().split(' ')[0]));
+  _currentColors = colors ? colors[1] : BOX_COLORS['Brown Kraft'];
+  updateBox3D();
+}
+
+function setView(v) {
+  document.getElementById('btn3d').classList.toggle('active', v==='3d');
+  document.getElementById('btn2d').classList.toggle('active', v==='2d');
+  document.getElementById('box3dStage').style.display = v==='3d' ? 'flex' : 'none';
+  document.getElementById('view2d').style.display = v==='2d' ? 'flex' : 'none';
+}
+
+function updateOpen(val) {
+  const a = (100-val)*1.1;
+  document.getElementById('box3d').style.transform =
+    `rotateX(${-18-a*.12}deg) rotateY(${-34+a*.4}deg)`;
+}
+
+function zoom(dir) {
+  _zoom = Math.max(.3, Math.min(2.5, _zoom + dir*.15));
+  document.getElementById('box3dStage').style.transform = `scale(${_zoom})`;
+  document.getElementById('zoomVal').textContent = Math.round(_zoom*100)+'%';
+}
+
+function onDimChange() {
+  S.panjang_cm = parseFloat(document.getElementById('inp-p').value) || 0;
+  S.lebar_cm   = parseFloat(document.getElementById('inp-l').value) || 0;
+  S.tinggi_cm  = parseFloat(document.getElementById('inp-t').value) || 0;
+  updateBox3D();
+  debouncedPisauCheck();
+  triggerCalculate();
+}
+</script>
+</body>
+</html>

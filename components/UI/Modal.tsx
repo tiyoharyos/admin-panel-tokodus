@@ -47,56 +47,67 @@ export default function Modal({
   if (!isOpen) return null
 
   const sizeClasses = {
-    sm: 'max-w-md',
-    md: 'max-w-lg',
-    lg: 'max-w-2xl',
-    xl: 'max-w-4xl',
-    full: 'max-w-full mx-4'
+    sm:   'max-w-md',
+    md:   'max-w-lg',
+    lg:   'max-w-2xl',
+    xl:   'max-w-4xl',
+    full: 'max-w-full mx-4',
   }
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto">
-      {/* Backdrop */}
+
+      {/* ── Backdrop ── */}
       <div
-        className="fixed inset-0 bg-white/50 bg-opacity-50 transition-opacity"
+        className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity"
         onClick={closeOnOverlayClick ? onClose : undefined}
         aria-hidden="true"
       />
 
-      {/* Modal Container */}
+      {/* ── Modal Container ── */}
       <div className="flex min-h-screen items-center justify-center p-4">
         <div
           ref={modalRef}
-          className={`relative w-full ${sizeClasses[size]} animate-slideIn ${className}`}
+          className={`relative w-full ${sizeClasses[size]} animate-in fade-in zoom-in-95 duration-200 ${className}`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Modal Content */}
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            {/* Header */}
-            <div className="px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-white">
+          {/* ── Modal Card ── */}
+          <div className="bg-white rounded-2xl shadow-xl shadow-slate-900/10 border border-slate-200 overflow-hidden">
+
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                {/* Accent dot */}
+                <span className="block w-1 h-5 rounded-full bg-gradient-to-b from-indigo-500 to-indigo-600" />
+                <h3 className="text-[15px] font-semibold text-slate-800 tracking-tight">
                   {title}
                 </h3>
-                {showCloseButton && (
-                  <button
-                    onClick={onClose}
-                    className="text-white hover:text-gray-200 transition-colors p-1 rounded-full hover:bg-white/10"
-                  >
-                    <Icon icon="mdi:close" className="w-5 h-5" />
-                  </button>
-                )}
               </div>
+
+              {showCloseButton && (
+                <button
+                  onClick={onClose}
+                  className="flex items-center justify-center w-7 h-7 rounded-lg text-slate-400
+                             hover:text-slate-600 hover:bg-slate-100
+                             transition-all duration-150 active:scale-95"
+                  aria-label="Tutup"
+                >
+                  <Icon icon="mdi:close" className="w-4 h-4" />
+                </button>
+              )}
             </div>
 
-            {/* Body */}
-            <div className="px-6 py-6 max-h-[70vh] overflow-y-auto scrollbar-thin">
+            {/* ── Body ── */}
+            <div className="px-6 py-5 max-h-[65vh] overflow-y-auto
+                            scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-200
+                            hover:scrollbar-thumb-slate-300 text-sm text-slate-600 leading-relaxed">
               {children}
             </div>
 
-            {/* Footer */}
+            {/* ── Footer ── */}
             {footer && (
-              <div className="px-6 py-4 bg-gray-50 border-t border-gray-200">
+              <div className="flex items-center justify-end gap-2.5 px-6 py-4
+                              bg-slate-50 border-t border-slate-100">
                 {footer}
               </div>
             )}
