@@ -297,7 +297,7 @@ export default function PisauConfigPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState icon="mdi:knife" message="Memuat data konfigurasi pisau..." />
-  if (error) return <ErrorState title="Error Loading Data" message={error} icon="mdi:alert-circle" onRetry={refetch} />
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">

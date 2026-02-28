@@ -267,7 +267,7 @@ export default function PrintSettingsPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat Print Settings..." submessage="Harap tunggu sebentar" icon="mdi:printer-settings" />
-  if (error) return <ErrorState message={error} onRetry={fetchMachines} />
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">

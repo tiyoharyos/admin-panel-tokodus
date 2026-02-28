@@ -390,9 +390,9 @@ export default function MaterialTypePage() {
     return <LoadingState message="Memuat Material Types..." submessage="Harap tunggu sebentar" icon="mdi:package-variant" />;
   }
 
-  if (error) {
-    return <ErrorState message={error} onRetry={fetchMaterials} />;
-  }
+  // if (error) {
+  //   return <ErrorState message={error} onRetry={fetchMaterials} />;
+  // }
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">

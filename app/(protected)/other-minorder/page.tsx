@@ -130,7 +130,7 @@ export default function OtherMinOrderPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState icon="mdi:cog-outline" message="Memuat Minimum Order Config..." />
-  if (error) return <ErrorState message={error} onRetry={fetchData} />
+  // if (error) return <ErrorState message={error} onRetry={fetchData} />
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">

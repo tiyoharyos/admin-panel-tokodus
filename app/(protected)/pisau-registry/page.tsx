@@ -232,7 +232,7 @@ export default function PisauRegistryPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState icon="mdi:knife" message="Memuat data registry pisau..." />
-  if (error) return <ErrorState title="Error Loading Data" message={error} icon="mdi:alert-circle" onRetry={refetch} />
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">

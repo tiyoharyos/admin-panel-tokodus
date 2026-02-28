@@ -451,7 +451,7 @@ export default function PaperbagSheetPricesPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat data Harga Sheet Paperbag..." />
-  if (error)   return <ErrorState message={error} onRetry={fetchPrices} />
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">

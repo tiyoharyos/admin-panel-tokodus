@@ -528,9 +528,7 @@ export default function DuplexDMDPage() {
     return <LoadingState message="Memuat Data Duplex DMD..." />
   }
 
-  if (error && duplexData.length === 0) {
-    return <ErrorState message={error} onRetry={refetch} />
-  }
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">

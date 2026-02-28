@@ -324,9 +324,9 @@ export default function MaterialGramasiPage() {
     return <LoadingState message="Memuat data gramasi..." />;
   }
 
-  if (error) {
-    return <ErrorState message={error} onRetry={fetchGramasi} />;
-  }
+  // if (error) {
+  //   return <ErrorState message={error} onRetry={fetchGramasi} />;
+  // }
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">

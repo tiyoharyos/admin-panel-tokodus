@@ -356,7 +356,7 @@ export default function PaperbagSheetSizesPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat data Ukuran Sheet Paperbag..." />
-  if (error)   return <ErrorState message={error} onRetry={fetchData} />
+
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">

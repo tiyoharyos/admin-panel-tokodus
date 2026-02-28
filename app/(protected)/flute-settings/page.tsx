@@ -370,7 +370,6 @@ export default function FlutesPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState icon="mdi:layers" message="Memuat Flutes..." submessage="Harap tunggu sebentar" />
-  if (error) return <ErrorState message={error} onRetry={fetchFlutes} />
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">

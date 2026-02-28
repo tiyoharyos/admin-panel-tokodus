@@ -233,7 +233,6 @@ export default function LaminasiPage() {
 
   // ===== LOADING / ERROR =====
   if (loading) return <LoadingState message="Memuat data Laminasi..." submessage="Harap tunggu sebentar" icon="mdi:layers-triple" />
-  if (error) return <ErrorState message={error} onRetry={fetchData} />
 
   // ===== RENDER =====
   return (

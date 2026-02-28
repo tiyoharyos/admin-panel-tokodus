@@ -305,7 +305,6 @@ export default function IndexLainnyaPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat Index Lainnya..." icon="mdi:database-settings" />
-  if (error) return <ErrorState message={error} onRetry={refetch} />
 
   const TABLE_HEADERS_BASE = ['Keterangan', 'Range Qty', 'Raw Value', 'Formatted', 'Aksi']
 

@@ -587,7 +587,7 @@ export default function BoxModelsPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat data Box Models..." submessage="Harap tunggu sebentar" icon="mdi:package-variant-closed" />
-  if (error) return <ErrorState message={error} onRetry={refetch} />
+
 
   const maxFormulaCount = Math.max(...boxModels.map(m => m.formulaComponents.length), 0)
 
