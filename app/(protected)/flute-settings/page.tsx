@@ -9,7 +9,6 @@ import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
-import ErrorState from '@/components/UI/ErrorState'
 import SweetAlert from '@/components/UI/SweetAlert'
 import { Icon } from '@iconify/react'
 

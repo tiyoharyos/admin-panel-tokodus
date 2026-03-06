@@ -24,19 +24,23 @@ interface DuplexDMDData {
   type: 'DMD'
   pl?: string
   sheet_size_id?: string
-  gramasi_id?: string
+  gramasi_id?: string // menyimpan nilai GSM string, misal "250"
 }
 
 interface FormData {
   sheet_size_id: string
-  gramasi_id: string
+  gsm: string          // ← sama seperti DK: value = string GSM ("250", "270", dst)
   harga_per_lembar: string
 }
 
+// ← Disamakan dengan DK: field lengkap dari gramasiIndex
 interface GramasiItem {
   id: string
-  material_id: string
-  gsm: string
+  material_type_id: string
+  gsm: string          // "250"|"270"|"310"|"350"|"400"|"450"
+  name: string         // "Duplex" / "DMD" / dll
+  material_type: string
+  is_premium: string
 }
 
 interface SheetSizeItem {
@@ -77,19 +81,20 @@ interface DuplexMduplekItem {
 }
 
 // ===== CONSTANTS =====
+// ← gsm sekarang string (nilai GSM), bukan gramasi_id
 const BASE_FORM: FormData = {
   sheet_size_id: '',
-  gramasi_id: '',
+  gsm: '',
   harga_per_lembar: ''
 }
 
 // ===== META CONSTANTS =====
 const GSM_COLORS = [
-  { bg: '#3b82f6', light: '#dbeafe' },  // Blue - 250-300
-  { bg: '#10b981', light: '#d1fae5' },  // Green - 301-350
-  { bg: '#f59e0b', light: '#fed7aa' },  // Orange - 351-400
-  { bg: '#8b5cf6', light: '#ede9fe' },  // Purple - 401-450
-  { bg: '#ef4444', light: '#fee2e2' },  // Red - 451+
+  { bg: '#3b82f6', light: '#dbeafe' },
+  { bg: '#10b981', light: '#d1fae5' },
+  { bg: '#f59e0b', light: '#fed7aa' },
+  { bg: '#8b5cf6', light: '#ede9fe' },
+  { bg: '#ef4444', light: '#fee2e2' },
 ]
 
 // ===== UTILITIES =====
@@ -109,11 +114,11 @@ const formatCurrency = (amount: number): string => {
 }
 
 const getGSMColor = (gsm: number): { bg: string; light: string } => {
-  if (gsm <= 270) return GSM_COLORS[0] // Blue
-  if (gsm <= 350) return GSM_COLORS[1] // Green
-  if (gsm <= 400) return GSM_COLORS[2] // Orange
-  if (gsm <= 450) return GSM_COLORS[3] // Purple
-  return GSM_COLORS[4] // Red
+  if (gsm <= 270) return GSM_COLORS[0]
+  if (gsm <= 350) return GSM_COLORS[1]
+  if (gsm <= 400) return GSM_COLORS[2]
+  if (gsm <= 450) return GSM_COLORS[3]
+  return GSM_COLORS[4]
 }
 
 const buildSheetLabel = (panjang_mm: string, lebar_mm: string): string => {
@@ -134,18 +139,28 @@ const useDuplexDMD = () => {
   const [error, setError] = useState<string | null>(null)
   const [loadingGramasi, setLoadingGramasi] = useState(false)
 
+  // ← Disamakan dengan DK:
+  //   - filter by name (sesuaikan dengan nama material DMD di API)
+  //   - dedup by gsm (bukan by id)
+  //   - sort GSM ascending
   const fetchGramasi = useCallback(async () => {
     try {
       setLoadingGramasi(true)
       const response = await axios.get<GramasiApiResponse>('Admin/Duplek/gramasiIndex')
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
         const seen = new Set<string>()
-        const unique = response.data.data.filter(item => {
-          if (!item.id || seen.has(item.id)) return false
-          seen.add(item.id)
-          return true
-        })
-        setGramasiList(unique)
+        const filtered = response.data.data
+          // Sesuaikan filter name dengan nilai yang dikembalikan API untuk DMD
+          // Contoh: .filter(item => item.name === 'Duplex MD')
+          // Jika tidak ada filter name spesifik, hapus baris filter di bawah
+          .filter(item => item.name === 'Duplex')
+          .filter(item => {
+            if (seen.has(item.gsm)) return false   // ← dedup by gsm, bukan by id
+            seen.add(item.gsm)
+            return true
+          })
+          .sort((a, b) => parseInt(a.gsm) - parseInt(b.gsm))  // ← sort GSM asc
+        setGramasiList(filtered)
       } else {
         setGramasiList([])
       }
@@ -200,7 +215,7 @@ const useDuplexDMD = () => {
           type: 'DMD' as const,
           pl: `${item.panjang_mm}x${item.lebar_mm}`,
           sheet_size_id: item.id_sh,
-          gramasi_id: item.gsm
+          gramasi_id: item.gsm   // ← menyimpan string GSM ("250", "270", dst)
         }))
         .filter(item => item.panjang > 0 && item.lebar > 0 && item.gsm > 0)
 
@@ -225,7 +240,7 @@ const useDuplexDMD = () => {
     const uniqueGsm = new Set(data.map(item => item.gsm)).size
     const uniqueSizes = new Set(data.map(item => `${item.panjang}x${item.lebar}`)).size
     const withPrice = data.filter(item => item.harga_per_lembar > 0).length
-    
+
     return {
       totalRecords,
       averagePrice: totalRecords > 0 ? totalPrice / totalRecords : 0,
@@ -243,29 +258,29 @@ const useDuplexDMD = () => {
 
   const stats = useMemo(() => calculateStats(duplexData), [duplexData])
 
-  return { 
-    duplexData, 
-    gramasiList, 
-    sheetSizeList, 
-    loading, 
-    error, 
-    loadingGramasi, 
-    stats, 
-    refetch: fetchDuplexData 
+  return {
+    duplexData,
+    gramasiList,
+    sheetSizeList,
+    loading,
+    error,
+    loadingGramasi,
+    stats,
+    refetch: fetchDuplexData
   }
 }
 
 // ===== MAIN COMPONENT =====
 export default function DuplexDMDPage() {
-  const { 
-    duplexData, 
-    gramasiList, 
-    sheetSizeList, 
-    loading, 
-    error, 
-    loadingGramasi, 
-    stats, 
-    refetch 
+  const {
+    duplexData,
+    gramasiList,
+    sheetSizeList,
+    loading,
+    error,
+    loadingGramasi,
+    stats,
+    refetch
   } = useDuplexDMD()
 
   const [isPosting, setIsPosting] = useState(false)
@@ -274,7 +289,7 @@ export default function DuplexDMDPage() {
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingItem, setEditingItem] = useState<DuplexDMDData | null>(null)
   const [selectedItem, setSelectedItem] = useState<DuplexDMDData | null>(null)
-  const [search, setSearch] = useState('')
+
 
   const [addFormData, setAddFormData] = useState<FormData>({ ...BASE_FORM })
   const [editFormData, setEditFormData] = useState<FormData>({ ...BASE_FORM })
@@ -285,23 +300,13 @@ export default function DuplexDMDPage() {
   const [editSelectedSize, setEditSelectedSize] = useState<SheetSizeItem | null>(null)
   const [editSelectedGramasi, setEditSelectedGramasi] = useState<GramasiItem | null>(null)
 
-  // ===== FILTERED DATA =====
-  const filteredData = useMemo(() => {
-    if (!search.trim()) return duplexData
-    
-    return duplexData.filter(item => 
-      item.gsm.toString().includes(search) ||
-      formatUkuranDisplay(item.panjang, item.lebar).includes(search) ||
-      (item.harga_per_lembar > 0 && item.harga_per_lembar.toString().includes(search))
-    )
-  }, [duplexData, search])
-
+  // ===== SORTED DATA =====
   const sortedDuplexData = useMemo(() => {
-    return [...filteredData].sort((a, b) => {
+    return [...duplexData].sort((a, b) => {
       if (a.gsm !== b.gsm) return a.gsm - b.gsm
       return (a.panjang * a.lebar) - (b.panjang * b.lebar)
     })
-  }, [filteredData])
+  }, [duplexData])
 
   // ===== OPTIONS =====
   const sheetSizeOptions = useMemo(() =>
@@ -311,40 +316,41 @@ export default function DuplexDMDPage() {
       key: `sh-${item.id_sh}-${idx}`
     })), [sheetSizeList])
 
+  // ← Disamakan dengan DK: value = item.gsm (string GSM), bukan item.id
   const gramasiOptions = useMemo(() =>
     gramasiList.map((item, idx) => ({
-      value: item.id,
+      value: item.gsm,            // ← "250", "270", dst
       label: `${item.gsm} GSM`,
-      key: `gr-${item.id}-${idx}`
+      key: `gr-${item.gsm}-${idx}`
     })), [gramasiList])
 
   // ===== VALIDATION =====
   const validateForm = (formData: FormData, isEdit = false): Record<string, string> => {
     const errors: Record<string, string> = {}
-    
+
     if (!formData.sheet_size_id) errors.sheet_size_id = 'Ukuran tidak boleh kosong'
-    if (!formData.gramasi_id) errors.gramasi_id = 'GSM tidak boleh kosong'
-    
+    if (!formData.gsm) errors.gsm = 'GSM tidak boleh kosong'  // ← field gsm
+
     if (formData.harga_per_lembar && formData.harga_per_lembar.trim() !== '') {
       const harga = parseFloat(formData.harga_per_lembar)
       if (isNaN(harga)) errors.harga_per_lembar = 'Harga harus berupa angka'
       else if (harga < 0) errors.harga_per_lembar = 'Harga tidak boleh negatif'
     }
 
-    if (!isEdit && formData.sheet_size_id && formData.gramasi_id) {
+    if (!isEdit && formData.sheet_size_id && formData.gsm) {
+      // ← cek duplikat by gsm string (sama seperti DK)
+      const gNum = parseInt(formData.gsm)
       const isDuplicate = duplexData.some(item =>
-        item.sheet_size_id === formData.sheet_size_id && 
-        item.gramasi_id === formData.gramasi_id
+        item.sheet_size_id === formData.sheet_size_id && item.gsm === gNum
       )
       if (isDuplicate) {
         const size = sheetSizeList.find(s => s.id_sh === formData.sheet_size_id)
-        const gram = gramasiList.find(g => g.id === formData.gramasi_id)
-        if (size && gram) {
-          errors.general = `Kombinasi ${buildSheetLabel(size.panjang_sh, size.lebar_sh)} dengan GSM ${gram.gsm} sudah ada`
+        if (size) {
+          errors.general = `Kombinasi ${buildSheetLabel(size.panjang_sh, size.lebar_sh)} dengan GSM ${formData.gsm} sudah ada`
         }
       }
     }
-    
+
     return errors
   }
 
@@ -362,17 +368,19 @@ export default function DuplexDMDPage() {
       return
     }
 
+    // ← payload gramasi = nilai GSM (sama seperti DK)
+    // key harga_lembar sesuai nama kolom di DB/backend
     const payload = {
-      gramasi: addFormData.gramasi_id,
+      gramasi: addFormData.gsm,
       pl: addFormData.sheet_size_id,
-      harga_per_lembar: addFormData.harga_per_lembar || '0'
+      harga_lembar: addFormData.harga_per_lembar || '0'
     }
 
     try {
       setIsPosting(true)
       const response = await axios.post<ApiResponse>('Admin/Duplek/duplekMduplekPricesAdd', payload)
-      
-      if (response.status === 200 && response.data?.status === 200) {
+
+      if (response.status === 200 || response.data?.status === 200) {
         await refetch()
         Swal.fire({
           icon: 'success',
@@ -402,7 +410,7 @@ export default function DuplexDMDPage() {
 
   const handleEdit = async () => {
     if (!editingItem) return
-    
+
     const errors = validateForm(editFormData, true)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
@@ -416,9 +424,9 @@ export default function DuplexDMDPage() {
     }
 
     const payload = {
-      gramasi: editFormData.gramasi_id,
+      gramasi: editFormData.gsm,
       pl: editFormData.sheet_size_id,
-      harga_per_lembar: editFormData.harga_per_lembar || '0'
+      harga_lembar: editFormData.harga_per_lembar || '0'
     }
 
     try {
@@ -427,8 +435,8 @@ export default function DuplexDMDPage() {
         `Admin/Duplek/duplekMduplekPricesEdit/${editingItem.id}`,
         payload
       )
-      
-      if (response.status === 200 && response.data?.status === 200) {
+
+      if (response.status === 200 || response.data?.status === 200) {
         await refetch()
         Swal.fire({
           icon: 'success',
@@ -472,7 +480,7 @@ export default function DuplexDMDPage() {
     try {
       setIsPosting(true)
       const response = await axios.delete<ApiResponse>(`Admin/Duplek/duplekMduplekPricesDel/${id}`)
-      
+
       if (response.status === 200) {
         await refetch()
         Swal.fire({
@@ -515,7 +523,7 @@ export default function DuplexDMDPage() {
     setEditingItem(item)
     setEditFormData({
       sheet_size_id: item.sheet_size_id || '',
-      gramasi_id: item.gramasi_id || '',
+      gsm: item.gramasi_id || item.gsm.toString(), // ← gramasi_id sudah menyimpan string GSM
       harga_per_lembar: item.harga_per_lembar ? item.harga_per_lembar.toString() : ''
     })
     setFormErrors({})
@@ -564,22 +572,24 @@ export default function DuplexDMDPage() {
     setSelectedSize(sheetSizeList.find(i => i.id_sh === addFormData.sheet_size_id) || null)
   }, [addFormData.sheet_size_id, sheetSizeList])
 
+  // ← cari by gsm string, bukan by id
   useEffect(() => {
-    setSelectedGramasi(gramasiList.find(i => i.id === addFormData.gramasi_id) || null)
-  }, [addFormData.gramasi_id, gramasiList])
+    setSelectedGramasi(gramasiList.find(i => i.gsm === addFormData.gsm) || null)
+  }, [addFormData.gsm, gramasiList])
 
   useEffect(() => {
     setEditSelectedSize(sheetSizeList.find(i => i.id_sh === editFormData.sheet_size_id) || null)
   }, [editFormData.sheet_size_id, sheetSizeList])
 
+  // ← cari by gsm string, bukan by id
   useEffect(() => {
-    setEditSelectedGramasi(gramasiList.find(i => i.id === editFormData.gramasi_id) || null)
-  }, [editFormData.gramasi_id, gramasiList])
+    setEditSelectedGramasi(gramasiList.find(i => i.gsm === editFormData.gsm) || null)
+  }, [editFormData.gsm, gramasiList])
 
   // ===== LOADING STATE =====
   if (loading && duplexData.length === 0 && !error) {
-    return <LoadingState 
-      message="Memuat Data Duplex DMD..." 
+    return <LoadingState
+      message="Memuat Data Duplex DMD..."
       submessage="Harap tunggu sebentar"
       icon="mdi:book-open-variant"
     />
@@ -649,7 +659,7 @@ export default function DuplexDMDPage() {
             <p className="text-3xl font-bold text-slate-800">{s.value}</p>
             {s.bar !== undefined && (
               <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${s.bar}%` }} />
+                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min(s.bar, 100)}%` }} />
               </div>
             )}
             <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
@@ -675,25 +685,13 @@ export default function DuplexDMDPage() {
               Total {stats.totalRecords} data dengan {stats.totalCombinations} kombinasi ukuran
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari GSM atau ukuran..."
-                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
-              />
-            </div>
-            <button
-              onClick={refetch}
-              title="Refresh"
-              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-            >
-              <Icon icon="mdi:refresh" className="w-5 h-5" />
-            </button>
-          </div>
+          <button
+            onClick={refetch}
+            title="Refresh"
+            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <Icon icon="mdi:refresh" className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Table */}
@@ -705,15 +703,6 @@ export default function DuplexDMDPage() {
               <p className="text-sm text-gray-400">Tambahkan ukuran baru untuk memulai</p>
               <Button onClick={handleAddClick} variant="primary" icon="mdi:plus">
                 Tambah Ukuran Baru
-              </Button>
-            </div>
-          ) : sortedDuplexData.length === 0 && search ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:book-open-variant-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
-              <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
-              <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
-                Hapus Pencarian
               </Button>
             </div>
           ) : (
@@ -731,17 +720,14 @@ export default function DuplexDMDPage() {
                 {sortedDuplexData.map((item, index) => {
                   const luasM2 = (item.panjang * item.lebar) / 10000
                   const hargaPerM2 = item.harga_per_lembar > 0 ? item.harga_per_lembar / luasM2 : 0
-                  const gsmColor = getGSMColor(item.gsm)
-                  
+
                   return (
                     <tr key={`dmd-${item.id}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-slate-800">{index + 1}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge color={gsmColor.bg} light={gsmColor.light}>
                           {item.gsm} GSM
-                        </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
@@ -816,22 +802,10 @@ export default function DuplexDMDPage() {
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button
-              variant="outline"
-              size="md"
-              onClick={handleCloseAddModal}
-              disabled={isPosting}
-            >
+            <Button variant="outline" size="md" onClick={handleCloseAddModal} disabled={isPosting}>
               Batal
             </Button>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleAdd}
-              loading={isPosting}
-              disabled={isPosting}
-              icon="mdi:check"
-            >
+            <Button variant="primary" size="md" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">
               Simpan Data
             </Button>
           </>
@@ -846,7 +820,7 @@ export default function DuplexDMDPage() {
             </p>
           </div>
 
-          {/* GSM */}
+          {/* GSM ← disamakan dengan DK: dari gramasiOptions yg value=gsm string */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               GSM <span className="text-red-500">*</span>
@@ -858,15 +832,18 @@ export default function DuplexDMDPage() {
               </div>
             ) : (
               <Select
-                value={addFormData.gramasi_id}
-                onChange={(e) => handleAddInputChange('gramasi_id', e.target.value)}
+                value={addFormData.gsm}
+                onChange={(e) => handleAddInputChange('gsm', e.target.value)}
                 options={gramasiOptions}
                 placeholder="-- Pilih GSM --"
                 disabled={isPosting}
-                className={formErrors.gramasi_id ? 'border-red-500' : ''}
+                className={formErrors.gsm ? 'border-red-500' : ''}
               />
             )}
-            {formErrors.gramasi_id && <p className="text-xs text-red-600 mt-2">{formErrors.gramasi_id}</p>}
+            {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
+            {!loadingGramasi && gramasiList.length === 0 && (
+              <p className="text-xs text-amber-600 mt-2">⚠ Data GSM DMD tidak tersedia</p>
+            )}
           </div>
 
           {/* Ukuran */}
@@ -887,7 +864,9 @@ export default function DuplexDMDPage() {
 
           {/* Harga */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Harga per Lembar</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Harga per Lembar <span className="text-xs text-gray-400 ml-1">(opsional)</span>
+            </label>
             <Input
               type="number"
               value={addFormData.harga_per_lembar}
@@ -911,12 +890,12 @@ export default function DuplexDMDPage() {
               </h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-gray-500 mb-1">Ukuran:</p>
-                  <p className="font-medium text-gray-900">{buildSheetLabel(selectedSize.panjang_sh, selectedSize.lebar_sh)}</p>
-                </div>
-                <div>
                   <p className="text-gray-500 mb-1">GSM:</p>
                   <p className="font-medium text-gray-900">{selectedGramasi.gsm} GSM</p>
+                </div>
+                <div>
+                  <p className="text-gray-500 mb-1">Ukuran:</p>
+                  <p className="font-medium text-gray-900">{buildSheetLabel(selectedSize.panjang_sh, selectedSize.lebar_sh)}</p>
                 </div>
                 <div>
                   <p className="text-gray-500 mb-1">Luas:</p>
@@ -955,22 +934,10 @@ export default function DuplexDMDPage() {
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button
-              variant="outline"
-              size="md"
-              onClick={handleCloseEditModal}
-              disabled={isPosting}
-            >
+            <Button variant="outline" size="md" onClick={handleCloseEditModal} disabled={isPosting}>
               Batal
             </Button>
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleEdit}
-              loading={isPosting}
-              disabled={isPosting}
-              icon="mdi:check"
-            >
+            <Button variant="primary" size="md" onClick={handleEdit} loading={isPosting} disabled={isPosting} icon="mdi:check">
               Update Data
             </Button>
           </>
@@ -1004,6 +971,29 @@ export default function DuplexDMDPage() {
               </div>
             </div>
 
+            {/* GSM Baru ← value dari gramasiOptions yg value=gsm string */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                GSM Baru <span className="text-red-500">*</span>
+              </label>
+              {loadingGramasi ? (
+                <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
+                  <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
+                  <span className="text-sm text-gray-600">Memuat data gramasi...</span>
+                </div>
+              ) : (
+                <Select
+                  value={editFormData.gsm}
+                  onChange={(e) => handleEditInputChange('gsm', e.target.value)}
+                  options={gramasiOptions}
+                  placeholder="-- Pilih GSM --"
+                  disabled={isPosting}
+                  className={formErrors.gsm ? 'border-red-500' : ''}
+                />
+              )}
+              {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
+            </div>
+
             {/* Ukuran Baru */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1020,25 +1010,11 @@ export default function DuplexDMDPage() {
               {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
             </div>
 
-            {/* GSM Baru */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                GSM Baru <span className="text-red-500">*</span>
-              </label>
-              <Select
-                value={editFormData.gramasi_id}
-                onChange={(e) => handleEditInputChange('gramasi_id', e.target.value)}
-                options={gramasiOptions}
-                placeholder="-- Pilih GSM --"
-                disabled={isPosting}
-                className={formErrors.gramasi_id ? 'border-red-500' : ''}
-              />
-              {formErrors.gramasi_id && <p className="text-xs text-red-600 mt-2">{formErrors.gramasi_id}</p>}
-            </div>
-
             {/* Harga Baru */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Harga Baru</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Harga Baru <span className="text-xs text-gray-400 ml-1">(opsional)</span>
+              </label>
               <Input
                 type="number"
                 value={editFormData.harga_per_lembar}
@@ -1062,12 +1038,12 @@ export default function DuplexDMDPage() {
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <p className="text-gray-500 mb-1">Ukuran Baru:</p>
-                    <p className="font-medium text-gray-900">{buildSheetLabel(editSelectedSize.panjang_sh, editSelectedSize.lebar_sh)}</p>
-                  </div>
-                  <div>
                     <p className="text-gray-500 mb-1">GSM Baru:</p>
                     <p className="font-medium text-gray-900">{editSelectedGramasi.gsm} GSM</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500 mb-1">Ukuran Baru:</p>
+                    <p className="font-medium text-gray-900">{buildSheetLabel(editSelectedSize.panjang_sh, editSelectedSize.lebar_sh)}</p>
                   </div>
                   <div>
                     <p className="text-gray-500 mb-1">Luas:</p>
@@ -1120,7 +1096,7 @@ export default function DuplexDMDPage() {
           const luasM2 = (selectedItem.panjang * selectedItem.lebar) / 10000
           const hargaPerM2 = selectedItem.harga_per_lembar > 0 ? selectedItem.harga_per_lembar / luasM2 : 0
           const gsmColor = getGSMColor(selectedItem.gsm)
-          
+
           return (
             <div className="space-y-4">
               {/* Identity */}
@@ -1131,9 +1107,7 @@ export default function DuplexDMDPage() {
                 <div>
                   <p className="text-base font-semibold text-slate-800">Duplex DMD</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <Badge color={gsmColor.bg} light={gsmColor.light}>
                       {selectedItem.gsm} GSM
-                    </Badge>
                     <span className="text-xs text-gray-400">ID: {selectedItem.id}</span>
                   </div>
                 </div>

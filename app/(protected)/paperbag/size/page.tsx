@@ -60,25 +60,7 @@ const formatCm = (mm: string) => {
   return isNaN(val) ? mm : `${(val / 10).toFixed(0)} cm`
 }
 
-const formatNumber = (value: string | number): string => {
-  const num = typeof value === 'string' ? parseFloat(value) : value
-  return new Intl.NumberFormat('id-ID', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(num)
-}
 
-const formatDate = (dateString: string | null): string => {
-  if (!dateString) return '-'
-  try {
-    return new Intl.DateTimeFormat('id-ID', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    }).format(new Date(dateString))
-  } catch {
-    return dateString
-  }
-}
 
 const calcAreaM2 = (panjang: string, lebar: string): number => {
   const p = parseFloat(panjang)
