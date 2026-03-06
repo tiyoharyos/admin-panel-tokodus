@@ -503,7 +503,7 @@ export default function PaperbagSheetSizesPage() {
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
           <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Ukuran Sheet Paperbag</h3>
+            <h3 className="text-base font-semibold text-slate-800">Daftar Ukuran Bahan Paperbag</h3>
             <p className="text-sm text-gray-400 mt-0.5">Total {stats.totalSizes} ukuran tersedia</p>
           </div>
           {/* Search */}
