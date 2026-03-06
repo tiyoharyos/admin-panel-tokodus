@@ -26,7 +26,7 @@ interface ApiResponse {
   data: MinOrderConfig[]
 }
 
-// ============ BADGE (same as print-settings) ============
+// ============ BADGE ============
 function Badge({ color, children }: { color: string; children: React.ReactNode }) {
   return (
     <span
@@ -67,7 +67,10 @@ export default function OtherMinOrderPage() {
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingItem, setEditingItem] = useState<MinOrderConfig | null>(null)
+
+  // ✅ Form state mencakup semua field yang dikirim ke backend
   const [editQty, setEditQty] = useState('')
+  const [editKeterangan, setEditKeterangan] = useState('')
 
   // ===== STATS =====
   const stats = useMemo(() => {
@@ -105,22 +108,50 @@ export default function OtherMinOrderPage() {
   const handleEditClick = (item: MinOrderConfig) => {
     setEditingItem(item)
     setEditQty(item.min_qty)
+    setEditKeterangan(item.keterangan)
     setShowEditModal(true)
   }
 
+  const handleCloseEditModal = () => {
+    if (!isPosting) {
+      setShowEditModal(false)
+      setEditingItem(null)
+      setEditQty('')
+      setEditKeterangan('')
+    }
+  }
+
+  // ✅ UPDATED: endpoint ke /Admin/Other/MinOrderConfigEdit/:id
+  // payload sekarang juga menyertakan config_key dan keterangan (required oleh backend)
   const handleUpdate = async () => {
     if (!editingItem) return
+
     if (!editQty || isNaN(Number(editQty)) || Number(editQty) < 0) {
       Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Masukkan nilai qty yang valid.', confirmButtonColor: '#3B82F6' })
       return
     }
+    if (!editKeterangan.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Keterangan tidak boleh kosong.', confirmButtonColor: '#3B82F6' })
+      return
+    }
+
     try {
       setIsPosting(true)
-      await axios.put(`/Admin/Other/MinOrderConfig/${editingItem.id}`, { min_qty: editQty })
-      setConfigs(prev => prev.map(c => c.id === editingItem.id ? { ...c, min_qty: editQty } : c))
+      await axios.put(`/Admin/Other/MinOrderConfigEdit/${editingItem.id}`, {
+        config_key:  editingItem.config_key,
+        min_qty:     editQty,
+        keterangan:  editKeterangan.trim(),
+      })
+
+      // Update local state tanpa refetch
+      setConfigs(prev => prev.map(c =>
+        c.id === editingItem.id
+          ? { ...c, min_qty: editQty, keterangan: editKeterangan.trim() }
+          : c
+      ))
+
       await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Konfigurasi berhasil diperbarui!', timer: 1500, showConfirmButton: false })
-      setShowEditModal(false)
-      setEditingItem(null)
+      handleCloseEditModal()
     } catch (err: unknown) {
       Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menyimpan konfigurasi'), confirmButtonColor: '#3B82F6' })
     } finally {
@@ -130,7 +161,7 @@ export default function OtherMinOrderPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState icon="mdi:cog-outline" message="Memuat Minimum Order Config..." />
-  // if (error) return <ErrorState message={error} onRetry={fetchData} />
+  if (error) return <ErrorState message={error} onRetry={fetchData} />
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
@@ -154,10 +185,10 @@ export default function OtherMinOrderPage() {
       {/* ===== STATS CARDS ===== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { icon: 'mdi:tune-variant',     label: 'Total Konfigurasi',   value: String(stats.total),                          sub: `${stats.total} aktif terkonfigurasi`,    accent: '#6366f1' },
-          { icon: 'mdi:arrow-down-circle',label: 'Min. Qty Terendah',   value: stats.minQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terkecil',                     accent: '#10b981' },
-          { icon: 'mdi:arrow-up-circle',  label: 'Min. Qty Tertinggi',  value: stats.maxQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terbesar',                     accent: '#f59e0b' },
-          { icon: 'mdi:chart-bell-curve', label: 'Rata-rata Qty',       value: stats.avgQty.toLocaleString('id-ID') + ' pcs', sub: 'Rata-rata semua konfigurasi',            accent: '#8b5cf6' },
+          { icon: 'mdi:tune-variant',      label: 'Total Konfigurasi',  value: String(stats.total),                           sub: `${stats.total} aktif terkonfigurasi`, accent: '#6366f1' },
+          { icon: 'mdi:arrow-down-circle', label: 'Min. Qty Terendah',  value: stats.minQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terkecil',                  accent: '#10b981' },
+          { icon: 'mdi:arrow-up-circle',   label: 'Min. Qty Tertinggi', value: stats.maxQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terbesar',                  accent: '#f59e0b' },
+          { icon: 'mdi:chart-bell-curve',  label: 'Rata-rata Qty',      value: stats.avgQty.toLocaleString('id-ID') + ' pcs', sub: 'Rata-rata semua konfigurasi',         accent: '#8b5cf6' },
         ].map((s, i) => (
           <Card key={i} shadow="sm" padding="md" hoverable>
             <div className="flex items-center justify-between mb-3">
@@ -205,6 +236,7 @@ export default function OtherMinOrderPage() {
                   const meta = getMeta(config.config_key)
                   return (
                     <tr key={config.id} className="hover:bg-slate-50/80 transition-colors">
+
                       {/* Konfigurasi */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
@@ -246,6 +278,7 @@ export default function OtherMinOrderPage() {
                           <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
                         </button>
                       </td>
+
                     </tr>
                   )
                 })}
@@ -267,13 +300,13 @@ export default function OtherMinOrderPage() {
       {/* ===== EDIT MODAL ===== */}
       <Modal
         isOpen={showEditModal}
-        onClose={() => !isPosting && setShowEditModal(false)}
+        onClose={handleCloseEditModal}
         title={`Edit Config — ${editingItem ? getMeta(editingItem.config_key).label : ''}`}
         size="md"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" onClick={() => !isPosting && setShowEditModal(false)} disabled={isPosting}>
+            <Button variant="outline" onClick={handleCloseEditModal} disabled={isPosting}>
               Batal
             </Button>
             <Button variant="primary" onClick={handleUpdate} loading={isPosting} disabled={isPosting} icon="mdi:check">
@@ -286,6 +319,7 @@ export default function OtherMinOrderPage() {
           const meta = getMeta(editingItem.config_key)
           return (
             <div className="space-y-5">
+
               {/* Info box */}
               <div className="flex items-center gap-3 p-4 rounded-lg border"
                 style={{ background: `${meta.accent}08`, borderColor: `${meta.accent}30` }}>
@@ -296,11 +330,10 @@ export default function OtherMinOrderPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-800">{meta.label}</p>
                   <p className="text-xs font-mono mt-0.5" style={{ color: meta.accent }}>{editingItem.config_key}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{editingItem.keterangan}</p>
                 </div>
               </div>
 
-              {/* Form */}
+              {/* Min Qty */}
               <div className="bg-slate-50 p-4 rounded-lg border border-gray-200 space-y-3">
                 <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
@@ -325,6 +358,26 @@ export default function OtherMinOrderPage() {
                   </span>
                 </p>
               </div>
+
+              {/* Keterangan */}
+              <div className="bg-slate-50 p-4 rounded-lg border border-gray-200 space-y-3">
+                <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                  <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                    <Icon icon="mdi:text-box-outline" className="w-3.5 h-3.5 text-amber-600" />
+                  </div>
+                  Keterangan
+                </h4>
+                <Input
+                  label="Keterangan"
+                  type="text"
+                  value={editKeterangan}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEditKeterangan(e.target.value)}
+                  disabled={isPosting}
+                  leftIcon="mdi:text-box-outline"
+                  placeholder="Deskripsi konfigurasi ini"
+                />
+              </div>
+
             </div>
           )
         })()}

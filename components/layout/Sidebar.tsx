@@ -141,13 +141,14 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     { 
       icon: 'mdi:cog-outline',
       name: 'Pengaturan Lainnya', 
-       subItems: [
-        { name: 'Pengaturan Costing',  path:  '/index_lain' },
-        { name: 'Minimal Order Settings',  path: '/other-minorder' },
+      path: '/index_lain'
+      //  subItems: [
+      //   { name: 'Pengaturan Costing',  path:  '/index_lain' },
+      //   { name: 'Minimal Order Settings',  path: '/other-minorder' },
         // { name: 'Price  Paperbag',  path: '/paperbag/price' },
         // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
         // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
-      ] 
+      // ] 
       // path: '/index_lain'
     },
     { 

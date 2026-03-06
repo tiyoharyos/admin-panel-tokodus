@@ -471,7 +471,6 @@ export default function FlutesPage() {
                       {/* Nama */}
                       <td className="px-6 py-4">
                         <p className="text-sm font-medium text-slate-800">{flute.name}</p>
-                        <p className="text-xs text-gray-400 font-mono mt-0.5">ID: {flute.id}</p>
                       </td>
 
                       {/* Tanggal */}

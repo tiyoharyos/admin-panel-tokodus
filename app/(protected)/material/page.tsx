@@ -42,7 +42,6 @@ const PREMIUM_OPTIONS = [
 
 // ===== VALIDATION =====
 const validateMaterialTypeCode = (code: string): boolean => {
-  // Hanya huruf (A-Z, a-z) yang diperbolehkan
   const lettersOnlyRegex = /^[A-Za-z]+$/;
   return lettersOnlyRegex.test(code);
 };
@@ -196,11 +195,7 @@ export default function MaterialTypePage() {
   // ===== HANDLERS =====
   const handleAdd = () => {
     setEditingItem(null);
-    setForm({ 
-      name: '', 
-      material_type: '', 
-      is_premium: '0' // Default ke Regular
-    });
+    setForm({ name: '', material_type: '', is_premium: '0' });
     setCodeError('');
     setIsModalOpen(true);
   };
@@ -223,7 +218,7 @@ export default function MaterialTypePage() {
     try {
       setSubmitting(true);
       const response = await axios.delete(`/Admin/Material/MaterialTypeDel/${item.id}`);
-      
+
       if (response.data?.status === 200) {
         await showSuccess('Terhapus!', `Material Type "${item.name}" berhasil dihapus.`);
         await fetchMaterials();
@@ -232,7 +227,7 @@ export default function MaterialTypePage() {
       }
     } catch (err: unknown) {
       let errorMessage = 'Terjadi kesalahan saat menghapus.';
-      
+
       if (isAxiosError(err)) {
         if (err.response?.status === 409) {
           errorMessage = err.response.data?.message || 'Material Type tidak dapat dihapus karena masih digunakan';
@@ -244,7 +239,7 @@ export default function MaterialTypePage() {
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }
-      
+
       await showError('Gagal!', errorMessage);
     } finally {
       setSubmitting(false);
@@ -253,9 +248,8 @@ export default function MaterialTypePage() {
 
   const handleMaterialTypeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    
     setForm({ ...form, material_type: value });
-    
+
     if (value.length > 0) {
       if (!validateMaterialTypeCode(value)) {
         setCodeError('Material Type Code hanya boleh berisi huruf (A-Z, a-z)');
@@ -267,99 +261,58 @@ export default function MaterialTypePage() {
     }
   };
 
-  // Fungsi untuk mengkonversi object ke form-data
-  const createFormData = (data: FormData): URLSearchParams => {
-    const formData = new URLSearchParams();
-    formData.append('name', data.name.trim());
-    formData.append('material_type', data.material_type.trim().toUpperCase());
-    formData.append('is_premium', data.is_premium);
-    return formData;
-  };
-
+  // ===== SUBMIT =====
   const handleSubmit = async () => {
-    // Validasi field wajib
+    // Validasi
     if (!form.name.trim()) {
       await showWarning('Validasi Gagal', 'Nama Material harus diisi.');
       return;
     }
-
     if (!form.material_type.trim()) {
       await showWarning('Validasi Gagal', 'Material Type Code harus diisi.');
       return;
     }
-
-    // Validasi Material Type Code hanya huruf
     if (!validateMaterialTypeCode(form.material_type)) {
       await showWarning('Validasi Gagal', 'Material Type Code hanya boleh berisi huruf (A-Z, a-z) tanpa angka atau simbol.');
       return;
     }
-
-    // Validasi is_premium
     if (form.is_premium === undefined || form.is_premium === null || form.is_premium === '') {
       await showWarning('Validasi Gagal', 'Status Material harus dipilih.');
       return;
     }
 
-    // Buat form data untuk dikirim
-    const formData = createFormData(form);
-    
-    // Log untuk debugging
-    console.log('Submitting form data:');
-    console.log('- name:', form.name);
-    console.log('- material_type:', form.material_type);
-    console.log('- is_premium:', form.is_premium);
-    console.log('FormData entries:', Array.from(formData.entries()));
-
     try {
       setSubmitting(true);
-      
-      // Konfigurasi axios dengan form-data
-      const config = {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-      };
-      
+
+      const isPremiumValue = form.is_premium === '0' ? '2' : '1'; 
+
+      const params = new URLSearchParams();
+      params.append('name', form.name.trim());
+      params.append('material_type', form.material_type.trim().toUpperCase());
+      params.append('is_premium', isPremiumValue);
+
+      const config = { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } };
+
+      let response;
       if (editingItem) {
-        // Edit mode - PUT request with form-data
-        const response = await axios.put(
-          `/Admin/Material/MaterialTypeEdit/${editingItem.id}`, 
-          formData.toString(), // Kirim sebagai string URL-encoded
-          config
-        );
-        
-        if (response.data?.status === 200) {
-          await showSuccess('Berhasil!', 'Material Type berhasil diperbarui.');
-          setIsModalOpen(false);
-          await fetchMaterials();
-        } else {
-          throw new Error(response.data?.message || 'Gagal memperbarui data');
-        }
+        response = await axios.put(`/Admin/Material/MaterialTypeEdit/${editingItem.id}`, params, config);
       } else {
-        // Add mode - POST request with form-data
-        const response = await axios.post(
-          '/Admin/Material/MaterialTypeAdd', 
-          formData.toString(), // Kirim sebagai string URL-encoded
-          config
-        );
-        
-        if (response.data?.status === 200) {
-          await showSuccess('Berhasil!', 'Material Type berhasil ditambahkan.');
-          setIsModalOpen(false);
-          await fetchMaterials();
-        } else {
-          throw new Error(response.data?.message || 'Gagal menambahkan data');
-        }
+        response = await axios.post('/Admin/Material/MaterialTypeAdd', params, config);
       }
+
+      if (response.data?.status === 200) {
+        const action = editingItem ? 'diperbarui' : 'ditambahkan';
+        await showSuccess('Berhasil!', `Material Type berhasil ${action}.`);
+        setIsModalOpen(false);
+        await fetchMaterials();
+      } else {
+        throw new Error(response.data?.message || 'Gagal menyimpan data');
+      }
+
     } catch (err: unknown) {
-      console.error('Submit error:', err);
-      
       let errorMessage = 'Terjadi kesalahan saat menyimpan data.';
-      
+
       if (isAxiosError(err)) {
-        console.error('Error response:', err.response?.data);
-        console.error('Error status:', err.response?.status);
-        
         if (err.response?.status === 400) {
           errorMessage = err.response.data?.message || 'Data yang dimasukkan tidak valid';
         } else if (err.response?.status === 404) {
@@ -370,7 +323,7 @@ export default function MaterialTypePage() {
       } else if (err instanceof Error) {
         errorMessage = err.message;
       }
-      
+
       await showError('Gagal!', errorMessage);
     } finally {
       setSubmitting(false);
@@ -390,9 +343,9 @@ export default function MaterialTypePage() {
     return <LoadingState message="Memuat Material Types..." submessage="Harap tunggu sebentar" icon="mdi:package-variant" />;
   }
 
-  // if (error) {
-  //   return <ErrorState message={error} onRetry={fetchMaterials} />;
-  // }
+  if (error) {
+    return <ErrorState message={error} onRetry={fetchMaterials} />;
+  }
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
@@ -694,7 +647,7 @@ export default function MaterialTypePage() {
               <label className="block text-sm font-medium text-gray-700">
                 Status Material <span className="text-red-500">*</span>
               </label>
-              
+
               <div className="flex gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 {PREMIUM_OPTIONS.map((option) => (
                   <label key={option.value} className="flex items-center gap-2 cursor-pointer">

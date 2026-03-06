@@ -36,6 +36,7 @@ interface ApiResponse {
 
 interface UpdateMachineFormData {
   id_ma: string
+  name_ma: string
   bahan_max_p_cm: number
   bahan_max_l_cm: number
   bahan_min_p_cm: number
@@ -76,7 +77,7 @@ const formatSize = (panjang: string, lebar: string) =>
 const getMachineMeta = (name: string) =>
   MACHINE_META[name?.toUpperCase()] || DEFAULT_MACHINE_META
 
-// ============ BADGE (same as box-models) ============
+// ============ BADGE ============
 function Badge({ color, children }: { color: string; children: React.ReactNode }) {
   return (
     <span
@@ -223,8 +224,16 @@ export default function PrintSettingsPage() {
         didOpen: () => Swal.showLoading()
       })
 
-      // Simulasi API call — ganti dengan axios.put(...) ke endpoint sebenarnya
-      await new Promise(resolve => setTimeout(resolve, 1500))
+      await axios.put(`Admin/Cetak/MachineEdit/${formData.id_ma}`, {
+        name_ma:        formData.name_ma,
+        bahan_max_p_cm: formData.bahan_max_p_cm,
+        bahan_max_l_cm: formData.bahan_max_l_cm,
+        bahan_min_p_cm: formData.bahan_min_p_cm,
+        bahan_min_l_cm: formData.bahan_min_l_cm,
+        harga_blok:     formData.harga_blok,
+        harga_tulisan:  formData.harga_tulisan,
+        harga_separasi: formData.harga_separasi,
+      })
 
       Swal.close()
       await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Machine settings berhasil diperbarui!', timer: 1500, showConfirmButton: false })
@@ -233,7 +242,13 @@ export default function PrintSettingsPage() {
       await fetchMachines()
     } catch (err: unknown) {
       Swal.close()
-      const msg = err instanceof Error ? err.message : 'Gagal mengupdate machine settings'
+      let msg = 'Gagal mengupdate machine settings'
+      if (err && typeof err === 'object' && 'response' in err) {
+        const e = err as { response?: { data?: { message?: string } } }
+        msg = e.response?.data?.message || msg
+      } else if (err instanceof Error) {
+        msg = err.message
+      }
       Swal.fire({ icon: 'error', title: 'Error!', text: msg, confirmButtonColor: '#3b82f6' })
     } finally {
       setPosting(false)
@@ -251,16 +266,18 @@ export default function PrintSettingsPage() {
   const handleSubmitEdit = useCallback(() => {
     const form = document.forms.namedItem('editForm')
     if (form && selectedMachine) {
-      const get = (name: string) => parseFloat((form.elements.namedItem(name) as HTMLInputElement).value)
+      const getNum = (name: string) => parseFloat((form.elements.namedItem(name) as HTMLInputElement).value)
+      const getStr = (name: string) => (form.elements.namedItem(name) as HTMLInputElement).value
       handleUpdate({
-        id_ma: selectedMachine.id_ma,
-        bahan_max_p_cm: get('bahan_max_p_cm'),
-        bahan_max_l_cm: get('bahan_max_l_cm'),
-        bahan_min_p_cm: get('bahan_min_p_cm'),
-        bahan_min_l_cm: get('bahan_min_l_cm'),
-        harga_blok: get('harga_blok'),
-        harga_tulisan: get('harga_tulisan'),
-        harga_separasi: get('harga_separasi')
+        id_ma:          selectedMachine.id_ma,
+        name_ma:        getStr('name_ma'),
+        bahan_max_p_cm: getNum('bahan_max_p_cm'),
+        bahan_max_l_cm: getNum('bahan_max_l_cm'),
+        bahan_min_p_cm: getNum('bahan_min_p_cm'),
+        bahan_min_l_cm: getNum('bahan_min_l_cm'),
+        harga_blok:     getNum('harga_blok'),
+        harga_tulisan:  getNum('harga_tulisan'),
+        harga_separasi: getNum('harga_separasi'),
       })
     }
   }, [handleUpdate, selectedMachine])
@@ -268,6 +285,12 @@ export default function PrintSettingsPage() {
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat Print Settings..." submessage="Harap tunggu sebentar" icon="mdi:printer-settings" />
 
+  if (error) return (
+    <ErrorState
+      message={error}
+      onRetry={fetchMachines}
+    />
+  )
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
@@ -588,9 +611,27 @@ export default function PrintSettingsPage() {
               <div>
                 <p className="text-sm font-medium text-blue-800">Mengedit Konfigurasi Mesin</p>
                 <p className="text-xs text-blue-600 mt-1">
-                  Mesin: <span className="font-semibold">{selectedMachine.name_ma}</span> 
+                  ID Mesin: <span className="font-semibold">{selectedMachine.id_ma}</span>
                 </p>
               </div>
+            </div>
+
+            {/* Machine Name Section */}
+            <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+                <div className="w-6 h-6 bg-slate-200 rounded-full flex items-center justify-center">
+                  <Icon icon="mdi:printer" className="w-3.5 h-3.5 text-slate-600" />
+                </div>
+                Nama Mesin
+              </h4>
+              <Input
+                label="Nama Mesin"
+                name="name_ma"
+                type="text"
+                defaultValue={selectedMachine.name_ma}
+                disabled={posting}
+                leftIcon="mdi:printer"
+              />
             </div>
 
             {/* Material Size Section */}

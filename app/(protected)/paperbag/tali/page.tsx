@@ -4,11 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import axios from '@/lib/axios'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
-import Input from '@/components/UI/Input'
 import Modal from '@/components/UI/Modal'
+import Input from '@/components/UI/Input'
+import TextArea from '@/components/UI/TextArea'
 import LoadingState from '@/components/UI/LoadingState'
 import ErrorState from '@/components/UI/ErrorState'
-import EmptyState from '@/components/UI/EmptyState'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
 
@@ -23,47 +23,27 @@ interface PaperbagTali {
   updated_at: string | null
 }
 
-interface ApiResponse {
-  status: number
-  message: string
-  data: PaperbagTali[]
-}
-
-interface FormData {
+interface TaliForm {
   kode: string
   nama: string
   deskripsi: string
   harga_per_pcs: string
-  status: string
+}
+
+interface ApiResponse<T = unknown> {
+  status: number
+  message?: string
+  data?: T
 }
 
 // ============ CONSTANTS ============
-const TALI_META: Record<string, { icon: string; color: string }> = {
-  tali_kertas_natural: { icon: 'mdi:rope',                color: 'amber'  },
-  tali_kertas_putih:   { icon: 'mdi:rope',                color: 'gray'   },
-  tali_kertas_warna:   { icon: 'mdi:palette',             color: 'pink'   },
-  tali_satin_tipis:    { icon: 'mdi:ribbon',              color: 'purple' },
-  tali_satin_lebar:    { icon: 'mdi:ribbon',              color: 'indigo' },
-  tali_nilon:          { icon: 'mdi:link-variant',        color: 'blue'   },
-  tali_cotton:         { icon: 'mdi:leaf',                color: 'green'  },
-  tali_rami:           { icon: 'mdi:sprout',              color: 'lime'   },
-  tali_pu:             { icon: 'mdi:star-circle',         color: 'rose'   },
-  tanpa_tali:          { icon: 'mdi:minus-circle-outline',color: 'gray'   },
-}
+const EMPTY_FORM: TaliForm = { kode: '', nama: '', deskripsi: '', harga_per_pcs: '' }
 
-const DEFAULT_TALI_META = { icon: 'mdi:rope', color: 'gray' }
-
-const EMPTY_FORM: FormData = {
-  kode: '',
-  nama: '',
-  deskripsi: '',
-  harga_per_pcs: '',
-  status: '1',
-}
-
-const formatCurrency = (amount: string | number) => {
-  const num = typeof amount === 'string' ? parseFloat(amount) : amount
-  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num)
+// ============ HELPERS ============
+const formatRupiah = (value: string | number) => {
+  const num = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(num)) return 'Rp 0'
+  return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(num)
 }
 
 const getErrMsg = (err: unknown, fallback: string): string => {
@@ -73,65 +53,36 @@ const getErrMsg = (err: unknown, fallback: string): string => {
   return fallback
 }
 
-const validateForm = (form: FormData, isEdit = false): string | null => {
-  if (!isEdit && !form.kode.trim()) return 'Kode tali tidak boleh kosong.'
-  if (!form.nama.trim()) return 'Nama tali tidak boleh kosong.'
-  if (!form.deskripsi.trim()) return 'Deskripsi tidak boleh kosong.'
-  if (form.harga_per_pcs === '' || isNaN(Number(form.harga_per_pcs)) || Number(form.harga_per_pcs) < 0)
-    return 'Harga per pcs tidak valid.'
-  return null
+// ============ BADGE ============
+function Badge({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
+      style={{ background: `${color}18`, color }}
+    >
+      {children}
+    </span>
+  )
 }
 
-// ============ MAIN COMPONENT ============
-export default function PaperbagTaliPage() {
-  const [taliList, setTaliList] = useState<PaperbagTali[]>([])
+// ============ CUSTOM HOOK ============
+const usePaperbagTali = () => {
+  const [items, setItems] = useState<PaperbagTali[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isPosting, setIsPosting] = useState(false)
-  const [search, setSearch] = useState('')
 
-  // Modal state
-  const [showViewModal, setShowViewModal] = useState(false)
-  const [showAddModal, setShowAddModal] = useState(false)
-  const [showEditModal, setShowEditModal] = useState(false)
-  const [selectedItem, setSelectedItem] = useState<PaperbagTali | null>(null)
-
-  // Form state (shared for add & edit)
-  const [form, setForm] = useState<FormData>(EMPTY_FORM)
-
-  // ===== STATS =====
-  const stats = useMemo(() => {
-    const total = taliList.length
-    const aktif = taliList.filter(t => t.status === '1').length
-    const nonAktif = total - aktif
-    const prices = taliList.map(t => parseFloat(t.harga_per_pcs)).filter(p => p > 0)
-    const avgPrice = prices.length ? prices.reduce((a, b) => a + b, 0) / prices.length : 0
-    const maxPrice = prices.length ? Math.max(...prices) : 0
-    return { total, aktif, nonAktif, avgPrice, maxPrice }
-  }, [taliList])
-
-  // ===== FILTERED =====
-  const filtered = useMemo(() =>
-    taliList.filter(t =>
-      t.nama.toLowerCase().includes(search.toLowerCase()) ||
-      t.kode.toLowerCase().includes(search.toLowerCase())
-    ), [taliList, search])
-
-  // ===== API =====
   const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
-      const { data } = await axios.get<ApiResponse>('/Admin/Paperbag/PaperbagTali')
+      const { data } = await axios.get<ApiResponse<PaperbagTali[]>>('/Admin/Paperbag/PaperbagTali')
       if (data?.status === 200 && Array.isArray(data.data)) {
-        setTaliList(data.data)
+        setItems(data.data)
       } else {
-        setTaliList([])
-        setError('Format response tidak sesuai')
+        setError(data?.message || 'Format response tidak sesuai')
       }
-    } catch (err: unknown) {
+    } catch (err) {
       setError(getErrMsg(err, 'Tidak bisa connect ke server'))
-      setTaliList([])
     } finally {
       setLoading(false)
     }
@@ -139,508 +90,636 @@ export default function PaperbagTaliPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ===== HANDLERS: VIEW =====
-  const handleViewClick = (item: PaperbagTali) => {
+  return { items, loading, error, refetch: fetchData }
+}
+
+// ============ MAIN COMPONENT ============
+export default function PaperbagTaliPage() {
+  const { items, loading, error, refetch } = usePaperbagTali()
+  const [isPosting, setIsPosting] = useState(false)
+  const [search, setSearch] = useState('')
+
+  const [showAddModal, setShowAddModal] = useState(false)
+  const [showViewModal, setShowViewModal] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
+
+  const [addForm, setAddForm] = useState<TaliForm>(EMPTY_FORM)
+  const [editingItem, setEditingItem] = useState<PaperbagTali | null>(null)
+  const [selectedItem, setSelectedItem] = useState<PaperbagTali | null>(null)
+
+  // ===== STATS =====
+  const stats = useMemo(() => ({
+    total: items.length,
+    aktif: items.filter(i => i.status === '1').length,
+    nonaktif: items.filter(i => i.status !== '1').length,
+    avgHarga: items.length
+      ? items.reduce((acc, i) => acc + parseFloat(i.harga_per_pcs || '0'), 0) / items.length
+      : 0,
+    maxHarga: items.length
+      ? Math.max(...items.map(i => parseFloat(i.harga_per_pcs || '0')))
+      : 0,
+    gratis: items.filter(i => parseFloat(i.harga_per_pcs) === 0).length,
+  }), [items])
+
+  const filtered = useMemo(() =>
+    items.filter(i =>
+      i.nama.toLowerCase().includes(search.toLowerCase()) ||
+      i.kode.toLowerCase().includes(search.toLowerCase()) ||
+      i.deskripsi.toLowerCase().includes(search.toLowerCase())
+    ), [items, search])
+
+  // ===== VALIDATION =====
+  const validateForm = (form: TaliForm): boolean => {
+    if (!form.kode.trim() || !form.nama.trim() || !form.deskripsi.trim() || !form.harga_per_pcs.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Semua field wajib diisi', confirmButtonColor: '#3b82f6' })
+      return false
+    }
+    if (isNaN(Number(form.harga_per_pcs))) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Harga harus berupa angka', confirmButtonColor: '#3b82f6' })
+      return false
+    }
+    return true
+  }
+
+  // ===== ADD =====
+  const handleAdd = async () => {
+    if (!validateForm(addForm)) return
+    try {
+      setIsPosting(true)
+
+      // Gunakan URLSearchParams untuk mengirim sebagai form-urlencoded
+      const formData = new URLSearchParams()
+      formData.append('kode', addForm.kode.trim())
+      formData.append('nama', addForm.nama.trim())
+      formData.append('deskripsi', addForm.deskripsi.trim())
+      formData.append('harga_per_pcs', addForm.harga_per_pcs.trim())
+
+      const { data } = await axios.post<ApiResponse>(
+        '/Admin/Paperbag/PaperbagTaliAdd',
+        formData,
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 15000,
+        }
+      )
+
+      if (data?.status === 200) {
+        await Swal.fire({ icon: 'success', title: 'Berhasil!', text: data.message, timer: 1500, showConfirmButton: false })
+        setShowAddModal(false)
+        setAddForm(EMPTY_FORM)
+        await refetch()
+      } else {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: data?.message, confirmButtonColor: '#3b82f6' })
+      }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menyimpan data'), confirmButtonColor: '#3b82f6' })
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  // ===== EDIT =====
+  const handleEdit = async () => {
+    if (!editingItem) return
+    const form: TaliForm = {
+      kode: editingItem.kode,
+      nama: editingItem.nama,
+      deskripsi: editingItem.deskripsi,
+      harga_per_pcs: editingItem.harga_per_pcs,
+    }
+    if (!validateForm(form)) return
+
+    try {
+      setIsPosting(true)
+
+      const formData = new URLSearchParams()
+      formData.append('kode', form.kode.trim())
+      formData.append('nama', form.nama.trim())
+      formData.append('deskripsi', form.deskripsi.trim())
+      formData.append('harga_per_pcs', form.harga_per_pcs.trim())
+
+      // Jika backend mengharapkan POST untuk edit, ganti api.put menjadi api.post
+      const { data } = await axios.put<ApiResponse>(
+        `/Admin/Paperbag/PaperbagTaliEdit/${editingItem.id}`,
+        formData,
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: 15000,
+        }
+      )
+
+      if (data?.status === 200) {
+        await Swal.fire({ icon: 'success', title: 'Berhasil!', text: data.message, timer: 1500, showConfirmButton: false })
+        setShowEditModal(false)
+        setEditingItem(null)
+        await refetch()
+      } else {
+        Swal.fire({ icon: 'error', title: 'Gagal', text: data?.message, confirmButtonColor: '#3b82f6' })
+      }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal mengupdate data'), confirmButtonColor: '#3b82f6' })
+    } finally {
+      setIsPosting(false)
+    }
+  }
+
+  // ===== DELETE =====
+// ===== DELETE =====
+const handleDelete = async (item: PaperbagTali) => {
+  const result = await Swal.fire({
+    title: 'Konfirmasi Hapus',
+    html: `Hapus <strong>${item.nama}</strong>?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    cancelButtonText: 'Batal',
+    confirmButtonText: 'Ya, Hapus!',
+  })
+  if (!result.isConfirmed) return
+  
+  try {
+    const { data } = await axios.delete<ApiResponse>(`/Admin/Paperbag/PaperbagTaliDel/${item.id}`)
+    
+    // TOLERANSI ERROR 500 - tetap anggap berhasil jika status 200 ATAU 500 (karena data ternyata terhapus)
+    if (data?.status === 200) {
+      await Swal.fire({ icon: 'success', title: 'Dihapus!', text: data.message, timer: 1500, showConfirmButton: false })
+      await refetch()
+    } else {
+      // TAMBAHKAN: Cek apakah data masih ada dengan melakukan fetch ulang
+      await refetch()
+      
+      // Cek apakah item masih ada di items setelah refetch
+      const stillExists = items.some(i => i.id === item.id)
+      
+      if (!stillExists) {
+        // Data sudah tidak ada, anggap berhasil
+        await Swal.fire({ 
+          icon: 'success', 
+          title: 'Dihapus!', 
+          text: 'Data berhasil dihapus', 
+          timer: 1500, 
+          showConfirmButton: false 
+        })
+      } else {
+        // Data masih ada, baru tampilkan error
+        Swal.fire({ icon: 'error', title: 'Gagal', text: data?.message || 'Gagal menghapus data', confirmButtonColor: '#3b82f6' })
+      }
+    }
+  } catch (err) {
+    // Tangani error network dll
+    Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menghapus data'), confirmButtonColor: '#3b82f6' })
+  }
+}
+  // ===== CLICK HANDLERS =====
+  const handleViewClick = useCallback((item: PaperbagTali) => {
     setSelectedItem(item)
     setShowViewModal(true)
-  }
+  }, [])
 
-  // ===== HANDLERS: ADD =====
-  const handleAddClick = () => {
-    setForm(EMPTY_FORM)
-    setShowAddModal(true)
-  }
-
-  const handleAdd = async () => {
-    const err = validateForm(form)
-    if (err) {
-      Swal.fire({ icon: 'error', title: 'Validasi Error', text: err, confirmButtonColor: '#3B82F6' })
-      return
-    }
-
-    try {
-      setIsPosting(true)
-      await axios.post('/Admin/Paperbag/PaperbagTaliAdd', {
-        kode: form.kode.trim(),
-        nama: form.nama.trim(),
-        deskripsi: form.deskripsi.trim(),
-        harga_per_pcs: form.harga_per_pcs,
-      })
-      await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Tali baru berhasil ditambahkan!', timer: 1500, showConfirmButton: false })
-      setShowAddModal(false)
-      fetchData() // refresh list from server
-    } catch (err: unknown) {
-      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menambahkan data'), confirmButtonColor: '#3B82F6' })
-    } finally {
-      setIsPosting(false)
-    }
-  }
-
-  // ===== HANDLERS: EDIT =====
-  const handleEditClick = (item: PaperbagTali) => {
-    setSelectedItem(item)
-    setForm({
-      kode: item.kode,
-      nama: item.nama,
-      deskripsi: item.deskripsi,
-      harga_per_pcs: item.harga_per_pcs,
-      status: item.status,
-    })
+  const handleEditClick = useCallback((item: PaperbagTali) => {
+    setEditingItem({ ...item })
     setShowViewModal(false)
     setShowEditModal(true)
-  }
+  }, [])
 
-  const handleUpdate = async () => {
-    if (!selectedItem) return
-    const errMsg = validateForm(form, true)
-    if (errMsg) {
-      Swal.fire({ icon: 'error', title: 'Validasi Error', text: errMsg, confirmButtonColor: '#3B82F6' })
-      return
-    }
-
-    try {
-      setIsPosting(true)
-      await axios.put(`/Admin/Paperbag/PaperbagTaliEdit/${selectedItem.id}`, {
-        kode: selectedItem.kode, // kode tidak bisa diubah, kirim yang lama
-        nama: form.nama.trim(),
-        deskripsi: form.deskripsi.trim(),
-        harga_per_pcs: form.harga_per_pcs,
-      })
-      setTaliList(prev => prev.map(t =>
-        t.id === selectedItem.id
-          ? { ...t, nama: form.nama, deskripsi: form.deskripsi, harga_per_pcs: form.harga_per_pcs }
-          : t
-      ))
-      await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data tali berhasil diperbarui!', timer: 1500, showConfirmButton: false })
-      setShowEditModal(false)
-      setSelectedItem(null)
-    } catch (err: unknown) {
-      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menyimpan data'), confirmButtonColor: '#3B82F6' })
-    } finally {
-      setIsPosting(false)
-    }
-  }
-
-  // ===== HANDLERS: DELETE =====
-  const handleDeleteClick = async (item: PaperbagTali) => {
-    const result = await Swal.fire({
-      title: 'Hapus Tali?',
-      html: `Apakah kamu yakin ingin menghapus <b>"${item.nama}"</b>?<br/><small class="text-gray-500">Tindakan ini tidak dapat dibatalkan.</small>`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Ya, Hapus',
-      cancelButtonText: 'Batal',
-      confirmButtonColor: '#EF4444',
-      cancelButtonColor: '#6B7280',
-    })
-
-    if (result.isConfirmed) {
-      try {
-        await axios.delete(`/Admin/Paperbag/PaperbagTali/${item.id}`)
-        setTaliList(prev => prev.filter(t => t.id !== item.id))
-        await Swal.fire({ icon: 'success', title: 'Dihapus!', text: `"${item.nama}" berhasil dihapus.`, timer: 1500, showConfirmButton: false })
-      } catch (err: unknown) {
-        Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menghapus data'), confirmButtonColor: '#3B82F6' })
-      }
-    }
-  }
-
-  // ===== HANDLERS: TOGGLE STATUS =====
-  const toggleStatus = async (item: PaperbagTali) => {
-    const newStatus = item.status === '1' ? '0' : '1'
-    const result = await Swal.fire({
-      title: 'Ubah Status?',
-      text: `${item.status === '1' ? 'Nonaktifkan' : 'Aktifkan'} "${item.nama}"?`,
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonText: item.status === '1' ? 'Ya, Nonaktifkan' : 'Ya, Aktifkan',
-      confirmButtonColor: '#3B82F6',
-      cancelButtonColor: '#6B7280',
-    })
-
-    if (result.isConfirmed) {
-      try {
-        await axios.put(`/Admin/Paperbag/PaperbagTaliEdit/${item.id}`, {
-          kode: item.kode,
-          nama: item.nama,
-          deskripsi: item.deskripsi,
-          harga_per_pcs: item.harga_per_pcs,
-          status: newStatus,
-        })
-        setTaliList(prev => prev.map(t => t.id === item.id ? { ...t, status: newStatus } : t))
-        await Swal.fire({ icon: 'success', title: 'Berhasil!', text: `"${item.nama}" berhasil diperbarui!`, timer: 1500, showConfirmButton: false })
-      } catch (err: unknown) {
-        Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal mengubah status'), confirmButtonColor: '#3B82F6' })
-      }
-    }
-  }
-
-  // ===== SHARED FORM FIELDS =====
-  const renderFormFields = (isEdit = false) => (
-    <div className="bg-gray-50 p-5 rounded-xl border border-gray-200 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
-        <div className="w-5 h-5 bg-amber-100 rounded-full flex items-center justify-center">
-          <Icon icon="mdi:pencil" className="w-3 h-3 text-amber-600" />
-        </div>
-        Informasi Tali
-      </h3>
-
-      {/* Kode — hanya muncul saat Add */}
-      {!isEdit && (
-        <Input
-          label="Kode Tali"
-          type="text"
-          value={form.kode}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, kode: e.target.value }))}
-          disabled={isPosting}
-          leftIcon="mdi:identifier"
-          placeholder="contoh: tali_kertas_natural"
-        />
-      )}
-
-      <Input
-        label="Nama Tali"
-        type="text"
-        value={form.nama}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, nama: e.target.value }))}
-        disabled={isPosting}
-        leftIcon="mdi:rope"
-      />
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Deskripsi</label>
-        <textarea
-          value={form.deskripsi}
-          onChange={e => setForm(p => ({ ...p, deskripsi: e.target.value }))}
-          disabled={isPosting}
-          rows={3}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:opacity-60 resize-none"
-        />
-      </div>
-
-      <Input
-        label="Harga per pcs (IDR)"
-        type="number"
-        min={0}
-        step={50}
-        value={form.harga_per_pcs}
-        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm(p => ({ ...p, harga_per_pcs: e.target.value }))}
-        disabled={isPosting}
-        leftIcon="mdi:cash"
-      />
-    </div>
+  // ===== LOADING =====
+  if (loading) return (
+    <LoadingState message="Memuat data Paperbag Tali..." submessage="Harap tunggu sebentar" icon="mdi:rope" />
   )
 
   // ===== RENDER =====
-  if (loading) return <LoadingState message="Memuat data Tali Paperbag..." />
-
-
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
 
       {/* ===== HEADER ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-500 rounded-xl flex items-center justify-center shadow-lg shadow-amber-200">
-            <Icon icon="mdi:shopping" className="w-6 h-6  text-gray-700" />
+          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
+            <Icon icon="mdi:rope" className="w-6 h-6 text-amber-400" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl text-gray-900 font-bold">
-              Tali Paperbag
-            </h1>
-            <p className="text-gray-600 mt-1">Kelola jenis dan harga tali paperbag</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Paperbag Tali</h1>
+            <p className="text-slate-500 mt-1 text-sm">Kelola jenis tali untuk paperbag</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchData} className="border-gray-300" icon="mdi:refresh">
-            Refresh
-          </Button>
-          <Button variant="primary" size="sm" onClick={handleAddClick} icon="mdi:plus">
-            Tambah Tali
-          </Button>
-        </div>
+        <Button
+          onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }}
+          variant="primary"
+          size="md"
+          icon="mdi:plus"
+        >
+          Tambah Tali Baru
+        </Button>
       </div>
 
+      {/* ===== ERROR STATE ===== */}
+      {error && <ErrorState message={error} onRetry={refetch} />}
+
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            icon: 'mdi:rope', color: 'amber', label: 'Total Jenis Tali', value: stats.total,
-            children: (
-              <div className="flex items-center gap-3 text-xs">
-                <span className="text-green-600 flex items-center gap-1"><Icon icon="mdi:check-circle" className="w-3 h-3" />{stats.aktif} Aktif</span>
-                <span className="text-gray-300">•</span>
-                <span className="text-red-500 flex items-center gap-1"><Icon icon="mdi:minus-circle" className="w-3 h-3" />{stats.nonAktif} Non-aktif</span>
+            icon: 'mdi:rope',
+            label: 'Total Tali',
+            value: stats.total,
+            sub: `${stats.aktif} aktif · ${stats.nonaktif} nonaktif`,
+          },
+          {
+            icon: 'mdi:check-circle-outline',
+            label: 'Aktif',
+            value: stats.aktif,
+            sub: `dari ${stats.total} total tali`,
+            bar: stats.total ? (stats.aktif / stats.total) * 100 : 0,
+          },
+          {
+            icon: 'mdi:cash',
+            label: 'Rata-rata Harga',
+            value: formatRupiah(stats.avgHarga),
+            sub: `Maks: ${formatRupiah(stats.maxHarga)}`,
+          },
+          {
+            icon: 'mdi:tag-off-outline',
+            label: 'Tanpa Biaya',
+            value: stats.gratis,
+            sub: 'Tali dengan harga Rp 0',
+            bar: stats.total ? (stats.gratis / stats.total) * 100 : 0,
+          },
+        ].map((s, i) => (
+          <Card key={i} shadow="sm" padding="md" hoverable>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-gray-500">{s.label}</p>
+              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
+                <Icon icon={s.icon} className="w-4 h-4 text-amber-500" />
               </div>
-            )
-          },
-          {
-            icon: 'mdi:currency-usd', color: 'green', label: 'Rata-rata Harga', value: formatCurrency(stats.avgPrice),
-            children: <p className="text-xs text-gray-500">per pcs (tali berbayar)</p>
-          },
-          {
-            icon: 'mdi:trending-up', color: 'purple', label: 'Harga Tertinggi', value: formatCurrency(stats.maxPrice),
-            children: (
-              <>
-                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                  <div className="bg-purple-500 h-1.5 rounded-full" style={{ width: '100%' }} />
-                </div>
-                <p className="text-xs text-gray-500 mt-1">batas atas harga tali</p>
-              </>
-            )
-          },
-          {
-            icon: 'mdi:magnify', color: 'blue', label: 'Hasil Pencarian', value: filtered.length,
-            children: <p className="text-xs text-gray-500">dari {stats.total} total jenis tali</p>
-          }
-        ].map((stat, i) => (
-          <Card key={i} className="relative overflow-hidden group hover:shadow-xl transition-all">
-            <div className={`absolute top-0 right-0 w-20 h-20 bg-${stat.color}-50 rounded-bl-full group-hover:bg-${stat.color}-100 transition-all`} />
-            <div className="space-y-2 relative">
-              <p className="text-sm text-gray-600 flex items-center gap-2">
-                <Icon icon={stat.icon} className={`w-4 h-4 text-${stat.color}-600`} />
-                {stat.label}
-              </p>
-              <p className="text-3xl font-bold text-gray-900">{stat.value}</p>
-              {stat.children}
             </div>
+            <p className="text-2xl font-bold text-slate-800">{s.value}</p>
+            {s.bar !== undefined && (
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${s.bar}%` }} />
+              </div>
+            )}
+            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
           </Card>
         ))}
       </div>
 
-      {/* ===== MAIN TABLE ===== */}
-      <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4 px-6 pt-6">
+      {/* ===== TABLE CARD ===== */}
+      <Card shadow="md" padding="none">
+        {/* Toolbar */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Icon icon="mdi:format-list-bulleted" className="w-5 h-5 text-amber-600" />
-              Daftar Tali Paperbag
-            </h3>
-            <p className="text-sm text-gray-600 mt-1">Total {stats.total} jenis tali tersedia</p>
+            <h3 className="text-base font-semibold text-slate-800">Daftar Paperbag Tali</h3>
+            <p className="text-sm text-gray-400 mt-0.5">
+              Total {stats.total} tali · {stats.aktif} aktif
+            </p>
           </div>
-          {/* Search */}
           <div className="relative w-full sm:w-64">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
             <input
               type="text"
-              placeholder="Cari nama atau kode..."
+              placeholder="Cari nama, kode, deskripsi..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white"
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
           </div>
         </div>
 
+        {/* Table */}
         <div className="overflow-x-auto">
-          {taliList.length === 0 ? (
-            <EmptyState icon="mdi:rope" title="Belum ada data tali" message="Tidak ada jenis tali yang tersedia" />
+          {items.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <Icon icon="mdi:rope" className="w-16 h-16 text-gray-300" />
+              <p className="text-gray-500 font-medium text-lg">Belum ada data tali</p>
+            </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Tali', 'Kode', 'Harga / pcs', 'Status', 'Actions'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">{h}</th>
+                  {['Tali', 'Kode', 'Deskripsi', 'Harga / Pcs', 'Status', 'Aksi'].map(h => (
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
+              <tbody className="bg-white divide-y divide-gray-100">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center">
-                      <EmptyState
-                        icon="mdi:rope"
-                        title="Tidak ada hasil pencarian"
-                        message={`Tidak ditemukan tali dengan kata kunci "${search}"`}
-                        actionLabel="Clear Pencarian"
-                        onAction={() => setSearch('')}
-                      />
+                    <td colSpan={6} className="px-6 py-16 text-center">
+                      <div className="flex flex-col items-center gap-3">
+                        <Icon icon="mdi:rope" className="w-16 h-16 text-gray-300" />
+                        <p className="text-gray-500 font-medium">Tidak ada hasil</p>
+                        <p className="text-sm text-gray-400">
+                          Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;
+                        </p>
+                        <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
+                          Hapus Pencarian
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ) : (
-                  filtered.map((item) => {
-                    const meta = TALI_META[item.kode] || DEFAULT_TALI_META
-                    const harga = parseFloat(item.harga_per_pcs)
-                    return (
-                      <tr key={item.id} className="hover:bg-amber-50/50 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 bg-${meta.color}-100 rounded-lg flex items-center justify-center`}>
-                              <Icon icon={meta.icon} className={`w-5 h-5 text-${meta.color}-600`} />
-                            </div>
-                            <div>
-                              <p className="font-medium text-gray-900">{item.nama}</p>
-                            </div>
+                  filtered.map((item) => (
+                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                      {/* Tali */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-50">
+                            <Icon icon="mdi:rope" className="w-5 h-5 text-amber-500" />
                           </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-${meta.color}-100 text-${meta.color}-800 border border-${meta.color}-200`}>
-                            {item.kode}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4">
-                          {harga === 0 ? (
-                            <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-sm font-semibold px-3 py-1.5 rounded-lg border border-gray-200">
-                              <Icon icon="mdi:minus" className="w-4 h-4" />
-                              Gratis
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1.5 bg-green-50 text-green-700 text-sm font-bold px-3 py-1.5 rounded-lg border border-green-200">
-                              <Icon icon="mdi:cash" className="w-4 h-4" />
-                              {formatCurrency(item.harga_per_pcs)}
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${item.status === '1' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}`}>
-                              {item.status === '1' ? 'Aktif' : 'Non-aktif'}
-                            </span>
-                            <button onClick={() => toggleStatus(item)} className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100" title="Toggle Status">
-                              <Icon icon="mdi:swap-vertical" className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => handleViewClick(item)} className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors" title="Lihat Detail">
-                              <Icon icon="mdi:eye" className="w-5 h-5" />
-                            </button>
-                            <button onClick={() => handleEditClick(item)} className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors" title="Edit">
-                              <Icon icon="mdi:pencil" className="w-5 h-5" />
-                            </button>
-                            <button onClick={() => handleDeleteClick(item)} className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors" title="Hapus">
-                              <Icon icon="mdi:trash-can" className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })
+                          <p className="text-sm font-medium text-slate-800">{item.nama}</p>
+                        </div>
+                      </td>
+
+                      {/* Kode */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                          {item.kode}
+                        </span>
+                      </td>
+
+                      {/* Deskripsi */}
+                      <td className="px-6 py-4 max-w-xs">
+                        <p className="text-sm text-gray-500 truncate" title={item.deskripsi}>
+                          {item.deskripsi}
+                        </p>
+                      </td>
+
+                      {/* Harga */}
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="text-sm font-semibold text-green-600">
+                          {formatRupiah(item.harga_per_pcs)}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-6 py-4">
+                        <Badge color={item.status === '1' ? '#10b981' : '#ef4444'}>
+                          {item.status === '1' ? '✓ Aktif' : '✗ Nonaktif'}
+                        </Badge>
+                      </td>
+
+                      {/* Aksi */}
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleViewClick(item)}
+                            title="Lihat Detail"
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Icon icon="mdi:eye-outline" className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleEditClick(item)}
+                            title="Edit"
+                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          >
+                            <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(item)}
+                            title="Hapus"
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
+                            <Icon icon="mdi:delete-outline" className="w-5 h-5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
           )}
         </div>
 
+        {/* Footer */}
         {filtered.length > 0 && (
-          <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50/50">
-            <p className="text-sm text-gray-600">Menampilkan {filtered.length} dari {taliList.length} jenis tali</p>
+          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
+            <p className="text-sm text-gray-500">
+              Menampilkan <span className="font-medium text-slate-700">{filtered.length}</span> dari{' '}
+              <span className="font-medium text-slate-700">{items.length}</span> tali
+            </p>
           </div>
         )}
       </Card>
-
-      {/* ===== VIEW MODAL ===== */}
-      <Modal
-        isOpen={showViewModal}
-        onClose={() => setShowViewModal(false)}
-        title="🔍 Detail Tali Paperbag"
-        size="md"
-        footer={
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => setShowViewModal(false)}>Tutup</Button>
-            <Button variant="primary" onClick={() => selectedItem && handleEditClick(selectedItem)} icon="mdi:pencil">Edit Tali</Button>
-          </div>
-        }
-      >
-        {selectedItem && (() => {
-          const meta = TALI_META[selectedItem.kode] || DEFAULT_TALI_META
-          return (
-            <div className="space-y-5">
-              <div className={`bg-gradient-to-r from-${meta.color}-50 to-${meta.color}-100/50 p-5 rounded-xl border border-${meta.color}-200`}>
-                <div className="flex items-center gap-4">
-                  <div className={`w-14 h-14 bg-${meta.color}-100 rounded-xl flex items-center justify-center`}>
-                    <Icon icon={meta.icon} className={`w-7 h-7 text-${meta.color}-600`} />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold text-gray-900">{selectedItem.nama}</h2>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-${meta.color}-100 text-${meta.color}-800 mt-1`}>
-                      {selectedItem.kode}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Card className="p-4 bg-green-50/50 border-green-200">
-                  <p className="text-xs text-green-700 mb-1 flex items-center gap-1"><Icon icon="mdi:cash" className="w-3.5 h-3.5" />Harga per pcs</p>
-                  <p className="text-xl font-bold text-green-800">
-                    {parseFloat(selectedItem.harga_per_pcs) === 0 ? 'Gratis' : formatCurrency(selectedItem.harga_per_pcs)}
-                  </p>
-                </Card>
-                <Card className="p-4 bg-blue-50/50 border-blue-200">
-                  <p className="text-xs text-blue-700 mb-1 flex items-center gap-1"><Icon icon="mdi:information" className="w-3.5 h-3.5" />Status</p>
-                  <span className={`inline-flex items-center gap-1 text-sm font-semibold px-2.5 py-1 rounded-full ${selectedItem.status === '1' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                    <Icon icon={selectedItem.status === '1' ? 'mdi:check-circle' : 'mdi:close-circle'} className="w-4 h-4" />
-                    {selectedItem.status === '1' ? 'Aktif' : 'Non-aktif'}
-                  </span>
-                </Card>
-              </div>
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                <p className="text-xs text-gray-500 mb-1">Deskripsi</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{selectedItem.deskripsi}</p>
-              </div>
-            </div>
-          )
-        })()}
-      </Modal>
 
       {/* ===== ADD MODAL ===== */}
       <Modal
         isOpen={showAddModal}
         onClose={() => !isPosting && setShowAddModal(false)}
-        title="➕ Tambah Tali Baru"
+        title="➕ Tambah Paperbag Tali Baru"
         size="md"
+        closeOnOverlayClick={!isPosting}
         footer={
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => !isPosting && setShowAddModal(false)} disabled={isPosting}>Batal</Button>
-            <Button variant="primary" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:content-save">
-              Simpan
+          <>
+            <Button variant="outline" size="md" onClick={() => !isPosting && setShowAddModal(false)} disabled={isPosting}>
+              Batal
             </Button>
-          </div>
+            <Button variant="primary" size="md" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">
+              Simpan Tali
+            </Button>
+          </>
         }
       >
-        <div className="space-y-5">
-          <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Icon icon="mdi:plus-circle" className="w-4 h-4 text-green-600" />
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-3 py-3 bg-amber-50 border border-amber-100 rounded-lg">
+            <Icon icon="mdi:information-outline" className="w-4 h-4 text-amber-500 flex-shrink-0" />
+            <p className="text-sm text-amber-700">Isi semua field yang diperlukan.</p>
+          </div>
+
+          <Input
+            label="Kode Tali"
+            value={addForm.kode}
+            onChange={(e) => setAddForm({ ...addForm, kode: e.target.value })}
+            placeholder="contoh: tali_kertas_natural"
+            required
+            disabled={isPosting}
+            leftIcon="mdi:tag"
+          />
+
+          <Input
+            label="Nama Tali"
+            value={addForm.nama}
+            onChange={(e) => setAddForm({ ...addForm, nama: e.target.value })}
+            placeholder="contoh: Tali Kertas Natural"
+            required
+            disabled={isPosting}
+            leftIcon="mdi:format-title"
+          />
+
+          <TextArea
+            label="Deskripsi"
+            value={addForm.deskripsi}
+            onChange={(e) => setAddForm({ ...addForm, deskripsi: e.target.value })}
+            rows={3}
+            placeholder="Deskripsikan tali ini..."
+            required
+            disabled={isPosting}
+          />
+
+          <Input
+            label="Harga per Pcs (Rp)"
+            type="number"
+            value={addForm.harga_per_pcs}
+            onChange={(e) => setAddForm({ ...addForm, harga_per_pcs: e.target.value })}
+            placeholder="0"
+            required
+            disabled={isPosting}
+            leftIcon="mdi:cash"
+            min="0"
+          />
+        </div>
+      </Modal>
+
+      {/* ===== VIEW MODAL ===== */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        title="Detail Paperbag Tali"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" size="md" onClick={() => setShowViewModal(false)}>
+              Tutup
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              icon="mdi:pencil-outline"
+              onClick={() => selectedItem && handleEditClick(selectedItem)}
+            >
+              Edit Tali
+            </Button>
+          </>
+        }
+      >
+        {selectedItem && (
+          <div className="space-y-4">
+            {/* Identity */}
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-50">
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100">
+                <Icon icon="mdi:rope" className="w-7 h-7 text-amber-500" />
               </div>
               <div>
-                <p className="text-sm font-semibold text-green-900">Tambah Jenis Tali Baru</p>
-                <p className="text-xs text-green-600 mt-0.5">Isi semua field yang diperlukan. Kode tali bersifat unik.</p>
+                <p className="text-base font-semibold text-slate-800">{selectedItem.nama}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge color={selectedItem.status === '1' ? '#10b981' : '#ef4444'}>
+                    {selectedItem.status === '1' ? '✓ Aktif' : '✗ Nonaktif'}
+                  </Badge>
+                  <span className="text-xs text-gray-400 font-mono">{selectedItem.kode}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Description */}
+            <Card shadow="none" padding="sm" bordered>
+              <p className="text-xs text-gray-500 mb-1">Deskripsi</p>
+              <p className="text-sm text-slate-700">{selectedItem.deskripsi || '—'}</p>
+            </Card>
+
+            {/* Price */}
+            <Card shadow="none" padding="sm" bordered>
+              <p className="text-xs text-gray-500 mb-1">Harga per Pcs</p>
+              <p className="text-xl font-bold text-green-600">{formatRupiah(selectedItem.harga_per_pcs)}</p>
+            </Card>
+
+            {/* Metadata */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <p className="text-xs text-gray-400">ID</p>
+                <p className="text-sm text-slate-700 font-mono">#{selectedItem.id}</p>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400">Terakhir Diperbarui</p>
+                <p className="text-sm text-slate-700">
+                  {selectedItem.updated_at
+                    ? new Date(selectedItem.updated_at).toLocaleDateString('id-ID')
+                    : '—'}
+                </p>
               </div>
             </div>
           </div>
-          {renderFormFields(false)}
-        </div>
+        )}
       </Modal>
 
       {/* ===== EDIT MODAL ===== */}
       <Modal
         isOpen={showEditModal}
         onClose={() => !isPosting && setShowEditModal(false)}
-        title={`✏️ Edit Tali — ${selectedItem?.nama}`}
+        title={`Edit Paperbag Tali — ${editingItem?.nama}`}
         size="md"
+        closeOnOverlayClick={!isPosting}
         footer={
-          <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={() => !isPosting && setShowEditModal(false)} disabled={isPosting}>Batal</Button>
-            <Button variant="primary" onClick={handleUpdate} loading={isPosting} disabled={isPosting}>Simpan Perubahan</Button>
-          </div>
+          <>
+            <Button variant="outline" size="md" onClick={() => !isPosting && setShowEditModal(false)} disabled={isPosting}>
+              Batal
+            </Button>
+            <Button variant="primary" size="md" onClick={handleEdit} loading={isPosting} disabled={isPosting} icon="mdi:check">
+              Simpan Perubahan
+            </Button>
+          </>
         }
       >
-        {selectedItem && (
-          <div className="space-y-5">
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon icon="mdi:information" className="w-4 h-4 text-amber-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-amber-900">{selectedItem.nama}</p>
-                  <p className="text-xs text-amber-600 mt-0.5">Kode: {selectedItem.kode} (tidak dapat diubah)</p>
-                </div>
+        {editingItem && (
+          <div className="space-y-4">
+            <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+              <h4 className="text-sm font-semibold text-slate-700 mb-3">Informasi Tali</h4>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="ID"
+                  value={editingItem.id}
+                  disabled
+                  leftIcon="mdi:identifier"
+                />
+                <Input
+                  label="Kode Tali"
+                  value={editingItem.kode}
+                  onChange={(e) => setEditingItem({ ...editingItem, kode: e.target.value })}
+                  required
+                  disabled={isPosting}
+                  leftIcon="mdi:tag"
+                />
+              </div>
+
+              <div className="mt-4">
+                <Input
+                  label="Nama Tali"
+                  value={editingItem.nama}
+                  onChange={(e) => setEditingItem({ ...editingItem, nama: e.target.value })}
+                  required
+                  disabled={isPosting}
+                  leftIcon="mdi:format-title"
+                />
+              </div>
+
+              <div className="mt-4">
+                <TextArea
+                  label="Deskripsi"
+                  value={editingItem.deskripsi}
+                  onChange={(e) => setEditingItem({ ...editingItem, deskripsi: e.target.value })}
+                  rows={3}
+                  fullWidth
+                  required
+                  disabled={isPosting}
+                />
+              </div>
+
+              <div className="mt-4">
+                <Input
+                  label="Harga per Pcs (Rp)"
+                  type="number"
+                  value={editingItem.harga_per_pcs}
+                  onChange={(e) => setEditingItem({ ...editingItem, harga_per_pcs: e.target.value })}
+                  required
+                  disabled={isPosting}
+                  leftIcon="mdi:cash"
+                  min="0"
+                />
               </div>
             </div>
-            {renderFormFields(true)}
           </div>
         )}
       </Modal>

@@ -278,7 +278,7 @@ export default function PisauConfigPage() {
     })
     if (result.isConfirmed) {
       try {
-        const { data } = await axios.delete<ApiResponse>(`/Admin/Pisau/PisauConfig/${id}`)
+        const { data } = await axios.delete<ApiResponse>(`/Admin/Pisau/PisauConfigDel/${id}`)
         if (data?.status === 200) {
           await Swal.fire({ icon: 'success', title: 'Dihapus!', text: `"${configKey}" berhasil dihapus!`, timer: 1500, showConfirmButton: false })
           await refetch()
@@ -659,20 +659,6 @@ export default function PisauConfigPage() {
       >
         {selectedItem && (
           <div className="space-y-5">
-            {/* Info box */}
-            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                <Icon icon="mdi:pencil-outline" className="w-5 h-5 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-sm font-medium text-amber-800">Mode Edit</p>
-                <p className="text-xs text-amber-600 mt-1">
-                  Mengedit konfigurasi ID:{' '}
-                  <span className="font-mono font-semibold">{selectedItem.id}</span>
-                </p>
-              </div>
-            </div>
-
             <Input
               label="Config Key"
               value={selectedItem.config_key}

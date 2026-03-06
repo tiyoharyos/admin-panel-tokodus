@@ -67,7 +67,7 @@ const ACCENT_COLORS = [
   { bg: '#ec4899', text: '#9d174d' },
 ]
 
-// ===== BADGE (same as print-settings) =====
+// ===== BADGE =====
 function Badge({ color, children }: { color: string; children: React.ReactNode }) {
   return (
     <span
@@ -244,17 +244,25 @@ export default function IndexLainnyaPage() {
     }
   }
 
+  // ✅ UPDATED: endpoint diganti ke /Admin/Other/indexLainnyaEdit/:id
   const handleEdit = async () => {
     if (!editingItem) return
-    if (!editingItem.value?.trim()) { Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Value tidak boleh kosong' }); return }
+    if (!editingItem.config_key?.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Config Key tidak boleh kosong' })
+      return
+    }
+    if (!editingItem.value?.trim()) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Value tidak boleh kosong' })
+      return
+    }
     try {
       setIsPosting(true)
-      const response = await axios.put<ApiResponse>(`/Admin/Other/indexLainnya/${editingItem.id}`, {
-        config_key: editingItem.config_key,
-        qty_min: editingItem.qty_min || null,
-        qty_max: editingItem.qty_max || null,
-        value: editingItem.value ?? '',
-        keterangan: editingItem.keterangan || null
+      const response = await axios.put<ApiResponse>(`/Admin/Other/indexLainnyaEdit/${editingItem.id}`, {
+        config_key:  editingItem.config_key,
+        qty_min:     editingItem.qty_min || null,
+        qty_max:     editingItem.qty_max || null,
+        value:       editingItem.value ?? '',
+        keterangan:  editingItem.keterangan || null
       }, { headers: { 'Content-Type': 'application/json', 'ngrok-skip-browser-warning': 'true' } })
 
       if (response.data?.status === 200) {
@@ -296,7 +304,7 @@ export default function IndexLainnyaPage() {
   }, [refetch])
 
   // ===== UI HANDLERS =====
-  const handleAddClick = useCallback(() => { setAddFormData({ ...BASE_ADD_FORM }); setShowAddModal(true) }, [])
+  // const handleAddClick = useCallback(() => { setAddFormData({ ...BASE_ADD_FORM }); setShowAddModal(true) }, [])
   const handleEditClick = useCallback((item: IndexLainnya) => { setEditingItem({ ...item }); setShowEditModal(true) }, [])
   const handleDetailClick = useCallback((item: IndexLainnya) => { setSelectedItem(item); setShowDetailModal(true) }, [])
   const handleCloseAddModal = () => { if (!isPosting) { setShowAddModal(false); setAddFormData({ ...BASE_ADD_FORM }) } }
@@ -305,6 +313,8 @@ export default function IndexLainnyaPage() {
 
   // ===== RENDER =====
   if (loading) return <LoadingState message="Memuat Index Lainnya..." icon="mdi:database-settings" />
+
+  if (error) return <ErrorState message={error} onRetry={refetch} />
 
   const TABLE_HEADERS_BASE = ['Keterangan', 'Range Qty', 'Raw Value', 'Formatted', 'Aksi']
 
@@ -392,9 +402,9 @@ export default function IndexLainnyaPage() {
           <Button onClick={handleRefresh} variant="outline" size="md" icon="mdi:refresh">
             Refresh Data
           </Button>
-          <Button onClick={handleAddClick} variant="primary" size="md" icon="mdi:plus">
+          {/* <Button onClick={handleAddClick} variant="primary" size="md" icon="mdi:plus">
             Tambah Data Baru
-          </Button>
+          </Button> */}
         </div>
       </div>
 
@@ -457,7 +467,7 @@ export default function IndexLainnyaPage() {
           <div className="flex flex-col items-center gap-3 py-16">
             <Icon icon="mdi:database-off" className="w-16 h-16 text-gray-300" />
             <p className="text-gray-500 font-medium text-lg">Belum ada data</p>
-            <Button variant="primary" size="sm" onClick={handleAddClick} icon="mdi:plus">Tambah Data Baru</Button>
+            {/* <Button variant="primary" size="sm" onClick={handleAddClick} icon="mdi:plus">Tambah Data Baru</Button> */}
           </div>
         </Card>
       ) : selectedConfigKey === 'all' ? (
@@ -641,6 +651,8 @@ export default function IndexLainnyaPage() {
                 <div>
                   <p className="text-sm font-medium text-slate-800">Mode Edit</p>
                   <p className="text-xs text-gray-500 mt-0.5">
+                    ID: <span className="font-mono font-semibold">{editingItem.id}</span>
+                    {' · '}
                     <span className="font-mono" style={{ color: accent.text }}>{editingItem.config_key}</span>
                   </p>
                 </div>

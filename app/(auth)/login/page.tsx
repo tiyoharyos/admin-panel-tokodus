@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { loginService } from '@/services/auth.service'
+import { setToken } from '@/lib/auth'
 import Image from 'next/image';
 import { Icon } from '@iconify/react';
 import Swal from 'sweetalert2';
@@ -13,40 +15,51 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
 
-    try {
-      // Hapus logic token, langsung redirect ke dashboard
-      await Swal.fire({
-        icon: 'success',
-        title: 'Login Berhasil',
-        text: 'Selamat datang kembali!',
-        showConfirmButton: false,
-        timer: 1500,
-        backdrop: true
-      })
 
-      router.push('/dashboard')
-      router.refresh()
+const handleLogin = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError('')
+  setLoading(true)
 
-    } catch (err: any) {
-      setError('Login gagal. Silakan coba lagi.')
-      
-      Swal.fire({
-        icon: 'error',
-        title: 'Login Gagal',
-        text: 'Terjadi kesalahan sistem',
-        confirmButtonText: 'Coba Lagi'
-      })
-    } finally {
-      setLoading(false)
-    }
+  try {
+    const data = await loginService(form)
+
+    setToken(data.access_token)
+
+    await Swal.fire({
+      icon: 'success',
+      title: 'Login Berhasil',
+      text: 'Selamat datang kembali!',
+      showConfirmButton: false,
+      timer: 1500,
+      backdrop: true
+    })
+
+    router.push('/dashboard')
+    router.refresh()
+
+  } catch (err: any) {
+    const message =
+      err.response?.data?.message ||
+      err.response?.data?.error ||
+      'Login gagal. Periksa email & password.'
+
+    setError(message)
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Login Gagal',
+      text: message,
+      confirmButtonText: 'Coba Lagi'
+    })
+
+  } finally {
+    setLoading(false)
   }
+}
 
-  // ... sisanya tetap sama (handleKeyPress, handleInputChange, dll)
+
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !loading) {
       handleLogin(e as any);
@@ -58,9 +71,13 @@ export default function Login() {
     if (error) setError('');
   };
 
+  
+
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(135deg, #1a3a7d 0%, #1f4390 50%, #2557b8 100%)' }}>
-      {/* ... JSX tetap sama seperti sebelumnya ... */}
+
+
       <div className="w-full max-w-md relative z-10">
         <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
           {/* Logo and Title */}
@@ -120,6 +137,7 @@ export default function Login() {
                     }`}
                     placeholder="Masukkan email"
                     disabled={loading}
+                    
                   />
                 </div>
               </div>
@@ -143,6 +161,7 @@ export default function Login() {
                     }`}
                     placeholder="Masukkan password"
                     disabled={loading}
+                    
                   />
                   <button
                     type="button"
@@ -190,6 +209,7 @@ export default function Login() {
                 <Icon icon="solar:shield-check-bold-duotone" className="w-4 h-4 mr-1.5 text-gray-400" />
                 <p>Hubungi administrator untuk mendapatkan akses</p>
               </div>
+
             </div>
           </div>
         </div>
@@ -204,6 +224,7 @@ export default function Login() {
 
       {/* Inline CSS Animations */}
       <style>{`
+  
         .animation-delay-2000 {
           animation-delay: 2s;
         }
