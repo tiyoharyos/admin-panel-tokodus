@@ -10,7 +10,6 @@ import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import TextArea from '@/components/UI/TextArea'
 import LoadingState from '@/components/UI/LoadingState'
-import ErrorState from '@/components/UI/ErrorState'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
 
@@ -831,7 +830,7 @@ export default function BoxModelsPage() {
                         {/* Formula */}
                         <td className="px-6 py-4">
                           <Badge color={model.hasFormula ? '#10b981' : '#f59e0b'}>
-                            {model.hasFormula ? '✓ Ada' : '✗ Belum'}
+                            {model.hasFormula ? '✓ Sudah Ada Formula' : '✗ Tidak Ada Formula'}
                           </Badge>
                           {model.hasFormula && (
                             <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]" title={formatFormula(model.formulaComponents)}>
@@ -898,7 +897,7 @@ export default function BoxModelsPage() {
       <Modal
         isOpen={showAddModal}
         onClose={() => !isPosting && setShowAddModal(false)}
-        title="➕ Tambah Box Model Baru"
+        title="Tambah Box Model Baru"
         size="md"
         closeOnOverlayClick={!isPosting}
         footer={
@@ -1067,7 +1066,7 @@ export default function BoxModelsPage() {
       <Modal
         isOpen={showEditModal}
         onClose={() => !isPosting && setShowEditModal(false)}
-        title={`Edit Box Model — ${editingItem?.namaModel}`}
+        title={`Edit Data — ${editingItem?.namaModel}`}
         size="full"
         closeOnOverlayClick={!isPosting}
         footer={
@@ -1189,15 +1188,15 @@ export default function BoxModelsPage() {
       {/* ===== FORMULA MODAL ===== */}
       <Modal
         isOpen={showFormulaModal}
-        onClose={() => !isPosting && setShowFormulaModal(false)}
+        onClose={() => !isPosting && setShowFormulaModal(false)} 
         title="➕ Tambah Formula"
-        size="lg"
+        size="full"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
             <Button
               variant="outline"
-              size="md"
+              size="lg"
               onClick={() => !isPosting && setShowFormulaModal(false)}
               disabled={isPosting}
             >
