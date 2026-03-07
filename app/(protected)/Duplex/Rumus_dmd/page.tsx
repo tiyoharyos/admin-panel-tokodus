@@ -726,8 +726,18 @@ export default function DuplexDMDPage() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-slate-800">{index + 1}</span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                          {item.gsm} GSM
+                        <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="px-2.5 py-1 rounded-full text-xs font-bold"
+                            style={{
+                              backgroundColor: getGSMColor(item.gsm).light,
+                              color: getGSMColor(item.gsm).bg
+                            }}
+                          >
+                            {item.gsm} GSM
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">

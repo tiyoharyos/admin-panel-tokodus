@@ -58,6 +58,17 @@ const getErrMsg = (err: unknown, fallback: string): string => {
   return fallback
 }
 
+const formatDate = (date: string | null) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
 // ============ MAIN COMPONENT ============
 export default function OtherMinOrderPage() {
   const [configs, setConfigs] = useState<MinOrderConfig[]>([])
@@ -66,7 +77,9 @@ export default function OtherMinOrderPage() {
   const [isPosting, setIsPosting] = useState(false)
 
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showViewModal, setShowViewModal] = useState(false)
   const [editingItem, setEditingItem] = useState<MinOrderConfig | null>(null)
+  const [selectedItem, setSelectedItem] = useState<MinOrderConfig | null>(null)
 
   // ✅ Form state mencakup semua field yang dikirim ke backend
   const [editQty, setEditQty] = useState('')
@@ -105,6 +118,11 @@ export default function OtherMinOrderPage() {
   useEffect(() => { fetchData() }, [fetchData])
 
   // ===== HANDLERS =====
+  const handleViewClick = (item: MinOrderConfig) => {
+    setSelectedItem(item)
+    setShowViewModal(true)
+  }
+
   const handleEditClick = (item: MinOrderConfig) => {
     setEditingItem(item)
     setEditQty(item.min_qty)
@@ -119,6 +137,11 @@ export default function OtherMinOrderPage() {
       setEditQty('')
       setEditKeterangan('')
     }
+  }
+
+  const handleCloseViewModal = () => {
+    setShowViewModal(false)
+    setSelectedItem(null)
   }
 
   // ✅ UPDATED: endpoint ke /Admin/Other/MinOrderConfigEdit/:id
@@ -146,7 +169,7 @@ export default function OtherMinOrderPage() {
       // Update local state tanpa refetch
       setConfigs(prev => prev.map(c =>
         c.id === editingItem.id
-          ? { ...c, min_qty: editQty, keterangan: editKeterangan.trim() }
+          ? { ...c, min_qty: editQty, keterangan: editKeterangan.trim(), updated_at: new Date().toISOString() }
           : c
       ))
 
@@ -270,13 +293,22 @@ export default function OtherMinOrderPage() {
 
                       {/* Aksi */}
                       <td className="px-6 py-4">
-                        <button
-                          onClick={() => handleEditClick(config)}
-                          title="Edit"
-                          className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                        >
-                          <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleViewClick(config)}
+                            title="Lihat Detail"
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
+                            <Icon icon="mdi:eye-outline" className="w-5 h-5" />
+                          </button>
+                          <button
+                            onClick={() => handleEditClick(config)}
+                            title="Edit"
+                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          >
+                            <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
+                          </button>
+                        </div>
                       </td>
 
                     </tr>
@@ -296,6 +328,97 @@ export default function OtherMinOrderPage() {
           </div>
         )}
       </Card>
+
+      {/* ===== VIEW MODAL ===== */}
+      <Modal
+        isOpen={showViewModal}
+        onClose={handleCloseViewModal}
+        title="Detail Minimum Order Config"
+        size="md"
+        footer={
+          <>
+            <Button variant="outline" size="md" onClick={handleCloseViewModal}>
+              Tutup
+            </Button>
+            <Button
+              variant="primary"
+              size="md"
+              icon="mdi:pencil-outline"
+              onClick={() => {
+                setShowViewModal(false)
+                if (selectedItem) handleEditClick(selectedItem)
+              }}
+            >
+              Edit
+            </Button>
+          </>
+        }
+      >
+        {selectedItem && (() => {
+          const meta = getMeta(selectedItem.config_key)
+          return (
+            <div className="space-y-4">
+
+              {/* Identity */}
+              <div className="flex items-center gap-4 p-4 rounded-xl bg-blue-50">
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-blue-100"
+                  style={{ background: `${meta.accent}18` }}>
+                  <Icon icon={meta.icon} className="w-7 h-7" style={{ color: meta.accent }} />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-slate-800">{meta.label}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge color={meta.accent}>{selectedItem.config_key}</Badge>
+                    <span className="text-xs text-gray-400">ID: #{selectedItem.id}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Description */}
+              <Card shadow="none" padding="sm" bordered>
+                <p className="text-xs text-gray-500 mb-2">Deskripsi</p>
+                <p className="text-sm text-slate-700">{meta.desc}</p>
+              </Card>
+
+              {/* Minimum Quantity */}
+              <Card shadow="none" padding="sm" bordered>
+                <p className="text-xs text-gray-500 mb-2">Minimum Quantity</p>
+                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
+                  <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+                    style={{ background: `${meta.accent}15` }}>
+                    <Icon icon="mdi:package-variant-closed" className="w-5 h-5" style={{ color: meta.accent }} />
+                  </div>
+                  <div>
+                    <p className="text-2xl font-bold" style={{ color: meta.accent }}>
+                      {Number(selectedItem.min_qty).toLocaleString('id-ID')} <span className="text-sm font-normal text-gray-500">pcs</span>
+                    </p>
+                    <p className="text-xs text-gray-400">Minimum order quantity</p>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Keterangan */}
+              <Card shadow="none" padding="sm" bordered>
+                <p className="text-xs text-gray-500 mb-2">Keterangan</p>
+                <div className="p-3 bg-slate-50 rounded-lg">
+                  <p className="text-sm text-slate-700">{selectedItem.keterangan}</p>
+                </div>
+              </Card>
+
+              {/* Metadata */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-gray-400">Terakhir Diperbarui</p>
+                  <p className="text-sm text-slate-700 flex items-center gap-1">
+                    <Icon icon="mdi:clock-outline" className="w-4 h-4 text-gray-400" />
+                    {formatDate(selectedItem.updated_at)}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )
+        })()}
+      </Modal>
 
       {/* ===== EDIT MODAL ===== */}
       <Modal

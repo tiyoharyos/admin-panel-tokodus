@@ -10,15 +10,14 @@ import LoadingState from '@/components/UI/LoadingState'
 import ErrorState from '@/components/UI/ErrorState'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
+import Select from '@/components/UI/Select'
 
 // ============================================================
 // TYPES
 // ============================================================
 interface PaperbagPrice {
-  // price_id = ps.id (PK asli tabel paperbag_sheet_prices) — dari SELECT ps.id as price_id
-  // id = material_type_id (alias dari SELECT *, field id terakhir di JOIN)
-  price_id: string       // PK asli — dipakai untuk edit & delete
-  id: string             // material_type_id alias — jangan dipakai untuk CRUD
+  price_id: string       
+  id: string             
   material_type_id: string
   gsm: string
   sheet_size_id: string
@@ -55,9 +54,6 @@ const EMPTY_FORM: FormState = {
   sheet_size_id: '',
   harga_lembar: '',
 }
-
-// Material options hardcoded karena API GET tidak punya endpoint master material
-// Sesuaikan dengan data aktual di DB kamu
 const MATERIAL_OPTIONS = [
   { id: '1',  name: 'Brown Kraft', type: 'K'  },
   { id: '6',  name: 'Ivory',       type: 'IV' },

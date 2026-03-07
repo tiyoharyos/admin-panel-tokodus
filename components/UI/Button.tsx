@@ -6,7 +6,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
-  icon?: string | ReactNode // Bisa string (icon name) atau ReactNode (komponen Icon)
+  icon?: string | ReactNode 
   iconPosition?: 'left' | 'right'
   fullWidth?: boolean
   rounded?: 'none' | 'sm' | 'md' | 'lg' | 'full'
