@@ -8,7 +8,6 @@ import Swal from 'sweetalert2'
 import axios from '@/lib/axios'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
-import Badge from '@/components/UI/Badge'
 import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
@@ -29,11 +28,10 @@ interface DuplexDMDData {
 
 interface FormData {
   sheet_size_id: string
-  gsm: string          // ← sama seperti DK: value = string GSM ("250", "270", dst)
+  gsm: string          
   harga_per_lembar: string
 }
 
-// ← Disamakan dengan DK: field lengkap dari gramasiIndex
 interface GramasiItem {
   id: string
   material_type_id: string
