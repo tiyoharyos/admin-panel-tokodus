@@ -369,7 +369,6 @@ export default function OtherMinOrderPage() {
                   <p className="text-base font-semibold text-slate-800">{meta.label}</p>
                   <div className="flex items-center gap-2 mt-1">
                     <Badge color={meta.accent}>{selectedItem.config_key}</Badge>
-                    <span className="text-xs text-gray-400">ID: #{selectedItem.id}</span>
                   </div>
                 </div>
               </div>
@@ -404,17 +403,6 @@ export default function OtherMinOrderPage() {
                   <p className="text-sm text-slate-700">{selectedItem.keterangan}</p>
                 </div>
               </Card>
-
-              {/* Metadata */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-gray-400">Terakhir Diperbarui</p>
-                  <p className="text-sm text-slate-700 flex items-center gap-1">
-                    <Icon icon="mdi:clock-outline" className="w-4 h-4 text-gray-400" />
-                    {formatDate(selectedItem.updated_at)}
-                  </p>
-                </div>
-              </div>
             </div>
           )
         })()}

@@ -517,32 +517,7 @@ export default function PisauRegistryPage() {
         ))}
       </div>
 
-      {/* ===== SEARCH & FILTER ===== */}
-      <Card shadow="sm" padding="md">
-        <div className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-              <Icon icon="mdi:magnify" className="w-4 h-4 text-gray-400" />
-            </div>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Cari kode pisau, nama box, catatan..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
-              >
-                <Icon icon="mdi:close" className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-
-        </div>
-      </Card>
+    
 
       {/* ===== MAIN TABLE CARD ===== */}
       <Card shadow="md" padding="none">
@@ -710,7 +685,6 @@ export default function PisauRegistryPage() {
                 </div>
                 <div>
                   <p className="text-base font-semibold font-mono text-slate-800">{selectedItem.kode_pisau}</p>
-                  <p className="text-xs text-gray-400 mt-1">ID: {selectedItem.id}</p>
                 </div>
               </div>
 

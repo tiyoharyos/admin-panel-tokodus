@@ -295,7 +295,7 @@ const handleDelete = async (item: PaperbagTali) => {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:rope" className="w-6 h-6 text-amber-400" />
+            <Icon icon="ion:bag-handle-outline" className="w-6 h-6 text-amber-500" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Paperbag Tali</h1>
@@ -319,7 +319,7 @@ const handleDelete = async (item: PaperbagTali) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           {
-            icon: 'mdi:rope',
+            icon: 'ion:bag-handle-outline',
             label: 'Total Tali',
             value: stats.total,
             sub: `${stats.aktif} aktif · ${stats.nonaktif} nonaktif`,
@@ -396,7 +396,7 @@ const handleDelete = async (item: PaperbagTali) => {
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Tali', 'Kode', 'Deskripsi', 'Harga / Pcs', 'Status', 'Aksi'].map(h => (
+                  {['Tali', 'Kode', 'Deskripsi', 'Harga / Pcs',  'Aksi'].map(h => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       {h}
                     </th>
@@ -426,7 +426,7 @@ const handleDelete = async (item: PaperbagTali) => {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-50">
-                            <Icon icon="mdi:rope" className="w-5 h-5 text-amber-500" />
+                            <Icon icon="ion:bag-handle-outline" className="w-5 h-5 text-amber-500" />
                           </div>
                           <p className="text-sm font-medium text-slate-800">{item.nama}</p>
                         </div>
@@ -453,12 +453,6 @@ const handleDelete = async (item: PaperbagTali) => {
                         </span>
                       </td>
 
-                      {/* Status */}
-                      <td className="px-6 py-4">
-                        <Badge color={item.status === '1' ? '#10b981' : '#ef4444'}>
-                          {item.status === '1' ? '✓ Aktif' : '✗ Nonaktif'}
-                        </Badge>
-                      </td>
 
                       {/* Aksi */}
                       <td className="px-6 py-4">
@@ -624,22 +618,6 @@ const handleDelete = async (item: PaperbagTali) => {
               <p className="text-xs text-gray-500 mb-1">Harga per Pcs</p>
               <p className="text-xl font-bold text-green-600">{formatRupiah(selectedItem.harga_per_pcs)}</p>
             </Card>
-
-            {/* Metadata */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs text-gray-400">ID</p>
-                <p className="text-sm text-slate-700 font-mono">#{selectedItem.id}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400">Terakhir Diperbarui</p>
-                <p className="text-sm text-slate-700">
-                  {selectedItem.updated_at
-                    ? new Date(selectedItem.updated_at).toLocaleDateString('id-ID')
-                    : '—'}
-                </p>
-              </div>
-            </div>
           </div>
         )}
       </Modal>

@@ -329,11 +329,12 @@ export default function PisauConfigPage() {
       </div>
 
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {[
           { icon: 'mdi:cog', label: 'Total Konfigurasi', value: String(stats.totalConfig), sub: `${stats.totalConfig} aktif` },
           { icon: 'mdi:arrow-expand-horizontal', label: 'Rata-rata Panjang', value: `${formatNumber(stats.avgPanjang)} cm`, sub: `Min ${formatNumber(stats.minPanjang)} · Max ${formatNumber(stats.maxPanjang)} cm` },
           { icon: 'mdi:arrow-expand-vertical', label: 'Rata-rata Lebar', value: `${formatNumber(stats.avgLebar)} cm`, sub: `Min ${formatNumber(stats.minLebar)} · Max ${formatNumber(stats.maxLebar)} cm` },
+          { icon: 'mdi:arrow-expand-up', label: 'Rata-rata Tinggi', value: `${formatNumber(stats.avgTinggi)} cm`, sub: `Min ${formatNumber(stats.minTinggi)} · Max ${formatNumber(stats.maxTinggi)} cm` },
         ].map((s, i) => (
           <Card key={i} shadow="sm" padding="md" hoverable>
             <div className="flex items-center justify-between mb-3">
@@ -517,7 +518,6 @@ export default function PisauConfigPage() {
               </div>
               <div>
                 <p className="text-base font-semibold font-mono text-slate-800">{selectedItem.config_key}</p>
-                <p className="text-xs text-gray-400 mt-1">ID: {selectedItem.id}</p>
               </div>
             </div>
 

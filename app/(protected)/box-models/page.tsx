@@ -830,7 +830,7 @@ export default function BoxModelsPage() {
                         {/* Formula */}
                         <td className="px-6 py-4">
                           <Badge color={model.hasFormula ? '#10b981' : '#f59e0b'}>
-                            {model.hasFormula ? '✓ Sudah Ada Formula' : '✗ Tidak Ada Formula'}
+                            {model.hasFormula ? '✓ Ada Formula' : '✗ Tanpa Formula'}
                           </Badge>
                           {model.hasFormula && (
                             <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]" title={formatFormula(model.formulaComponents)}>
