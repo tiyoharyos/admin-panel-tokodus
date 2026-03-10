@@ -716,14 +716,12 @@ export default function BoxModelsPage() {
             icon: 'mdi:package-variant-closed',
             label: 'Total Model',
             value: stats.totalModels,
-            sub: `${stats.activeModels} aktif · ${stats.totalModels - stats.activeModels} nonaktif`,
           },
           {
             icon: 'mdi:calculator',
             label: 'Dengan Formula',
             value: stats.withFormulas,
             sub: `${stats.withoutFormulas} belum memiliki formula`,
-            bar: (stats.withFormulas / stats.totalModels) * 100 || 0,
           },
           {
             icon: 'mdi:chart-pie',
@@ -736,7 +734,6 @@ export default function BoxModelsPage() {
             label: 'Rata-rata Komponen',
             value: (stats.withFormulas ? (boxModels.reduce((acc, m) => acc + m.formulaComponents.length, 0) / stats.withFormulas).toFixed(1) : '0') + '/model',
             sub: `Maks: ${maxFormulaCount} komponen`,
-            bar: maxFormulaCount > 0 ? (boxModels.reduce((acc, m) => acc + m.formulaComponents.length, 0) / boxModels.length / maxFormulaCount) * 100 : 0,
           },
         ].map((s, i) => (
           <Card key={i} shadow="sm" padding="md" hoverable>
@@ -747,11 +744,6 @@ export default function BoxModelsPage() {
               </div>
             </div>
             <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-            {s.bar !== undefined && (
-              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${s.bar}%` }} />
-              </div>
-            )}
             <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
           </Card>
         ))}

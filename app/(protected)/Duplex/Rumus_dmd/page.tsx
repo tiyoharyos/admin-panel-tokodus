@@ -1,6 +1,5 @@
 'use client'
 // app/(protected)/duplex-dmd/page.tsx
-'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Icon } from '@iconify/react'
@@ -23,20 +22,20 @@ interface DuplexDMDData {
   type: 'DMD'
   pl?: string
   sheet_size_id?: string
-  gramasi_id?: string // menyimpan nilai GSM string, misal "250"
+  gramasi_id?: string
 }
 
 interface FormData {
   sheet_size_id: string
-  gsm: string          
+  gsm: string
   harga_per_lembar: string
 }
 
 interface GramasiItem {
   id: string
   material_type_id: string
-  gsm: string          // "250"|"270"|"310"|"350"|"400"|"450"
-  name: string         // "Duplex" / "DMD" / dll
+  gsm: string
+  name: string
   material_type: string
   is_premium: string
 }
@@ -79,14 +78,8 @@ interface DuplexMduplekItem {
 }
 
 // ===== CONSTANTS =====
-// ← gsm sekarang string (nilai GSM), bukan gramasi_id
-const BASE_FORM: FormData = {
-  sheet_size_id: '',
-  gsm: '',
-  harga_per_lembar: ''
-}
+const BASE_FORM: FormData = { sheet_size_id: '', gsm: '', harga_per_lembar: '' }
 
-// ===== META CONSTANTS =====
 const GSM_COLORS = [
   { bg: '#3b82f6', light: '#dbeafe' },
   { bg: '#10b981', light: '#d1fae5' },
@@ -104,10 +97,8 @@ const formatUkuranDisplay = (panjang: number, lebar: number): string => {
 const formatCurrency = (amount: number): string => {
   if (!amount || amount === 0) return '-'
   return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    style: 'currency', currency: 'IDR',
+    minimumFractionDigits: 0, maximumFractionDigits: 0
   }).format(amount)
 }
 
@@ -137,10 +128,6 @@ const useDuplexDMD = () => {
   const [error, setError] = useState<string | null>(null)
   const [loadingGramasi, setLoadingGramasi] = useState(false)
 
-  // ← Disamakan dengan DK:
-  //   - filter by name (sesuaikan dengan nama material DMD di API)
-  //   - dedup by gsm (bukan by id)
-  //   - sort GSM ascending
   const fetchGramasi = useCallback(async () => {
     try {
       setLoadingGramasi(true)
@@ -148,16 +135,13 @@ const useDuplexDMD = () => {
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
         const seen = new Set<string>()
         const filtered = response.data.data
-          // Sesuaikan filter name dengan nilai yang dikembalikan API untuk DMD
-          // Contoh: .filter(item => item.name === 'Duplex MD')
-          // Jika tidak ada filter name spesifik, hapus baris filter di bawah
           .filter(item => item.name === 'Duplex')
           .filter(item => {
-            if (seen.has(item.gsm)) return false   // ← dedup by gsm, bukan by id
+            if (seen.has(item.gsm)) return false
             seen.add(item.gsm)
             return true
           })
-          .sort((a, b) => parseInt(a.gsm) - parseInt(b.gsm))  // ← sort GSM asc
+          .sort((a, b) => parseInt(a.gsm) - parseInt(b.gsm))
         setGramasiList(filtered)
       } else {
         setGramasiList([])
@@ -174,34 +158,23 @@ const useDuplexDMD = () => {
     try {
       setLoading(true)
       setError(null)
-
       const response = await axios.get<ApiResponse<DuplexMduplekItem[]>>('Admin/Duplek/duplekMduplekPrices')
-
       let priceData: DuplexMduplekItem[] = []
       if (response.data?.status === 200 && Array.isArray(response.data.data)) {
         priceData = response.data.data
       }
-
       if (priceData.length === 0) {
         setDuplexData([])
         setSheetSizeList([])
         return
       }
-
       const seenSizes = new Map<string, SheetSizeItem>()
       priceData.forEach(item => {
         if (item.id_sh && !seenSizes.has(item.id_sh)) {
-          seenSizes.set(item.id_sh, {
-            id_sh: item.id_sh,
-            panjang_sh: item.panjang_mm,
-            lebar_sh: item.lebar_mm
-          })
+          seenSizes.set(item.id_sh, { id_sh: item.id_sh, panjang_sh: item.panjang_mm, lebar_sh: item.lebar_mm })
         }
       })
-      setSheetSizeList(
-        Array.from(seenSizes.values()).sort((a, b) => parseInt(a.id_sh) - parseInt(b.id_sh))
-      )
-
+      setSheetSizeList(Array.from(seenSizes.values()).sort((a, b) => parseInt(a.id_sh) - parseInt(b.id_sh)))
       const processedData: DuplexDMDData[] = priceData
         .filter(item => item.panjang_mm && item.lebar_mm && item.gsm)
         .map(item => ({
@@ -213,13 +186,11 @@ const useDuplexDMD = () => {
           type: 'DMD' as const,
           pl: `${item.panjang_mm}x${item.lebar_mm}`,
           sheet_size_id: item.id_sh,
-          gramasi_id: item.gsm   // ← menyimpan string GSM ("250", "270", dst)
+          gramasi_id: item.gsm
         }))
         .filter(item => item.panjang > 0 && item.lebar > 0 && item.gsm > 0)
-
       setDuplexData(processedData)
       setError(null)
-
     } catch (err: unknown) {
       console.error('Error fetching Duplex DMD data:', err)
       setError('Gagal mengambil data DMD')
@@ -232,13 +203,10 @@ const useDuplexDMD = () => {
   const calculateStats = (data: DuplexDMDData[]): Stats => {
     const totalRecords = data.length
     const totalPrice = data.reduce((sum, item) => sum + (item.harga_per_lembar || 0), 0)
-    const uniqueCombinations = new Set(
-      data.map(item => `${item.panjang}x${item.lebar}x${item.gsm}`)
-    ).size
+    const uniqueCombinations = new Set(data.map(item => `${item.panjang}x${item.lebar}x${item.gsm}`)).size
     const uniqueGsm = new Set(data.map(item => item.gsm)).size
     const uniqueSizes = new Set(data.map(item => `${item.panjang}x${item.lebar}`)).size
     const withPrice = data.filter(item => item.harga_per_lembar > 0).length
-
     return {
       totalRecords,
       averagePrice: totalRecords > 0 ? totalPrice / totalRecords : 0,
@@ -256,30 +224,12 @@ const useDuplexDMD = () => {
 
   const stats = useMemo(() => calculateStats(duplexData), [duplexData])
 
-  return {
-    duplexData,
-    gramasiList,
-    sheetSizeList,
-    loading,
-    error,
-    loadingGramasi,
-    stats,
-    refetch: fetchDuplexData
-  }
+  return { duplexData, gramasiList, sheetSizeList, loading, error, loadingGramasi, stats, refetch: fetchDuplexData }
 }
 
 // ===== MAIN COMPONENT =====
 export default function DuplexDMDPage() {
-  const {
-    duplexData,
-    gramasiList,
-    sheetSizeList,
-    loading,
-    error,
-    loadingGramasi,
-    stats,
-    refetch
-  } = useDuplexDMD()
+  const { duplexData, gramasiList, sheetSizeList, loading, error, loadingGramasi, stats, refetch } = useDuplexDMD()
 
   const [isPosting, setIsPosting] = useState(false)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -287,7 +237,6 @@ export default function DuplexDMDPage() {
   const [showViewModal, setShowViewModal] = useState(false)
   const [editingItem, setEditingItem] = useState<DuplexDMDData | null>(null)
   const [selectedItem, setSelectedItem] = useState<DuplexDMDData | null>(null)
-
 
   const [addFormData, setAddFormData] = useState<FormData>({ ...BASE_FORM })
   const [editFormData, setEditFormData] = useState<FormData>({ ...BASE_FORM })
@@ -298,57 +247,38 @@ export default function DuplexDMDPage() {
   const [editSelectedSize, setEditSelectedSize] = useState<SheetSizeItem | null>(null)
   const [editSelectedGramasi, setEditSelectedGramasi] = useState<GramasiItem | null>(null)
 
-  // ===== SORTED DATA =====
-  const sortedDuplexData = useMemo(() => {
-    return [...duplexData].sort((a, b) => {
-      if (a.gsm !== b.gsm) return a.gsm - b.gsm
-      return (a.panjang * a.lebar) - (b.panjang * b.lebar)
-    })
-  }, [duplexData])
+  const sortedDuplexData = useMemo(() =>
+    [...duplexData].sort((a, b) => a.gsm !== b.gsm ? a.gsm - b.gsm : (a.panjang * a.lebar) - (b.panjang * b.lebar)),
+    [duplexData])
 
-  // ===== OPTIONS =====
   const sheetSizeOptions = useMemo(() =>
     sheetSizeList.map((item, idx) => ({
-      value: item.id_sh,
-      label: buildSheetLabel(item.panjang_sh, item.lebar_sh),
-      key: `sh-${item.id_sh}-${idx}`
+      value: item.id_sh, label: buildSheetLabel(item.panjang_sh, item.lebar_sh), key: `sh-${item.id_sh}-${idx}`
     })), [sheetSizeList])
 
-  // ← Disamakan dengan DK: value = item.gsm (string GSM), bukan item.id
   const gramasiOptions = useMemo(() =>
     gramasiList.map((item, idx) => ({
-      value: item.gsm,            // ← "250", "270", dst
-      label: `${item.gsm} GSM`,
-      key: `gr-${item.gsm}-${idx}`
+      value: item.gsm, label: `${item.gsm} GSM`, key: `gr-${item.gsm}-${idx}`
     })), [gramasiList])
 
   // ===== VALIDATION =====
   const validateForm = (formData: FormData, isEdit = false): Record<string, string> => {
     const errors: Record<string, string> = {}
-
     if (!formData.sheet_size_id) errors.sheet_size_id = 'Ukuran tidak boleh kosong'
-    if (!formData.gsm) errors.gsm = 'GSM tidak boleh kosong'  // ← field gsm
-
+    if (!formData.gsm) errors.gsm = 'GSM tidak boleh kosong'
     if (formData.harga_per_lembar && formData.harga_per_lembar.trim() !== '') {
       const harga = parseFloat(formData.harga_per_lembar)
       if (isNaN(harga)) errors.harga_per_lembar = 'Harga harus berupa angka'
       else if (harga < 0) errors.harga_per_lembar = 'Harga tidak boleh negatif'
     }
-
     if (!isEdit && formData.sheet_size_id && formData.gsm) {
-      // ← cek duplikat by gsm string (sama seperti DK)
       const gNum = parseInt(formData.gsm)
-      const isDuplicate = duplexData.some(item =>
-        item.sheet_size_id === formData.sheet_size_id && item.gsm === gNum
-      )
+      const isDuplicate = duplexData.some(item => item.sheet_size_id === formData.sheet_size_id && item.gsm === gNum)
       if (isDuplicate) {
         const size = sheetSizeList.find(s => s.id_sh === formData.sheet_size_id)
-        if (size) {
-          errors.general = `Kombinasi ${buildSheetLabel(size.panjang_sh, size.lebar_sh)} dengan GSM ${formData.gsm} sudah ada`
-        }
+        if (size) errors.general = `Kombinasi ${buildSheetLabel(size.panjang_sh, size.lebar_sh)} dengan GSM ${formData.gsm} sudah ada`
       }
     }
-
     return errors
   }
 
@@ -357,173 +287,73 @@ export default function DuplexDMDPage() {
     const errors = validateForm(addFormData, false)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
-      Swal.fire({
-        icon: 'error',
-        title: 'Validasi Error',
-        text: 'Periksa kembali data yang diisi',
-        confirmButtonColor: '#3b82f6'
-      })
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Periksa kembali data yang diisi', confirmButtonColor: '#3b82f6' })
       return
     }
-
-    // ← payload gramasi = nilai GSM (sama seperti DK)
-    // key harga_lembar sesuai nama kolom di DB/backend
-    const payload = {
-      gramasi: addFormData.gsm,
-      pl: addFormData.sheet_size_id,
-      harga_lembar: addFormData.harga_per_lembar || '0'
-    }
-
+    const payload = { gramasi: addFormData.gsm, pl: addFormData.sheet_size_id, harga_lembar: addFormData.harga_per_lembar || '0' }
     try {
       setIsPosting(true)
       const response = await axios.post<ApiResponse>('Admin/Duplek/duplekMduplekPricesAdd', payload)
-
       if (response.status === 200 || response.data?.status === 200) {
         await refetch()
-        Swal.fire({
-          icon: 'success',
-          title: 'Berhasil!',
-          text: 'Data Duplex DMD berhasil ditambahkan',
-          timer: 1500,
-          showConfirmButton: false
-        })
-        setShowAddModal(false)
-        resetAddForm()
-      } else {
-        throw new Error(response.data?.message || 'Gagal menambahkan data')
-      }
+        Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data Duplex DMD berhasil ditambahkan', timer: 1500, showConfirmButton: false })
+        setShowAddModal(false); resetAddForm()
+      } else throw new Error(response.data?.message || 'Gagal menambahkan data')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } }, message?: string })
-        ?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
-      Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: msg,
-        confirmButtonColor: '#3b82f6'
-      })
-    } finally {
-      setIsPosting(false)
-    }
+      const msg = (err as { response?: { data?: { message?: string } }, message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
+      Swal.fire({ icon: 'error', title: 'Error!', text: msg, confirmButtonColor: '#3b82f6' })
+    } finally { setIsPosting(false) }
   }
 
   const handleEdit = async () => {
     if (!editingItem) return
-
     const errors = validateForm(editFormData, true)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
-      Swal.fire({
-        icon: 'error',
-        title: 'Validasi Error',
-        text: 'Periksa kembali data yang diisi',
-        confirmButtonColor: '#3b82f6'
-      })
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Periksa kembali data yang diisi', confirmButtonColor: '#3b82f6' })
       return
     }
-
-    const payload = {
-      gramasi: editFormData.gsm,
-      pl: editFormData.sheet_size_id,
-      harga_lembar: editFormData.harga_per_lembar || '0'
-    }
-
+    const payload = { gramasi: editFormData.gsm, pl: editFormData.sheet_size_id, harga_lembar: editFormData.harga_per_lembar || '0' }
     try {
       setIsPosting(true)
-      const response = await axios.put<ApiResponse>(
-        `Admin/Duplek/duplekMduplekPricesEdit/${editingItem.id}`,
-        payload
-      )
-
+      const response = await axios.put<ApiResponse>(`Admin/Duplek/duplekMduplekPricesEdit/${editingItem.id}`, payload)
       if (response.status === 200 || response.data?.status === 200) {
         await refetch()
-        Swal.fire({
-          icon: 'success',
-          title: 'Berhasil!',
-          text: 'Data Duplex DMD berhasil diperbarui',
-          timer: 1500,
-          showConfirmButton: false
-        })
-        setShowEditModal(false)
-        setEditingItem(null)
-        resetEditForm()
-      } else {
-        throw new Error(response.data?.message || 'Gagal mengupdate data')
-      }
+        Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data Duplex DMD berhasil diperbarui', timer: 1500, showConfirmButton: false })
+        setShowEditModal(false); setEditingItem(null); resetEditForm()
+      } else throw new Error(response.data?.message || 'Gagal mengupdate data')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } }, message?: string })
-        ?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
-      Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: msg,
-        confirmButtonColor: '#3b82f6'
-      })
-    } finally {
-      setIsPosting(false)
-    }
+      const msg = (err as { response?: { data?: { message?: string } }, message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
+      Swal.fire({ icon: 'error', title: 'Error!', text: msg, confirmButtonColor: '#3b82f6' })
+    } finally { setIsPosting(false) }
   }
 
   const handleDelete = async (id: number, gsm: number, ukuran: string) => {
     const result = await Swal.fire({
-      title: 'Konfirmasi Hapus',
-      text: `Hapus data GSM ${gsm} - Ukuran ${ukuran}?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      confirmButtonText: 'Ya, Hapus!',
-      cancelButtonText: 'Batal'
+      title: 'Konfirmasi Hapus', text: `Hapus data GSM ${gsm} - Ukuran ${ukuran}?`,
+      icon: 'warning', showCancelButton: true,
+      confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Hapus!', cancelButtonText: 'Batal'
     })
     if (!result.isConfirmed) return
-
     try {
       setIsPosting(true)
       const response = await axios.delete<ApiResponse>(`Admin/Duplek/duplekMduplekPricesDel/${id}`)
-
       if (response.status === 200) {
         await refetch()
-        Swal.fire({
-          icon: 'success',
-          title: 'Dihapus!',
-          text: 'Data Duplex DMD berhasil dihapus',
-          timer: 1500,
-          showConfirmButton: false
-        })
-      } else {
-        throw new Error(response.data?.message || 'Gagal menghapus data')
-      }
+        Swal.fire({ icon: 'success', title: 'Dihapus!', text: 'Data Duplex DMD berhasil dihapus', timer: 1500, showConfirmButton: false })
+      } else throw new Error(response.data?.message || 'Gagal menghapus data')
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { message?: string } }, message?: string })
-        ?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
-      Swal.fire({
-        icon: 'error',
-        title: 'Error!',
-        text: msg,
-        confirmButtonColor: '#3b82f6'
-      })
-    } finally {
-      setIsPosting(false)
-    }
+      const msg = (err as { response?: { data?: { message?: string } }, message?: string })?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
+      Swal.fire({ icon: 'error', title: 'Error!', text: msg, confirmButtonColor: '#3b82f6' })
+    } finally { setIsPosting(false) }
   }
 
-  // ===== VIEW HANDLER =====
-  const handleViewClick = (item: DuplexDMDData) => {
-    setSelectedItem(item)
-    setShowViewModal(true)
-  }
-
-  // ===== UI HANDLERS =====
-  const handleAddClick = () => {
-    resetAddForm()
-    setShowAddModal(true)
-  }
+  const handleViewClick = (item: DuplexDMDData) => { setSelectedItem(item); setShowViewModal(true) }
+  const handleAddClick = () => { resetAddForm(); setShowAddModal(true) }
 
   const handleEditClick = (item: DuplexDMDData) => {
     setEditingItem(item)
-    setEditFormData({
-      sheet_size_id: item.sheet_size_id || '',
-      gsm: item.gramasi_id || item.gsm.toString(), // ← gramasi_id sudah menyimpan string GSM
-      harga_per_lembar: item.harga_per_lembar ? item.harga_per_lembar.toString() : ''
-    })
+    setEditFormData({ sheet_size_id: item.sheet_size_id || '', gsm: item.gramasi_id || item.gsm.toString(), harga_per_lembar: item.harga_per_lembar ? item.harga_per_lembar.toString() : '' })
     setFormErrors({})
     setShowEditModal(true)
   }
@@ -532,150 +362,128 @@ export default function DuplexDMDPage() {
     setAddFormData(prev => ({ ...prev, [field]: value }))
     setFormErrors(prev => ({ ...prev, [field]: '', general: '' }))
   }
-
   const handleEditInputChange = (field: string, value: string) => {
     setEditFormData(prev => ({ ...prev, [field]: value }))
     setFormErrors(prev => ({ ...prev, [field]: '' }))
   }
 
-  const resetAddForm = () => {
-    setAddFormData({ ...BASE_FORM })
-    setSelectedSize(null)
-    setSelectedGramasi(null)
-    setFormErrors({})
-  }
+  const resetAddForm = () => { setAddFormData({ ...BASE_FORM }); setSelectedSize(null); setSelectedGramasi(null); setFormErrors({}) }
+  const resetEditForm = () => { setEditFormData({ ...BASE_FORM }); setEditSelectedSize(null); setEditSelectedGramasi(null); setFormErrors({}) }
 
-  const resetEditForm = () => {
-    setEditFormData({ ...BASE_FORM })
-    setEditSelectedSize(null)
-    setEditSelectedGramasi(null)
-    setFormErrors({})
-  }
+  const handleCloseAddModal = () => { if (!isPosting) { setShowAddModal(false); resetAddForm() } }
+  const handleCloseEditModal = () => { if (!isPosting) { setShowEditModal(false); setEditingItem(null); resetEditForm() } }
+  const handleCloseViewModal = () => { setShowViewModal(false); setSelectedItem(null) }
 
-  const handleCloseAddModal = () => {
-    if (!isPosting) { setShowAddModal(false); resetAddForm() }
-  }
+  useEffect(() => { setSelectedSize(sheetSizeList.find(i => i.id_sh === addFormData.sheet_size_id) || null) }, [addFormData.sheet_size_id, sheetSizeList])
+  useEffect(() => { setSelectedGramasi(gramasiList.find(i => i.gsm === addFormData.gsm) || null) }, [addFormData.gsm, gramasiList])
+  useEffect(() => { setEditSelectedSize(sheetSizeList.find(i => i.id_sh === editFormData.sheet_size_id) || null) }, [editFormData.sheet_size_id, sheetSizeList])
+  useEffect(() => { setEditSelectedGramasi(gramasiList.find(i => i.gsm === editFormData.gsm) || null) }, [editFormData.gsm, gramasiList])
 
-  const handleCloseEditModal = () => {
-    if (!isPosting) { setShowEditModal(false); setEditingItem(null); resetEditForm() }
-  }
-
-  const handleCloseViewModal = () => {
-    setShowViewModal(false)
-    setSelectedItem(null)
-  }
-
-  // ===== SYNC SELECTED ITEMS =====
-  useEffect(() => {
-    setSelectedSize(sheetSizeList.find(i => i.id_sh === addFormData.sheet_size_id) || null)
-  }, [addFormData.sheet_size_id, sheetSizeList])
-
-  // ← cari by gsm string, bukan by id
-  useEffect(() => {
-    setSelectedGramasi(gramasiList.find(i => i.gsm === addFormData.gsm) || null)
-  }, [addFormData.gsm, gramasiList])
-
-  useEffect(() => {
-    setEditSelectedSize(sheetSizeList.find(i => i.id_sh === editFormData.sheet_size_id) || null)
-  }, [editFormData.sheet_size_id, sheetSizeList])
-
-  // ← cari by gsm string, bukan by id
-  useEffect(() => {
-    setEditSelectedGramasi(gramasiList.find(i => i.gsm === editFormData.gsm) || null)
-  }, [editFormData.gsm, gramasiList])
-
-  // ===== LOADING STATE =====
   if (loading && duplexData.length === 0 && !error) {
-    return <LoadingState
-      message="Memuat Data Duplex DMD..."
-      submessage="Harap tunggu sebentar"
-      icon="mdi:book-open-variant"
-    />
+    return <LoadingState message="Memuat Data Duplex DMD..." submessage="Harap tunggu sebentar" icon="mdi:book-open-variant" />
   }
 
-  // ===== RENDER =====
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+    <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+
       {/* ===== HEADER ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:book-open-variant" className="w-6 h-6 text-blue-400" />
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
+            <Icon icon="mdi:book-open-variant" className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Duplex DMD</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola ukuran dan harga Duplex DMD</p>
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+              Duplex DMD
+            </h1>
+            <p className="text-gray-600 mt-1 text-sm">Kelola ukuran dan harga Duplex DMD</p>
+            <div className="flex flex-wrap gap-4 mt-2 text-sm">
+              <span className="text-gray-600"><span className="font-medium">Total:</span> {stats.totalRecords}</span>
+              <span className="text-gray-600"><span className="font-medium">GSM:</span> {stats.uniqueGsm} variasi</span>
+              <span className="text-gray-600"><span className="font-medium">Ukuran:</span> {stats.uniqueSizes} unik</span>
+            </div>
           </div>
         </div>
-        <Button
-          onClick={handleAddClick}
-          variant="primary"
-          size="md"
-          icon="mdi:plus"
-        >
-          Tambah Ukuran DMD
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={refetch} className="border-gray-300 hover:bg-gray-50" icon="mdi:refresh">
+            Refresh
+          </Button>
+          <Button
+            onClick={handleAddClick}
+            variant="primary"
+            size="md"
+            icon="mdi:plus"
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
+          >
+            Tambah Ukuran DMD
+          </Button>
+        </div>
       </div>
 
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          {
-            icon: 'mdi:database',
-            label: 'Total Records',
-            value: stats.totalRecords,
-            sub: `${stats.uniqueGsm} variasi GSM · ${stats.uniqueSizes} ukuran`,
-          },
-          {
-            icon: 'mdi:ruler-square',
-            label: 'Kombinasi Ukuran',
-            value: stats.totalCombinations,
-            sub: `${stats.uniqueGsm} GSM × ${stats.uniqueSizes} ukuran`,
-            bar: (stats.totalCombinations / (stats.uniqueGsm * stats.uniqueSizes || 1)) * 100,
-          },
-          {
-            icon: 'mdi:cash-multiple',
-            label: 'Rata-rata Harga',
-            value: formatCurrency(stats.averagePrice),
-            sub: 'per lembar',
-          },
-          {
-            icon: 'mdi:check-circle',
-            label: 'Data dengan Harga',
-            value: stats.withPrice,
-            sub: `${Math.round((stats.withPrice / stats.totalRecords) * 100) || 0}% dari total`,
-            bar: (stats.withPrice / stats.totalRecords) * 100 || 0,
-          },
-        ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
-              </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full group-hover:bg-blue-100 transition-all" />
+          <div className="space-y-2 relative">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <Icon icon="mdi:database" className="w-4 h-4 text-blue-600" />Total Records
+            </p>
+            <p className="text-3xl font-bold text-gray-900">{stats.totalRecords}</p>
+            <p className="text-xs text-gray-500">{stats.uniqueGsm} variasi GSM · {stats.uniqueSizes} ukuran</p>
+          </div>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full group-hover:bg-green-100 transition-all" />
+          <div className="space-y-2 relative">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <Icon icon="mdi:ruler-square" className="w-4 h-4 text-green-600" />Kombinasi Ukuran
+            </p>
+            <p className="text-3xl font-bold text-gray-900">{stats.totalCombinations}</p>
+            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+              <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min((stats.totalCombinations / (stats.uniqueGsm * stats.uniqueSizes || 1)) * 100, 100)}%` }} />
             </div>
-            <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-            {s.bar !== undefined && (
-              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min(s.bar, 100)}%` }} />
-              </div>
-            )}
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
-        ))}
+            <p className="text-xs text-gray-500">{stats.uniqueGsm} GSM × {stats.uniqueSizes} ukuran</p>
+          </div>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-50 rounded-bl-full group-hover:bg-purple-100 transition-all" />
+          <div className="space-y-2 relative">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-purple-600" />Rata-rata Harga
+            </p>
+            <p className="text-3xl font-bold text-gray-900">{formatCurrency(stats.averagePrice)}</p>
+            <p className="text-xs text-gray-500">per lembar</p>
+          </div>
+        </Card>
+
+        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
+          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-50 rounded-bl-full group-hover:bg-amber-100 transition-all" />
+          <div className="space-y-2 relative">
+            <p className="text-sm text-gray-600 flex items-center gap-2">
+              <Icon icon="mdi:check-circle" className="w-4 h-4 text-amber-600" />Data dengan Harga
+            </p>
+            <p className="text-3xl font-bold text-gray-900">{stats.withPrice}</p>
+            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+              <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min((stats.withPrice / stats.totalRecords) * 100 || 0, 100)}%` }} />
+            </div>
+            <p className="text-xs text-gray-500">{Math.round((stats.withPrice / stats.totalRecords) * 100) || 0}% dari total</p>
+          </div>
+        </Card>
       </div>
 
-      {/* ===== INFO MESSAGE ===== */}
       {error && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center gap-2">
-          <Icon icon="mdi:information" className="w-5 h-5 text-blue-600" />
-          <p className="text-blue-800">{error}</p>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
+          </div>
+          <p className="text-blue-800 text-sm">{error}</p>
         </div>
       )}
 
       {/* ===== TABLE CARD ===== */}
-      <Card shadow="md" padding="none">
-        {/* Toolbar */}
+      <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
           <div>
             <h3 className="text-base font-semibold text-slate-800">Daftar Ukuran Duplex DMD</h3>
@@ -683,58 +491,42 @@ export default function DuplexDMDPage() {
               Total {stats.totalRecords} data dengan {stats.totalCombinations} kombinasi ukuran
             </p>
           </div>
-          <button
-            onClick={refetch}
-            title="Refresh"
-            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            <Icon icon="mdi:refresh" className="w-5 h-5" />
-          </button>
         </div>
 
-        {/* Table */}
         <div className="overflow-x-auto">
           {sortedDuplexData.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:book-open-variant-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data Duplex DMD</p>
-              <p className="text-sm text-gray-400">Tambahkan ukuran baru untuk memulai</p>
-              <Button onClick={handleAddClick} variant="primary" icon="mdi:plus">
+            <div className="text-center py-16">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Icon icon="mdi:book-open-variant-off" className="w-10 h-10 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada data Duplex DMD</h3>
+              <p className="text-gray-500 mb-6">Tambahkan ukuran baru untuk memulai</p>
+              <Button onClick={handleAddClick} variant="primary" icon="mdi:plus" className="bg-gradient-to-r from-blue-600 to-indigo-600">
                 Tambah Ukuran Baru
               </Button>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-100">
+            <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">No</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">GSM</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Ukuran (cm)</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Harga per Lembar</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Aksi</th>
+                  {['No', 'GSM', 'Ukuran (cm)', 'Harga per Lembar', 'Aksi'].map(h => (
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
+              <tbody className="bg-white divide-y divide-gray-200">
                 {sortedDuplexData.map((item, index) => {
                   const luasM2 = (item.panjang * item.lebar) / 10000
                   const hargaPerM2 = item.harga_per_lembar > 0 ? item.harga_per_lembar / luasM2 : 0
-
                   return (
-                    <tr key={`dmd-${item.id}`} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={`dmd-${item.id}`} className="hover:bg-blue-50/50 transition-colors duration-150">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-medium text-slate-800">{index + 1}</span>
                       </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="px-2.5 py-1 rounded-full text-xs font-bold"
-                            style={{
-                              backgroundColor: getGSMColor(item.gsm).light,
-                              color: getGSMColor(item.gsm).bg
-                            }}
-                          >
-                            {item.gsm} GSM
-                          </div>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold"
+                          style={{ backgroundColor: getGSMColor(item.gsm).light, color: getGSMColor(item.gsm).bg }}>
+                          {item.gsm} GSM
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -742,42 +534,26 @@ export default function DuplexDMDPage() {
                           <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
                             <Icon icon="mdi:ruler-square" className="w-4 h-4 text-blue-500" />
                           </div>
-                          <span className="font-medium text-slate-800">
-                            {formatUkuranDisplay(item.panjang, item.lebar)}
-                          </span>
+                          <span className="font-medium text-slate-800">{formatUkuranDisplay(item.panjang, item.lebar)}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         {item.harga_per_lembar > 0 ? (
                           <div>
-                            <div className="font-bold text-slate-800">{formatCurrency(item.harga_per_lembar)}</div>
+                            <div className="font-bold text-gray-900">{formatCurrency(item.harga_per_lembar)}</div>
                             <div className="text-xs text-gray-400 mt-1">{formatCurrency(hargaPerM2)}/m²</div>
                           </div>
-                        ) : (
-                          <span className="text-gray-300 italic">Belum ada harga</span>
-                        )}
+                        ) : <span className="text-gray-300 italic text-sm">0</span>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleViewClick(item)}
-                            title="Lihat Detail"
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => handleViewClick(item)} title="Lihat Detail" className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
                             <Icon icon="mdi:eye-outline" className="w-5 h-5" />
                           </button>
-                          <button
-                            onClick={() => handleEditClick(item)}
-                            title="Edit"
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          >
+                          <button onClick={() => handleEditClick(item)} title="Edit" className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors">
                             <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
                           </button>
-                          <button
-                            onClick={() => handleDelete(item.id, item.gsm, formatUkuranDisplay(item.panjang, item.lebar))}
-                            title="Hapus"
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
+                          <button onClick={() => handleDelete(item.id, item.gsm, formatUkuranDisplay(item.panjang, item.lebar))} title="Hapus" className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors">
                             <Icon icon="mdi:delete-outline" className="w-5 h-5" />
                           </button>
                         </div>
@@ -790,63 +566,49 @@ export default function DuplexDMDPage() {
           )}
         </div>
 
-        {/* Footer */}
         {sortedDuplexData.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{sortedDuplexData.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{stats.totalRecords}</span> data
+          <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50/50">
+            <p className="text-sm text-gray-600">
+              Menampilkan <span className="font-semibold text-slate-700">{sortedDuplexData.length}</span> dari{' '}
+              <span className="font-semibold text-slate-700">{stats.totalRecords}</span> data
             </p>
           </div>
         )}
       </Card>
 
       {/* ===== ADD MODAL ===== */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={handleCloseAddModal}
-        title="➕ Tambah Ukuran Duplex DMD"
-        size="lg"
+      <Modal isOpen={showAddModal} onClose={handleCloseAddModal} title="➕ Tambah Ukuran Duplex DMD" size="lg"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" size="md" onClick={handleCloseAddModal} disabled={isPosting}>
-              Batal
-            </Button>
-            <Button variant="primary" size="md" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">
-              Simpan Data
-            </Button>
+            <Button variant="outline" size="md" onClick={handleCloseAddModal} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" size="md" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">Simpan Data</Button>
           </>
-        }
-      >
+        }>
         <div className="space-y-5">
-          {/* Info */}
-          <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
-            <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <p className="text-sm text-blue-700">
-              Pilih GSM dan Ukuran yang tersedia. Harga boleh dikosongkan jika belum ada.
-            </p>
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <h4 className="font-semibold text-blue-900 mb-1">Informasi</h4>
+                <p className="text-sm text-blue-700">Pilih GSM dan Ukuran yang tersedia. Harga boleh dikosongkan jika belum ada.</p>
+              </div>
+            </div>
           </div>
 
-          {/* GSM ← disamakan dengan DK: dari gramasiOptions yg value=gsm string */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              GSM <span className="text-red-500">*</span>
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">GSM <span className="text-red-500">*</span></label>
             {loadingGramasi ? (
               <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
                 <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
                 <span className="text-sm text-gray-600">Memuat data gramasi...</span>
               </div>
             ) : (
-              <Select
-                value={addFormData.gsm}
-                onChange={(e) => handleAddInputChange('gsm', e.target.value)}
-                options={gramasiOptions}
-                placeholder="-- Pilih GSM --"
-                disabled={isPosting}
-                className={formErrors.gsm ? 'border-red-500' : ''}
-              />
+              <Select value={addFormData.gsm} onChange={(e) => handleAddInputChange('gsm', e.target.value)}
+                options={gramasiOptions} placeholder="-- Pilih GSM --"
+                disabled={isPosting} className={formErrors.gsm ? 'border-red-500' : ''} />
             )}
             {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
             {!loadingGramasi && gramasiList.length === 0 && (
@@ -854,70 +616,42 @@ export default function DuplexDMDPage() {
             )}
           </div>
 
-          {/* Ukuran */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Ukuran <span className="text-red-500">*</span>
-            </label>
-            <Select
-              value={addFormData.sheet_size_id}
-              onChange={(e) => handleAddInputChange('sheet_size_id', e.target.value)}
-              options={sheetSizeOptions}
-              placeholder="-- Pilih Ukuran --"
-              disabled={isPosting}
-              className={formErrors.sheet_size_id ? 'border-red-500' : ''}
-            />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran <span className="text-red-500">*</span></label>
+            <Select value={addFormData.sheet_size_id} onChange={(e) => handleAddInputChange('sheet_size_id', e.target.value)}
+              options={sheetSizeOptions} placeholder="-- Pilih Ukuran --"
+              disabled={isPosting} className={formErrors.sheet_size_id ? 'border-red-500' : ''} />
             {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
           </div>
 
-          {/* Harga */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Harga per Lembar <span className="text-xs text-gray-400 ml-1">(opsional)</span>
             </label>
-            <Input
-              type="number"
-              value={addFormData.harga_per_lembar}
-              onChange={(e) => handleAddInputChange('harga_per_lembar', e.target.value)}
-              placeholder="0"
-              leftIcon="mdi:cash"
-              disabled={isPosting}
-              className={formErrors.harga_per_lembar ? 'border-red-500' : ''}
-              min="0"
-              step="100"
-            />
+            <Input type="number" value={addFormData.harga_per_lembar} onChange={(e) => handleAddInputChange('harga_per_lembar', e.target.value)}
+              placeholder="0" leftIcon="mdi:cash" disabled={isPosting}
+              className={formErrors.harga_per_lembar ? 'border-red-500' : ''} min="0" step="100" />
             {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
           </div>
 
-          {/* Preview */}
           {selectedSize && selectedGramasi && (
-            <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="bg-green-50 p-4 rounded-xl border border-green-200">
               <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
-                <Icon icon="mdi:check-circle" className="w-5 h-5 text-green-600" />
+                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                  <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
+                </div>
                 Preview Data
               </h4>
               <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <p className="text-gray-500 mb-1">GSM:</p>
-                  <p className="font-medium text-gray-900">{selectedGramasi.gsm} GSM</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Ukuran:</p>
-                  <p className="font-medium text-gray-900">{buildSheetLabel(selectedSize.panjang_sh, selectedSize.lebar_sh)}</p>
-                </div>
-                <div>
-                  <p className="text-gray-500 mb-1">Luas:</p>
-                  <p className="font-medium text-gray-900">
-                    {((parseInt(selectedSize.panjang_sh) / 10) * (parseInt(selectedSize.lebar_sh) / 10) / 10000).toFixed(2)} m²
-                  </p>
-                </div>
+                <div><p className="text-gray-500 mb-1">GSM:</p><p className="font-medium text-gray-900">{selectedGramasi.gsm} GSM</p></div>
+                <div><p className="text-gray-500 mb-1">Ukuran:</p><p className="font-medium text-gray-900">{buildSheetLabel(selectedSize.panjang_sh, selectedSize.lebar_sh)}</p></div>
+                <div><p className="text-gray-500 mb-1">Luas:</p><p className="font-medium text-gray-900">{((parseInt(selectedSize.panjang_sh) / 10) * (parseInt(selectedSize.lebar_sh) / 10) / 10000).toFixed(2)} m²</p></div>
                 <div>
                   <p className="text-gray-500 mb-1">Harga:</p>
                   <p className="font-medium text-gray-900">
                     {addFormData.harga_per_lembar && parseFloat(addFormData.harga_per_lembar) > 0
                       ? formatCurrency(parseFloat(addFormData.harga_per_lembar))
-                      : <span className="text-gray-400 italic">(kosong / 0)</span>
-                    }
+                      : <span className="text-gray-400 italic">(kosong / 0)</span>}
                   </p>
                 </div>
               </div>
@@ -925,7 +659,7 @@ export default function DuplexDMDPage() {
           )}
 
           {formErrors.general && (
-            <div className="bg-red-50 p-4 rounded-lg border border-red-200 flex items-start gap-3">
+            <div className="bg-red-50 p-4 rounded-xl border border-red-200 flex items-start gap-3">
               <Icon icon="mdi:alert-circle" className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
               <p className="text-sm text-red-800">{formErrors.general}</p>
             </div>
@@ -934,138 +668,83 @@ export default function DuplexDMDPage() {
       </Modal>
 
       {/* ===== EDIT MODAL ===== */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={handleCloseEditModal}
-        title="✏️ Edit Ukuran Duplex DMD"
-        size="lg"
+      <Modal isOpen={showEditModal} onClose={handleCloseEditModal} title="✏️ Edit Ukuran Duplex DMD" size="lg"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" size="md" onClick={handleCloseEditModal} disabled={isPosting}>
-              Batal
-            </Button>
-            <Button variant="primary" size="md" onClick={handleEdit} loading={isPosting} disabled={isPosting} icon="mdi:check">
-              Update Data
-            </Button>
+            <Button variant="outline" size="md" onClick={handleCloseEditModal} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" size="md" onClick={handleEdit} loading={isPosting} disabled={isPosting} icon="mdi:check">Update Data</Button>
           </>
-        }
-      >
+        }>
         {editingItem && (
           <div className="space-y-5">
-            {/* Current Data */}
-            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-blue-800 mb-1">Data Saat Ini</p>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <p className="text-blue-600 text-xs">Ukuran:</p>
-                    <p className="font-medium text-blue-900">{formatUkuranDisplay(editingItem.panjang, editingItem.lebar)}</p>
-                  </div>
-                  <div>
-                    <p className="text-blue-600 text-xs">GSM:</p>
-                    <p className="font-medium text-blue-900">{editingItem.gsm} GSM</p>
-                  </div>
-                  <div>
-                    <p className="text-blue-600 text-xs">Harga:</p>
-                    <p className="font-medium text-blue-900">
-                      {editingItem.harga_per_lembar > 0 ? formatCurrency(editingItem.harga_per_lembar) : '-'}
-                    </p>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-blue-900 mb-1">Data Saat Ini</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm mt-2">
+                    <div><p className="text-blue-700 text-xs mb-1">Ukuran</p><p className="font-medium text-blue-900">{formatUkuranDisplay(editingItem.panjang, editingItem.lebar)}</p></div>
+                    <div><p className="text-blue-700 text-xs mb-1">GSM</p><p className="font-medium text-blue-900">{editingItem.gsm} GSM</p></div>
+                    <div><p className="text-blue-700 text-xs mb-1">Harga</p><p className="font-medium text-blue-900">{editingItem.harga_per_lembar > 0 ? formatCurrency(editingItem.harga_per_lembar) : '-'}</p></div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* GSM Baru ← value dari gramasiOptions yg value=gsm string */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                GSM Baru <span className="text-red-500">*</span>
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">GSM Baru <span className="text-red-500">*</span></label>
               {loadingGramasi ? (
                 <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
                   <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
                   <span className="text-sm text-gray-600">Memuat data gramasi...</span>
                 </div>
               ) : (
-                <Select
-                  value={editFormData.gsm}
-                  onChange={(e) => handleEditInputChange('gsm', e.target.value)}
-                  options={gramasiOptions}
-                  placeholder="-- Pilih GSM --"
-                  disabled={isPosting}
-                  className={formErrors.gsm ? 'border-red-500' : ''}
-                />
+                <Select value={editFormData.gsm} onChange={(e) => handleEditInputChange('gsm', e.target.value)}
+                  options={gramasiOptions} placeholder="-- Pilih GSM --"
+                  disabled={isPosting} className={formErrors.gsm ? 'border-red-500' : ''} />
               )}
               {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
             </div>
 
-            {/* Ukuran Baru */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Ukuran Baru <span className="text-red-500">*</span>
-              </label>
-              <Select
-                value={editFormData.sheet_size_id}
-                onChange={(e) => handleEditInputChange('sheet_size_id', e.target.value)}
-                options={sheetSizeOptions}
-                placeholder="-- Pilih Ukuran --"
-                disabled={isPosting}
-                className={formErrors.sheet_size_id ? 'border-red-500' : ''}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran Baru <span className="text-red-500">*</span></label>
+              <Select value={editFormData.sheet_size_id} onChange={(e) => handleEditInputChange('sheet_size_id', e.target.value)}
+                options={sheetSizeOptions} placeholder="-- Pilih Ukuran --"
+                disabled={isPosting} className={formErrors.sheet_size_id ? 'border-red-500' : ''} />
               {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
             </div>
 
-            {/* Harga Baru */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Harga Baru <span className="text-xs text-gray-400 ml-1">(opsional)</span>
               </label>
-              <Input
-                type="number"
-                value={editFormData.harga_per_lembar}
-                onChange={(e) => handleEditInputChange('harga_per_lembar', e.target.value)}
-                placeholder="Kosongkan atau isi 0 jika belum ada harga"
-                leftIcon="mdi:cash"
-                disabled={isPosting}
-                className={formErrors.harga_per_lembar ? 'border-red-500' : ''}
-                min="0"
-                step="100"
-              />
+              <Input type="number" value={editFormData.harga_per_lembar} onChange={(e) => handleEditInputChange('harga_per_lembar', e.target.value)}
+                placeholder="Kosongkan atau isi 0 jika belum ada harga" leftIcon="mdi:cash" disabled={isPosting}
+                className={formErrors.harga_per_lembar ? 'border-red-500' : ''} min="0" step="100" />
               {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
             </div>
 
-            {/* Preview Update */}
             {editSelectedSize && editSelectedGramasi && (
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+              <div className="bg-green-50 p-4 rounded-xl border border-green-200">
                 <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
-                  <Icon icon="mdi:check-circle" className="w-5 h-5 text-green-600" />
+                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                    <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
+                  </div>
                   Preview Update
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <p className="text-gray-500 mb-1">GSM Baru:</p>
-                    <p className="font-medium text-gray-900">{editSelectedGramasi.gsm} GSM</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 mb-1">Ukuran Baru:</p>
-                    <p className="font-medium text-gray-900">{buildSheetLabel(editSelectedSize.panjang_sh, editSelectedSize.lebar_sh)}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500 mb-1">Luas:</p>
-                    <p className="font-medium text-gray-900">
-                      {((parseInt(editSelectedSize.panjang_sh) / 10) * (parseInt(editSelectedSize.lebar_sh) / 10) / 10000).toFixed(2)} m²
-                    </p>
-                  </div>
+                  <div><p className="text-gray-500 mb-1">GSM Baru:</p><p className="font-medium text-gray-900">{editSelectedGramasi.gsm} GSM</p></div>
+                  <div><p className="text-gray-500 mb-1">Ukuran Baru:</p><p className="font-medium text-gray-900">{buildSheetLabel(editSelectedSize.panjang_sh, editSelectedSize.lebar_sh)}</p></div>
+                  <div><p className="text-gray-500 mb-1">Luas:</p><p className="font-medium text-gray-900">{((parseInt(editSelectedSize.panjang_sh) / 10) * (parseInt(editSelectedSize.lebar_sh) / 10) / 10000).toFixed(2)} m²</p></div>
                   <div>
                     <p className="text-gray-500 mb-1">Harga Baru:</p>
                     <p className="font-medium text-gray-900">
                       {editFormData.harga_per_lembar && parseFloat(editFormData.harga_per_lembar) > 0
                         ? formatCurrency(parseFloat(editFormData.harga_per_lembar))
-                        : <span className="text-gray-400 italic">(kosong / 0)</span>
-                      }
+                        : <span className="text-gray-400 italic">(kosong / 0)</span>}
                     </p>
                   </div>
                 </div>
@@ -1076,97 +755,69 @@ export default function DuplexDMDPage() {
       </Modal>
 
       {/* ===== VIEW MODAL ===== */}
-      <Modal
-        isOpen={showViewModal}
-        onClose={handleCloseViewModal}
-        title="Detail Duplex DMD"
-        size="md"
+      <Modal isOpen={showViewModal} onClose={handleCloseViewModal} title="Detail Duplex DMD" size="md"
         footer={
           <>
-            <Button variant="outline" size="md" onClick={handleCloseViewModal}>
-              Tutup
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              icon="mdi:pencil-outline"
-              onClick={() => {
-                setShowViewModal(false)
-                if (selectedItem) handleEditClick(selectedItem)
-              }}
-            >
+            <Button variant="outline" size="md" onClick={handleCloseViewModal}>Tutup</Button>
+            <Button variant="primary" size="md" icon="mdi:pencil-outline"
+              onClick={() => { setShowViewModal(false); if (selectedItem) handleEditClick(selectedItem) }}>
               Edit Data
             </Button>
           </>
-        }
-      >
+        }>
         {selectedItem && (() => {
           const luasM2 = (selectedItem.panjang * selectedItem.lebar) / 10000
           const hargaPerM2 = selectedItem.harga_per_lembar > 0 ? selectedItem.harga_per_lembar / luasM2 : 0
-          const gsmColor = getGSMColor(selectedItem.gsm)
-
           return (
             <div className="space-y-4">
-              {/* Identity */}
               <div className="flex items-center gap-4 p-4 rounded-xl bg-blue-50">
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-100">
+                <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
                   <Icon icon="mdi:book-open-variant" className="w-7 h-7 text-blue-600" />
                 </div>
                 <div>
                   <p className="text-base font-semibold text-slate-800">Duplex DMD</p>
                   <div className="flex items-center gap-2 mt-1">
+                    <div className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold"
+                      style={{ backgroundColor: getGSMColor(selectedItem.gsm).light, color: getGSMColor(selectedItem.gsm).bg }}>
                       {selectedItem.gsm} GSM
-                    <span className="text-xs text-gray-400">ID: {selectedItem.id}</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              {/* Details */}
               <Card shadow="none" padding="sm" bordered>
                 <p className="text-xs text-gray-500 mb-2">Informasi Ukuran</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                    <span className="text-xs font-medium text-gray-500">Dimensi:</span>
-                    <span className="text-sm font-medium text-slate-800">
-                      {formatUkuranDisplay(selectedItem.panjang, selectedItem.lebar)}
-                    </span>
+                <div className="space-y-2">
+                  <div className="flex justify-between p-2 bg-slate-50 rounded">
+                    <span className="text-xs font-medium text-gray-500">Dimensi</span>
+                    <span className="text-sm font-medium text-slate-800">{formatUkuranDisplay(selectedItem.panjang, selectedItem.lebar)}</span>
                   </div>
-                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                    <span className="text-xs font-medium text-gray-500">Luas:</span>
+                  <div className="flex justify-between p-2 bg-slate-50 rounded">
+                    <span className="text-xs font-medium text-gray-500">Luas</span>
                     <span className="text-sm font-medium text-slate-800">{luasM2.toFixed(2)} m²</span>
                   </div>
                 </div>
               </Card>
 
-              {/* Harga */}
               <Card shadow="none" padding="sm" bordered>
                 <p className="text-xs text-gray-500 mb-2">Informasi Harga</p>
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                    <span className="text-xs font-medium text-gray-500">Harga per Lembar:</span>
-                    <span className="text-sm font-bold text-slate-800">
-                      {selectedItem.harga_per_lembar > 0 ? formatCurrency(selectedItem.harga_per_lembar) : '-'}
-                    </span>
+                <div className="space-y-2">
+                  <div className="flex justify-between p-2 bg-slate-50 rounded">
+                    <span className="text-xs font-medium text-gray-500">Harga per Lembar</span>
+                    <span className="text-sm font-bold text-slate-800">{selectedItem.harga_per_lembar > 0 ? formatCurrency(selectedItem.harga_per_lembar) : '-'}</span>
                   </div>
                   {selectedItem.harga_per_lembar > 0 && (
-                    <div className="flex items-center justify-between p-2 bg-slate-50 rounded">
-                      <span className="text-xs font-medium text-gray-500">Harga per m²:</span>
+                    <div className="flex justify-between p-2 bg-slate-50 rounded">
+                      <span className="text-xs font-medium text-gray-500">Harga per m²</span>
                       <span className="text-sm font-medium text-slate-800">{formatCurrency(hargaPerM2)}</span>
                     </div>
                   )}
                 </div>
               </Card>
 
-              {/* Metadata */}
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-gray-400">Type</p>
-                  <p className="text-sm font-medium text-slate-700">DMD (Duplex Medium)</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400">Format PL</p>
-                  <p className="text-sm font-mono text-slate-700">{selectedItem.pl || '-'}</p>
-                </div>
+                <div><p className="text-xs text-gray-400">Type</p><p className="text-sm font-medium text-slate-700">DMD (Duplex Medium)</p></div>
+                <div><p className="text-xs text-gray-400">Format PL</p><p className="text-sm font-mono text-slate-700">{selectedItem.pl || '-'}</p></div>
               </div>
             </div>
           )
