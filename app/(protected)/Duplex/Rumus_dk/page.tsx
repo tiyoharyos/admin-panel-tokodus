@@ -50,6 +50,7 @@ interface Stats {
   totalCombinations: number
   uniqueGsm: number
   uniqueSizes: number
+  withPrice: number
 }
 
 // ===== API TYPES =====
@@ -121,6 +122,18 @@ const mapPriceItem = (item: DuplexApiItem): DuplexDataDK => ({
   harga_per_lembar: parseFloat(item.harga_lembar) || 0,
   type: 'DK'
 })
+
+// ===== BADGE COMPONENT =====
+function Badge({ color, children }: { color: string; children: React.ReactNode }) {
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
+      style={{ background: `${color}18`, color }}
+    >
+      {children}
+    </span>
+  )
+}
 
 // ===== CUSTOM HOOK =====
 const useDuplexDK = () => {
@@ -212,7 +225,8 @@ const useDuplexDK = () => {
       averagePrice: wp.length > 0 ? wp.reduce((s, d) => s + d.harga_per_lembar, 0) / wp.length : 0,
       totalCombinations: new Set(dataDK.map(d => `${d.gsm}-${d.sheet_size_id}`)).size,
       uniqueGsm: new Set(dataDK.map(d => d.gsm)).size,
-      uniqueSizes: new Set(dataDK.map(d => d.sheet_size_id)).size
+      uniqueSizes: new Set(dataDK.map(d => d.sheet_size_id)).size,
+      withPrice: wp.length
     }
   }, [dataDK])
 
@@ -224,6 +238,7 @@ export default function DuplexDKPage() {
   const { dataDK, gramasiList, sheetSizeList, loading, loadingGramasi, error, stats, refetch } = useDuplexDK()
 
   const [isPosting, setIsPosting] = useState(false)
+  const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showViewModal, setShowViewModal] = useState(false)
@@ -243,6 +258,12 @@ export default function DuplexDKPage() {
     [...dataDK].sort((a, b) =>
       a.gsm !== b.gsm ? a.gsm - b.gsm : (a.panjang * a.lebar) - (b.panjang * b.lebar)
     ), [dataDK])
+
+  const filteredData = useMemo(() =>
+    sortedData.filter(item =>
+      item.gsm.toString().includes(search) ||
+      formatUkuranDisplay(item.panjang, item.lebar).includes(search)
+    ), [sortedData, search])
 
   const gsmOptions = useMemo(() =>
     gramasiList.map((item, idx) => ({
@@ -439,19 +460,17 @@ export default function DuplexDKPage() {
     return <LoadingState message="Memuat Data Duplex DK..." submessage="Harap tunggu sebentar" icon="mdi:package-variant-closed" />
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
 
       {/* ===== HEADER ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-            <Icon icon="mdi:package-variant-closed" className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
+            <Icon icon="mdi:package-variant-closed" className="w-6 h-6 text-blue-400" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Duplex DK
-            </h1>
-            <p className="text-gray-600 mt-1 text-sm">Kelola ukuran dan harga Duplex Rumus DK</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Duplex DK</h1>
+            <p className="text-slate-500 mt-1 text-sm">Kelola ukuran dan harga Duplex Rumus DK</p>
             <div className="flex flex-wrap gap-4 mt-2 text-sm">
               <span className="text-gray-600"><span className="font-medium">Total:</span> {stats.totalRecords}</span>
               <span className="text-gray-600"><span className="font-medium">GSM:</span> {stats.uniqueGsm} variasi</span>
@@ -468,7 +487,7 @@ export default function DuplexDKPage() {
             variant="primary"
             size="md"
             icon="mdi:plus"
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
+            className="bg-blue-600 hover:bg-blue-700"
           >
             Tambah Ukuran DK
           </Button>
@@ -476,142 +495,150 @@ export default function DuplexDKPage() {
       </div>
 
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full group-hover:bg-blue-100 transition-all" />
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:database" className="w-4 h-4 text-blue-600" />Total Records
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{stats.totalRecords}</p>
-            <p className="text-xs text-gray-500">{stats.uniqueGsm} variasi GSM</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full group-hover:bg-green-100 transition-all" />
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:ruler-square" className="w-4 h-4 text-green-600" />Kombinasi Ukuran
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{stats.totalCombinations}</p>
-            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-              <div className="bg-green-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min((stats.totalCombinations / (stats.uniqueGsm * stats.uniqueSizes || 1)) * 100, 100)}%` }} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            icon: 'mdi:package-variant-closed',
+            label: 'Total Records',
+            value: stats.totalRecords,
+            sub: `${stats.uniqueGsm} variasi GSM · ${stats.uniqueSizes} ukuran`
+          },
+          {
+            icon: 'mdi:ruler-square',
+            label: 'Kombinasi Ukuran',
+            value: stats.totalCombinations,
+            sub: `${stats.uniqueGsm} GSM × ${stats.uniqueSizes} ukuran`
+          },
+          {
+            icon: 'mdi:cash-multiple',
+            label: 'Rata-rata Harga',
+            value: formatHargaDisplay(stats.averagePrice),
+            sub: 'per lembar'
+          },
+          {
+            icon: 'mdi:check-circle',
+            label: 'Data dengan Harga',
+            value: stats.withPrice,
+            sub: `${Math.round((stats.withPrice / stats.totalRecords) * 100) || 0}% dari total`
+          }
+        ].map((s, i) => (
+          <Card key={i} shadow="sm" padding="md" hoverable>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm text-gray-500">{s.label}</p>
+              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
+              </div>
             </div>
-            <p className="text-xs text-gray-500">{stats.uniqueSizes} ukuran unik</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-50 rounded-bl-full group-hover:bg-purple-100 transition-all" />
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-purple-600" />Rata-rata Harga
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{formatHargaDisplay(stats.averagePrice)}</p>
-            <p className="text-xs text-gray-500">per lembar</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-50 rounded-bl-full group-hover:bg-amber-100 transition-all" />
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:chart-arc" className="w-4 h-4 text-amber-600" />Data dengan Harga
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{dataDK.filter(d => d.harga_per_lembar > 0).length}</p>
-            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
-              <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min((dataDK.filter(d => d.harga_per_lembar > 0).length / (stats.totalRecords || 1)) * 100, 100)}%` }} />
-            </div>
-            <p className="text-xs text-gray-500">dari {stats.totalRecords} data</p>
-          </div>
-        </Card>
+            <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
+          </Card>
+        ))}
       </div>
 
-      {/* ERROR */}
-      {error && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
-          <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-            <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
-          </div>
-          <p className="text-blue-800 text-sm">{error}</p>
-        </div>
-      )}
-
       {/* ===== TABLE CARD ===== */}
-      <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
+      <Card shadow="md" padding="none">
+        {/* Toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
           <div>
             <h3 className="text-base font-semibold text-slate-800">Daftar Ukuran Duplex DK</h3>
             <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.totalRecords} data · {stats.uniqueGsm} GSM · {stats.uniqueSizes} ukuran
+              Total {stats.totalRecords} data dengan {stats.totalCombinations} kombinasi ukuran
             </p>
+          </div>
+          <div className="w-full sm:w-64">
+            <Input
+              placeholder="Cari GSM atau Ukuran..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              leftIcon="mdi:magnify"
+            />
           </div>
         </div>
 
+        {/* Table */}
         <div className="overflow-x-auto">
           {sortedData.length === 0 ? (
-            <div className="text-center py-16">
-              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Icon icon="mdi:package-variant-closed-off" className="w-10 h-10 text-gray-400" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Belum ada data Duplex DK</h3>
-              <p className="text-gray-500 mb-6">Tambahkan ukuran baru untuk memulai</p>
-              <Button onClick={handleAddClick} variant="primary" icon="mdi:plus" className="bg-gradient-to-r from-blue-600 to-indigo-600">
+            <div className="flex flex-col items-center gap-3 py-16">
+              <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
+              <p className="text-gray-500 font-medium text-lg">Belum ada data Duplex DK</p>
+              <Button onClick={handleAddClick} variant="primary" icon="mdi:plus" size="sm">
                 Tambah Ukuran Baru
               </Button>
             </div>
+          ) : filteredData.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
+              <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
+              <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+              <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
+                Hapus Pencarian
+              </Button>
+            </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
                   {['No', 'GSM', 'Ukuran (cm)', 'Harga per Lembar', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {sortedData.map((item, idx) => {
+              <tbody className="bg-white divide-y divide-gray-100">
+                {filteredData.map((item, idx) => {
                   const luas = (item.panjang * item.lebar) / 10000
                   const perM2 = item.harga_per_lembar > 0 ? item.harga_per_lembar / luas : 0
+                  const color = getGSMColor(item.gsm)
                   return (
-                    <tr key={`dk-${item.id}`} className="hover:bg-blue-50/50 transition-colors duration-150">
+                    <tr key={`dk-${item.id}`} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-medium text-slate-800">{idx + 1}</span>
+                        <span className="text-sm text-slate-600">{idx + 1}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div
-                          className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold"
-                          style={{ backgroundColor: getGSMColor(item.gsm).light, color: getGSMColor(item.gsm).bg }}
-                        >
+                        <Badge color={color.bg}>
                           {item.gsm} GSM
-                        </div>
+                        </Badge>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center mr-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
                             <Icon icon="mdi:ruler-square" className="w-4 h-4 text-blue-500" />
                           </div>
-                          <span className="font-medium text-slate-800">{formatUkuranDisplay(item.panjang, item.lebar)}</span>
+                          <span className="text-sm font-medium text-slate-800">
+                            {formatUkuranDisplay(item.panjang, item.lebar)}
+                          </span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
                         {item.harga_per_lembar > 0 ? (
                           <div>
-                            <div className="font-bold text-gray-900">{formatHargaDisplay(item.harga_per_lembar)}</div>
-                            <div className="text-xs text-gray-400 mt-1">{formatCurrency(perM2)}/m²</div>
+                            <div className="text-sm font-bold text-slate-800">{formatHargaDisplay(item.harga_per_lembar)}</div>
+                            <div className="text-xs text-gray-400 mt-0.5">{formatCurrency(perM2)}/m²</div>
                           </div>
-                        ) : <span className="text-gray-300 italic text-sm">0</span>}
+                        ) : <span className="text-sm text-gray-300 italic">-</span>}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => handleViewClick(item)} title="Detail" className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors">
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleViewClick(item)}
+                            title="Lihat Detail"
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          >
                             <Icon icon="mdi:eye-outline" className="w-5 h-5" />
                           </button>
-                          <button onClick={() => handleEditClick(item)} title="Edit" className="p-2 text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors">
+                          <button
+                            onClick={() => handleEditClick(item)}
+                            title="Edit"
+                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          >
                             <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
                           </button>
-                          <button onClick={() => handleDelete(item.id, item.gsm, formatUkuranDisplay(item.panjang, item.lebar))} title="Hapus" className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors">
+                          <button
+                            onClick={() => handleDelete(item.id, item.gsm, formatUkuranDisplay(item.panjang, item.lebar))}
+                            title="Hapus"
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          >
                             <Icon icon="mdi:delete-outline" className="w-5 h-5" />
                           </button>
                         </div>
@@ -624,18 +651,23 @@ export default function DuplexDKPage() {
           )}
         </div>
 
-        {sortedData.length > 0 && (
-          <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50/50">
-            <p className="text-sm text-gray-600">
-              Menampilkan <span className="font-semibold text-slate-700">{sortedData.length}</span> dari{' '}
-              <span className="font-semibold text-slate-700">{stats.totalRecords}</span> data
+        {/* Footer */}
+        {filteredData.length > 0 && (
+          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
+            <p className="text-sm text-gray-500">
+              Menampilkan <span className="font-medium text-slate-700">{filteredData.length}</span> dari{' '}
+              <span className="font-medium text-slate-700">{stats.totalRecords}</span> data
             </p>
           </div>
         )}
       </Card>
 
       {/* ===== ADD MODAL ===== */}
-      <Modal isOpen={showAddModal} onClose={closeAdd} title="➕ Tambah Ukuran Duplex DK" size="lg"
+      <Modal 
+        isOpen={showAddModal} 
+        onClose={closeAdd} 
+        title="➕ Tambah Ukuran Duplex DK" 
+        size="lg"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
@@ -643,17 +675,12 @@ export default function DuplexDKPage() {
             <Button variant="primary" size="md" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">Simpan Data</Button>
           </>
         }>
-        <div className="space-y-5">
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-blue-900 mb-1">Informasi</h4>
-                <p className="text-sm text-blue-700">Pilih GSM Duplex dan Ukuran. Harga boleh dikosongkan jika belum tersedia.</p>
-              </div>
-            </div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
+            <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
+            <p className="text-sm text-blue-700">
+              Pilih GSM Duplex dan Ukuran. Harga boleh dikosongkan jika belum tersedia.
+            </p>
           </div>
 
           {/* GSM */}
@@ -662,12 +689,17 @@ export default function DuplexDKPage() {
             {loadingGramasi ? (
               <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
                 <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
-                <span className="text-sm text-gray-500">Memuat data GSM Duplex...</span>
+                <span className="text-sm text-gray-600">Memuat data GSM Duplex...</span>
               </div>
             ) : (
-              <Select value={addForm.gsm} onChange={e => onAddChange('gsm', e.target.value)}
-                options={gsmOptions} placeholder="-- Pilih GSM Duplex --"
-                disabled={isPosting} className={formErrors.gsm ? 'border-red-500' : ''} />
+              <Select 
+                value={addForm.gsm} 
+                onChange={e => onAddChange('gsm', e.target.value)}
+                options={gsmOptions} 
+                placeholder="-- Pilih GSM Duplex --"
+                disabled={isPosting} 
+                className={formErrors.gsm ? 'border-red-500' : ''} 
+              />
             )}
             {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
             {!loadingGramasi && gramasiList.length === 0 && (
@@ -678,9 +710,14 @@ export default function DuplexDKPage() {
           {/* Ukuran */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran <span className="text-red-500">*</span></label>
-            <Select value={addForm.sheet_size_id} onChange={e => onAddChange('sheet_size_id', e.target.value)}
-              options={sheetOptions} placeholder="-- Pilih Ukuran --"
-              disabled={isPosting} className={formErrors.sheet_size_id ? 'border-red-500' : ''} />
+            <Select 
+              value={addForm.sheet_size_id} 
+              onChange={e => onAddChange('sheet_size_id', e.target.value)}
+              options={sheetOptions} 
+              placeholder="-- Pilih Ukuran --"
+              disabled={isPosting} 
+              className={formErrors.sheet_size_id ? 'border-red-500' : ''} 
+            />
             {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
           </div>
 
@@ -689,9 +726,17 @@ export default function DuplexDKPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Harga per Lembar <span className="text-xs text-gray-400 ml-1">(opsional)</span>
             </label>
-            <Input type="number" value={addForm.harga_per_lembar} onChange={e => onAddChange('harga_per_lembar', e.target.value)}
-              placeholder="Masukkan harga per lembar" leftIcon="mdi:cash" disabled={isPosting}
-              className={formErrors.harga_per_lembar ? 'border-red-500' : ''} min="1" step="100" />
+            <Input 
+              type="number" 
+              value={addForm.harga_per_lembar} 
+              onChange={e => onAddChange('harga_per_lembar', e.target.value)}
+              placeholder="Masukkan harga per lembar" 
+              leftIcon="mdi:cash" 
+              disabled={isPosting}
+              className={formErrors.harga_per_lembar ? 'border-red-500' : ''} 
+              min="1" 
+              step="100" 
+            />
             {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
           </div>
 
@@ -730,7 +775,11 @@ export default function DuplexDKPage() {
       </Modal>
 
       {/* ===== EDIT MODAL ===== */}
-      <Modal isOpen={showEditModal} onClose={closeEdit} title="✏️ Edit Ukuran Duplex DK" size="lg"
+      <Modal 
+        isOpen={showEditModal} 
+        onClose={closeEdit} 
+        title={`✏️ Edit Data — ${editingItem?.gsm} GSM`} 
+        size="lg"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
@@ -761,21 +810,31 @@ export default function DuplexDKPage() {
               {loadingGramasi ? (
                 <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
                   <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
-                  <span className="text-sm text-gray-500">Memuat data GSM Duplex...</span>
+                  <span className="text-sm text-gray-600">Memuat data GSM Duplex...</span>
                 </div>
               ) : (
-                <Select value={editForm.gsm} onChange={e => onEditChange('gsm', e.target.value)}
-                  options={gsmOptions} placeholder="-- Pilih GSM Duplex --"
-                  disabled={isPosting} className={formErrors.gsm ? 'border-red-500' : ''} />
+                <Select 
+                  value={editForm.gsm} 
+                  onChange={e => onEditChange('gsm', e.target.value)}
+                  options={gsmOptions} 
+                  placeholder="-- Pilih GSM Duplex --"
+                  disabled={isPosting} 
+                  className={formErrors.gsm ? 'border-red-500' : ''} 
+                />
               )}
               {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran Baru <span className="text-red-500">*</span></label>
-              <Select value={editForm.sheet_size_id} onChange={e => onEditChange('sheet_size_id', e.target.value)}
-                options={sheetOptions} placeholder="-- Pilih Ukuran --"
-                disabled={isPosting} className={formErrors.sheet_size_id ? 'border-red-500' : ''} />
+              <Select 
+                value={editForm.sheet_size_id} 
+                onChange={e => onEditChange('sheet_size_id', e.target.value)}
+                options={sheetOptions} 
+                placeholder="-- Pilih Ukuran --"
+                disabled={isPosting} 
+                className={formErrors.sheet_size_id ? 'border-red-500' : ''} 
+              />
               {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
             </div>
 
@@ -783,9 +842,17 @@ export default function DuplexDKPage() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Harga Baru <span className="text-xs text-gray-400 ml-1">(opsional)</span>
               </label>
-              <Input type="number" value={editForm.harga_per_lembar} onChange={e => onEditChange('harga_per_lembar', e.target.value)}
-                placeholder="Kosongkan atau isi 0 jika belum ada harga" leftIcon="mdi:cash" disabled={isPosting}
-                className={formErrors.harga_per_lembar ? 'border-red-500' : ''} min="0" step="100" />
+              <Input 
+                type="number" 
+                value={editForm.harga_per_lembar} 
+                onChange={e => onEditChange('harga_per_lembar', e.target.value)}
+                placeholder="Kosongkan atau isi 0 jika belum ada harga" 
+                leftIcon="mdi:cash" 
+                disabled={isPosting}
+                className={formErrors.harga_per_lembar ? 'border-red-500' : ''} 
+                min="0" 
+                step="100" 
+              />
               {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
             </div>
 
@@ -817,33 +884,46 @@ export default function DuplexDKPage() {
       </Modal>
 
       {/* ===== VIEW MODAL ===== */}
-      <Modal isOpen={showViewModal} onClose={closeView} title="Detail Duplex DK" size="md"
+      <Modal 
+        isOpen={showViewModal} 
+        onClose={closeView} 
+        title="Detail Duplex DK" 
+        size="md"
         footer={
           <>
             <Button variant="outline" size="md" onClick={closeView}>Tutup</Button>
-            <Button variant="primary" size="md" icon="mdi:pencil-outline" onClick={() => { closeView(); if (selectedItem) handleEditClick(selectedItem) }}>Edit Data</Button>
+            <Button 
+              variant="primary" 
+              size="md" 
+              icon="mdi:pencil-outline" 
+              onClick={() => { closeView(); if (selectedItem) handleEditClick(selectedItem) }}
+            >
+              Edit Data
+            </Button>
           </>
         }>
         {selectedItem && (() => {
           const luas = (selectedItem.panjang * selectedItem.lebar) / 10000
           const perM2 = selectedItem.harga_per_lembar > 0 ? selectedItem.harga_per_lembar / luas : 0
+          const color = getGSMColor(selectedItem.gsm)
           return (
             <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-blue-50">
-                <div className="w-14 h-14 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0">
-                  <Icon icon="mdi:package-variant-closed" className="w-7 h-7 text-blue-600" />
+              {/* Identity */}
+              <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: `${color.bg}0d` }}>
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color.bg}20` }}>
+                  <Icon icon="mdi:package-variant-closed" className="w-7 h-7" style={{ color: color.bg }} />
                 </div>
                 <div>
                   <p className="text-base font-semibold text-slate-800">Duplex DK</p>
                   <div className="flex items-center gap-2 mt-1">
-                    <div className="inline-flex px-2.5 py-1 rounded-full text-xs font-bold"
-                      style={{ backgroundColor: getGSMColor(selectedItem.gsm).light, color: getGSMColor(selectedItem.gsm).bg }}>
+                    <Badge color={color.bg}>
                       {selectedItem.gsm} GSM
-                    </div>
+                    </Badge>
                   </div>
                 </div>
               </div>
 
+              {/* Ukuran Info */}
               <Card shadow="none" padding="sm" bordered>
                 <p className="text-xs text-gray-500 mb-2">Informasi Ukuran</p>
                 <div className="space-y-2">
@@ -858,6 +938,7 @@ export default function DuplexDKPage() {
                 </div>
               </Card>
 
+              {/* Harga Info */}
               <Card shadow="none" padding="sm" bordered>
                 <p className="text-xs text-gray-500 mb-2">Informasi Harga</p>
                 <div className="space-y-2">
