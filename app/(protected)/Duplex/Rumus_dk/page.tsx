@@ -1,10 +1,9 @@
 'use client'
 // app/(protected)/Duplex/Rumus_dk/page.tsx
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
-import axios from '@/lib/axios'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
@@ -12,118 +11,23 @@ import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
 
-// ===== TYPE DEFINITIONS =====
-interface DuplexDataDK {
-  id: number
-  gsm: number
-  sheet_size_id: string
-  panjang: number
-  lebar: number
-  harga_per_lembar: number
-  type: 'DK'
-}
+import { useDuplexDK } from './hooks/useDuplexDK'
+import { useDuplexActions } from './hooks/useDuplexActions'
+import { BASE_FORM } from './constants/constants'
+import {
+  buildSheetLabel,
+  formatCurrency,
+  formatHarga,
+  formatLuas,
+  formatUkuran,
+  getGSMColor,
+} from './lib/utils'
+import type { DuplexDataDK, DuplexStats, FormData, GramasiItem, SheetSizeItem } from './types/types'
 
-interface GramasiItem {
-  id: string
-  material_type_id: string
-  gsm: string
-  name: string
-  material_type: string
-  is_premium: string
-}
+// ============================================================
+// SHARED UI
+// ============================================================
 
-interface SheetSizeItem {
-  id_sh: string
-  panjang_sh: string
-  lebar_sh: string
-}
-
-interface FormData {
-  sheet_size_id: string
-  gsm: string
-  harga_per_lembar: string
-}
-
-interface Stats {
-  totalRecords: number
-  averagePrice: number
-  totalCombinations: number
-  uniqueGsm: number
-  uniqueSizes: number
-  withPrice: number
-}
-
-// ===== API TYPES =====
-interface ApiResponse<T = unknown> {
-  status: number
-  message?: string
-  data?: T
-}
-
-interface DuplexApiItem {
-  id: string
-  gsm: string
-  sheet_size_id: string
-  harga_lembar: string
-  updated_at: string | null
-  id_sh: string
-  panjang_mm: string
-  lebar_mm: string
-}
-
-interface GramasiApiResponse {
-  status: number
-  message?: string
-  data?: GramasiItem[]
-}
-
-// ===== CONSTANTS =====
-const BASE_FORM: FormData = { sheet_size_id: '', gsm: '', harga_per_lembar: '' }
-
-const GSM_COLORS = [
-  { bg: '#3b82f6', light: '#dbeafe' },
-  { bg: '#10b981', light: '#d1fae5' },
-  { bg: '#f59e0b', light: '#fed7aa' },
-  { bg: '#8b5cf6', light: '#ede9fe' },
-  { bg: '#ef4444', light: '#fee2e2' },
-]
-
-// ===== UTILITIES =====
-const formatUkuranDisplay = (p: number, l: number) =>
-  (!p || !l) ? '-' : `${p} × ${l} cm`
-
-const formatCurrency = (n: number) =>
-  new Intl.NumberFormat('id-ID', {
-    style: 'currency', currency: 'IDR',
-    minimumFractionDigits: 0, maximumFractionDigits: 0
-  }).format(n)
-
-const formatHargaDisplay = (n: number) => n === 0 ? '-' : formatCurrency(n)
-
-const getGSMColor = (gsm: number) => {
-  if (gsm <= 200) return GSM_COLORS[0]
-  if (gsm <= 300) return GSM_COLORS[1]
-  if (gsm <= 400) return GSM_COLORS[2]
-  if (gsm <= 450) return GSM_COLORS[3]
-  return GSM_COLORS[4]
-}
-
-const buildSheetLabel = (p_mm: string, l_mm: string) => {
-  const p = parseInt(p_mm) / 10, l = parseInt(l_mm) / 10
-  return (!isNaN(p) && p > 0) ? `${p} × ${l} cm` : `${p_mm} × ${l_mm} mm`
-}
-
-const mapPriceItem = (item: DuplexApiItem): DuplexDataDK => ({
-  id: parseInt(item.id),
-  gsm: parseInt(item.gsm),
-  sheet_size_id: item.id_sh,
-  panjang: parseInt(item.panjang_mm) / 10,
-  lebar: parseInt(item.lebar_mm) / 10,
-  harga_per_lembar: parseFloat(item.harga_lembar) || 0,
-  type: 'DK'
-})
-
-// ===== BADGE COMPONENT =====
 function Badge({ color, children }: { color: string; children: React.ReactNode }) {
   return (
     <span
@@ -135,109 +39,462 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
   )
 }
 
-// ===== CUSTOM HOOK =====
-const useDuplexDK = () => {
-  const [dataDK, setDataDK] = useState<DuplexDataDK[]>([])
-  const [gramasiList, setGramasiList] = useState<GramasiItem[]>([])
-  const [sheetSizeList, setSheetSizeList] = useState<SheetSizeItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [loadingGramasi, setLoadingGramasi] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchGramasi = useCallback(async () => {
-    try {
-      setLoadingGramasi(true)
-      const res = await axios.get<GramasiApiResponse>('Admin/Duplek/gramasiIndex')
-      if (res.data?.status === 200 && Array.isArray(res.data.data)) {
-        const seenGsm = new Set<string>()
-        const duplexOnly = res.data.data
-          .filter(item => item.name === 'Duplex')
-          .filter(item => {
-            if (seenGsm.has(item.gsm)) return false
-            seenGsm.add(item.gsm)
-            return true
-          })
-          .sort((a, b) => parseInt(a.gsm) - parseInt(b.gsm))
-        setGramasiList(duplexOnly)
-      } else {
-        setGramasiList([])
-      }
-    } catch (e) {
-      console.error('fetchGramasi error:', e)
-      setGramasiList([])
-    } finally {
-      setLoadingGramasi(false)
-    }
-  }, [])
-
-  const fetchData = useCallback(async () => {
-    try {
-      setLoading(true); setError(null)
-      const res = await axios.get<ApiResponse<DuplexApiItem[]>>('Admin/Duplek/duplekKraftPrices')
-      const raw: DuplexApiItem[] = (res.data?.status === 200 && Array.isArray(res.data.data))
-        ? res.data.data : []
-
-      setDataDK(raw.map(mapPriceItem))
-
-      if (raw.length > 0) {
-        const seenSh = new Set<string>()
-        setSheetSizeList(
-          raw
-            .filter(i => { if (!i.id_sh || seenSh.has(i.id_sh)) return false; seenSh.add(i.id_sh); return true })
-            .map(i => ({ id_sh: i.id_sh, panjang_sh: i.panjang_mm, lebar_sh: i.lebar_mm }))
-            .sort((a, b) => parseInt(a.id_sh) - parseInt(b.id_sh))
-        )
-      } else {
-        try {
-          const fallback = await axios.get<ApiResponse<DuplexApiItem[]>>('Admin/Duplek/duplekMduplekPrices')
-          const fallbackRaw: DuplexApiItem[] = (fallback.data?.status === 200 && Array.isArray(fallback.data.data))
-            ? fallback.data.data : []
-          const seenSh = new Set<string>()
-          setSheetSizeList(
-            fallbackRaw
-              .filter(i => { if (!i.id_sh || seenSh.has(i.id_sh)) return false; seenSh.add(i.id_sh); return true })
-              .map(i => ({ id_sh: i.id_sh, panjang_sh: i.panjang_mm, lebar_sh: i.lebar_mm }))
-              .sort((a, b) => parseInt(a.id_sh) - parseInt(b.id_sh))
-          )
-        } catch {
-          setSheetSizeList([])
-        }
-      }
-    } catch (e) {
-      console.error('fetchData error:', e)
-      setError('Gagal mengambil data')
-      setDataDK([])
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchGramasi()
-    fetchData()
-  }, [fetchGramasi, fetchData])
-
-  const stats = useMemo((): Stats => {
-    const total = dataDK.length
-    const wp = dataDK.filter(d => d.harga_per_lembar > 0)
-    return {
-      totalRecords: total,
-      averagePrice: wp.length > 0 ? wp.reduce((s, d) => s + d.harga_per_lembar, 0) / wp.length : 0,
-      totalCombinations: new Set(dataDK.map(d => `${d.gsm}-${d.sheet_size_id}`)).size,
-      uniqueGsm: new Set(dataDK.map(d => d.gsm)).size,
-      uniqueSizes: new Set(dataDK.map(d => d.sheet_size_id)).size,
-      withPrice: wp.length
-    }
-  }, [dataDK])
-
-  return { dataDK, gramasiList, sheetSizeList, loading, loadingGramasi, error, stats, refetch: fetchData }
+const HOVER_CLASSES: Record<string, string> = {
+  blue:  'hover:text-blue-600 hover:bg-blue-50',
+  amber: 'hover:text-amber-600 hover:bg-amber-50',
+  red:   'hover:text-red-600 hover:bg-red-50',
 }
 
-// ===== MAIN COMPONENT =====
+function ActionButton({ onClick, icon, hoverColor, title }: { onClick: () => void; icon: string; hoverColor: string; title: string }) {
+  return (
+    <button onClick={onClick} title={title} className={`p-2 text-gray-400 rounded-lg transition-colors ${HOVER_CLASSES[hoverColor]}`}>
+      <Icon icon={icon} className="w-5 h-5" />
+    </button>
+  )
+}
+
+// ============================================================
+// STATS CARDS
+// ============================================================
+
+function StatsCards({ stats }: { stats: DuplexStats }) {
+  const items = [
+    {
+      icon: 'mdi:package-variant-closed',
+      label: 'Total Records',
+      value: stats.totalRecords,
+      sub: `${stats.uniqueGsm} variasi GSM · ${stats.uniqueSizes} ukuran`,
+    },
+    {
+      icon: 'mdi:ruler-square',
+      label: 'Kombinasi Ukuran',
+      value: stats.totalCombinations,
+      sub: `${stats.uniqueGsm} GSM × ${stats.uniqueSizes} ukuran`,
+    },
+    {
+      icon: 'mdi:cash-multiple',
+      label: 'Rata-rata Harga',
+      value: formatHarga(stats.averagePrice),
+      sub: 'per lembar',
+    },
+    {
+      icon: 'mdi:check-circle',
+      label: 'Data dengan Harga',
+      value: stats.withPrice,
+      sub: `${Math.round((stats.withPrice / stats.totalRecords) * 100) || 0}% dari total`,
+    },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      {items.map((s, i) => (
+        <Card key={i} shadow="sm" padding="md" hoverable>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-gray-500">{s.label}</p>
+            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+              <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+          <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
+// ============================================================
+// TABLE
+// ============================================================
+
+interface TableProps {
+  data: DuplexDataDK[]
+  totalCount: number
+  search: string
+  onSearchClear: () => void
+  onView: (item: DuplexDataDK) => void
+  onEdit: (item: DuplexDataDK) => void
+  onDelete: (item: DuplexDataDK) => void
+  onAdd: () => void
+}
+
+function DuplexTable({ data, totalCount, search, onSearchClear, onView, onEdit, onDelete, onAdd }: TableProps) {
+  if (totalCount === 0) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16">
+        <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
+        <p className="text-gray-500 font-medium text-lg">Belum ada data Duplex DK</p>
+        <Button onClick={onAdd} variant="primary" icon="mdi:plus" size="sm">Tambah Ukuran Baru</Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="overflow-x-auto">
+      {data.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 py-16">
+          <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
+          <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
+          <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+          <Button variant="ghost" size="sm" onClick={onSearchClear} icon="mdi:close">Hapus Pencarian</Button>
+        </div>
+      ) : (
+        <>
+          <table className="min-w-full divide-y divide-gray-100">
+            <thead className="bg-gray-50">
+              <tr>
+                {['No', 'GSM', 'Ukuran (cm)', 'Harga per Lembar', 'Aksi'].map(h => (
+                  <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-100">
+              {data.map((item, idx) => {
+                const luas = (item.panjang * item.lebar) / 10000
+                const perM2 = item.harga_per_lembar > 0 ? item.harga_per_lembar / luas : 0
+                const color = getGSMColor(item.gsm)
+
+                return (
+                  <tr key={`dk-${item.id}`} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-slate-600">{idx + 1}</span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge color={color.bg}>{item.gsm} GSM</Badge>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
+                          <Icon icon="mdi:ruler-square" className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <span className="text-sm font-medium text-slate-800">
+                          {formatUkuran(item.panjang, item.lebar)}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      {item.harga_per_lembar > 0 ? (
+                        <div>
+                          <div className="text-sm font-bold text-slate-800">{formatHarga(item.harga_per_lembar)}</div>
+                          <div className="text-xs text-gray-400 mt-0.5">{formatCurrency(perM2)}/m²</div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-300 italic">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center gap-1">
+                        <ActionButton onClick={() => onView(item)} icon="mdi:eye-outline" hoverColor="blue" title="Lihat Detail" />
+                        <ActionButton onClick={() => onEdit(item)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
+                        <ActionButton onClick={() => onDelete(item)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+
+          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
+            <p className="text-sm text-gray-500">
+              Menampilkan <span className="font-medium text-slate-700">{data.length}</span> dari{' '}
+              <span className="font-medium text-slate-700">{totalCount}</span> data
+            </p>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// FORM FIELDS (shared antara Add & Edit modal)
+// ============================================================
+
+interface FormFieldsProps {
+  form: FormData
+  formErrors: Record<string, string>
+  gsmOptions: { value: string; label: string }[]
+  sheetOptions: { value: string; label: string }[]
+  loadingGramasi: boolean
+  isPosting: boolean
+  gramasiList: GramasiItem[]
+  sheetSizeList: SheetSizeItem[]
+  onChangeGsm: (v: string) => void
+  onChangeSheet: (v: string) => void
+  onChangeHarga: (v: string) => void
+  previewLabel: string
+}
+
+function FormFields({
+  form, formErrors, gsmOptions, sheetOptions, loadingGramasi, isPosting,
+  gramasiList, sheetSizeList, onChangeGsm, onChangeSheet, onChangeHarga, previewLabel
+}: FormFieldsProps) {
+  const selectedSize = sheetSizeList.find(i => i.id_sh === form.sheet_size_id) ?? null
+  const selectedGsm = gramasiList.find(i => i.gsm === form.gsm) ?? null
+
+  return (
+    <div className="space-y-4">
+      {/* GSM */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">GSM <span className="text-red-500">*</span></label>
+        {loadingGramasi ? (
+          <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
+            <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
+            <span className="text-sm text-gray-600">Memuat data GSM Duplex...</span>
+          </div>
+        ) : (
+          <Select
+            value={form.gsm}
+            onChange={e => onChangeGsm(e.target.value)}
+            options={gsmOptions}
+            placeholder="-- Pilih GSM Duplex --"
+            disabled={isPosting}
+            className={formErrors.gsm ? 'border-red-500' : ''}
+          />
+        )}
+        {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
+        {!loadingGramasi && gramasiList.length === 0 && (
+          <p className="text-xs text-amber-600 mt-2">⚠ Data GSM Duplex tidak tersedia</p>
+        )}
+      </div>
+
+      {/* Ukuran */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran <span className="text-red-500">*</span></label>
+        <Select
+          value={form.sheet_size_id}
+          onChange={e => onChangeSheet(e.target.value)}
+          options={sheetOptions}
+          placeholder="-- Pilih Ukuran --"
+          disabled={isPosting}
+          className={formErrors.sheet_size_id ? 'border-red-500' : ''}
+        />
+        {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
+      </div>
+
+      {/* Harga */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Harga per Lembar <span className="text-xs text-gray-400 ml-1">(opsional)</span>
+        </label>
+        <Input
+          type="number"
+          value={form.harga_per_lembar}
+          onChange={e => onChangeHarga(e.target.value)}
+          placeholder="Masukkan harga per lembar"
+          leftIcon="mdi:cash"
+          disabled={isPosting}
+          className={formErrors.harga_per_lembar ? 'border-red-500' : ''}
+          min="0"
+          step="100"
+        />
+        {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
+      </div>
+
+      {/* Preview */}
+      {selectedSize && selectedGsm && (
+        <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+          <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
+            <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+              <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
+            </div>
+            {previewLabel}
+          </h4>
+          <div className="grid grid-cols-2 gap-3 text-sm">
+            <div><p className="text-gray-500 mb-1">GSM:</p><p className="font-medium">{selectedGsm.gsm} GSM</p></div>
+            <div><p className="text-gray-500 mb-1">Ukuran:</p><p className="font-medium">{buildSheetLabel(selectedSize.panjang_sh, selectedSize.lebar_sh)}</p></div>
+            <div><p className="text-gray-500 mb-1">Luas:</p><p className="font-medium">{formatLuas(selectedSize.panjang_sh, selectedSize.lebar_sh)} m²</p></div>
+            <div>
+              <p className="text-gray-500 mb-1">Harga:</p>
+              <p className="font-medium">
+                {form.harga_per_lembar && parseFloat(form.harga_per_lembar) > 0
+                  ? formatCurrency(parseFloat(form.harga_per_lembar))
+                  : <span className="text-gray-400 italic">(kosong / 0)</span>}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* General Error */}
+      {formErrors.general && (
+        <div className="bg-red-50 p-4 rounded-xl border border-red-200 flex items-start gap-3">
+          <Icon icon="mdi:alert-circle" className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-red-800">{formErrors.general}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+
+interface AddModalProps {
+  isOpen: boolean; isPosting: boolean
+  form: FormData; formErrors: Record<string, string>
+  gsmOptions: { value: string; label: string }[]; sheetOptions: { value: string; label: string }[]
+  gramasiList: GramasiItem[]; sheetSizeList: SheetSizeItem[]; loadingGramasi: boolean
+  onChange: (field: string, value: string) => void
+  onClose: () => void; onSubmit: () => void
+}
+
+function AddModal({ isOpen, isPosting, form, formErrors, gsmOptions, sheetOptions, gramasiList, sheetSizeList, loadingGramasi, onChange, onClose, onSubmit }: AddModalProps) {
+  return (
+    <Modal
+      isOpen={isOpen} onClose={onClose} title="➕ Tambah Ukuran Duplex DK" size="lg" closeOnOverlayClick={!isPosting}
+      footer={
+        <>
+          <Button variant="outline" size="md" onClick={onClose} disabled={isPosting}>Batal</Button>
+          <Button variant="primary" size="md" onClick={onSubmit} loading={isPosting} disabled={isPosting} icon="mdi:check">Simpan Data</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
+          <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
+          <p className="text-sm text-blue-700">Pilih GSM Duplex dan Ukuran. Harga boleh dikosongkan jika belum tersedia.</p>
+        </div>
+        <FormFields
+          form={form} formErrors={formErrors}
+          gsmOptions={gsmOptions} sheetOptions={sheetOptions}
+          gramasiList={gramasiList} sheetSizeList={sheetSizeList}
+          loadingGramasi={loadingGramasi} isPosting={isPosting}
+          onChangeGsm={v => onChange('gsm', v)}
+          onChangeSheet={v => onChange('sheet_size_id', v)}
+          onChangeHarga={v => onChange('harga_per_lembar', v)}
+          previewLabel="Preview Data"
+        />
+      </div>
+    </Modal>
+  )
+}
+
+interface EditModalProps {
+  isOpen: boolean; isPosting: boolean
+  editingItem: DuplexDataDK | null
+  form: FormData; formErrors: Record<string, string>
+  gsmOptions: { value: string; label: string }[]; sheetOptions: { value: string; label: string }[]
+  gramasiList: GramasiItem[]; sheetSizeList: SheetSizeItem[]; loadingGramasi: boolean
+  onChange: (field: string, value: string) => void
+  onClose: () => void; onSubmit: () => void
+}
+
+function EditModal({ isOpen, isPosting, editingItem, form, formErrors, gsmOptions, sheetOptions, gramasiList, sheetSizeList, loadingGramasi, onChange, onClose, onSubmit }: EditModalProps) {
+  if (!editingItem) return null
+
+  return (
+    <Modal
+      isOpen={isOpen} onClose={onClose} title={`✏️ Edit Data — ${editingItem.gsm} GSM`} size="lg" closeOnOverlayClick={!isPosting}
+      footer={
+        <>
+          <Button variant="outline" size="md" onClick={onClose} disabled={isPosting}>Batal</Button>
+          <Button variant="primary" size="md" onClick={onSubmit} loading={isPosting} disabled={isPosting} icon="mdi:check">Update Data</Button>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        {/* Current data banner */}
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
+            </div>
+            <div className="flex-1">
+              <h4 className="font-semibold text-blue-900 mb-1">Data Saat Ini</h4>
+              <div className="grid grid-cols-3 gap-4 text-sm mt-2">
+                <div><p className="text-blue-700 text-xs mb-1">Ukuran</p><p className="font-medium text-blue-900">{formatUkuran(editingItem.panjang, editingItem.lebar)}</p></div>
+                <div><p className="text-blue-700 text-xs mb-1">GSM</p><p className="font-medium text-blue-900">{editingItem.gsm} GSM</p></div>
+                <div><p className="text-blue-700 text-xs mb-1">Harga</p><p className="font-medium text-blue-900">{formatHarga(editingItem.harga_per_lembar)}</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <FormFields
+          form={form} formErrors={formErrors}
+          gsmOptions={gsmOptions} sheetOptions={sheetOptions}
+          gramasiList={gramasiList} sheetSizeList={sheetSizeList}
+          loadingGramasi={loadingGramasi} isPosting={isPosting}
+          onChangeGsm={v => onChange('gsm', v)}
+          onChangeSheet={v => onChange('sheet_size_id', v)}
+          onChangeHarga={v => onChange('harga_per_lembar', v)}
+          previewLabel="Preview Update"
+        />
+      </div>
+    </Modal>
+  )
+}
+
+function ViewModal({ isOpen, item, onClose, onEdit }: { isOpen: boolean; item: DuplexDataDK | null; onClose: () => void; onEdit: () => void }) {
+  if (!item) return null
+  const luas = (item.panjang * item.lebar) / 10000
+  const perM2 = item.harga_per_lembar > 0 ? item.harga_per_lembar / luas : 0
+  const color = getGSMColor(item.gsm)
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Detail Duplex DK" size="md"
+      footer={
+        <>
+          <Button variant="outline" size="md" onClick={onClose}>Tutup</Button>
+          <Button variant="primary" size="md" icon="mdi:pencil-outline" onClick={onEdit}>Edit Data</Button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: `${color.bg}0d` }}>
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color.bg}20` }}>
+            <Icon icon="mdi:package-variant-closed" className="w-7 h-7" style={{ color: color.bg }} />
+          </div>
+          <div>
+            <p className="text-base font-semibold text-slate-800">Duplex DK</p>
+            <div className="mt-1"><Badge color={color.bg}>{item.gsm} GSM</Badge></div>
+          </div>
+        </div>
+
+        <Card shadow="none" padding="sm" bordered>
+          <p className="text-xs text-gray-500 mb-2">Informasi Ukuran</p>
+          <div className="space-y-2">
+            <div className="flex justify-between p-2 bg-slate-50 rounded">
+              <span className="text-xs font-medium text-gray-500">Dimensi</span>
+              <span className="text-sm font-medium text-slate-800">{formatUkuran(item.panjang, item.lebar)}</span>
+            </div>
+            <div className="flex justify-between p-2 bg-slate-50 rounded">
+              <span className="text-xs font-medium text-gray-500">Luas</span>
+              <span className="text-sm font-medium text-slate-800">{luas.toFixed(2)} m²</span>
+            </div>
+          </div>
+        </Card>
+
+        <Card shadow="none" padding="sm" bordered>
+          <p className="text-xs text-gray-500 mb-2">Informasi Harga</p>
+          <div className="space-y-2">
+            <div className="flex justify-between p-2 bg-slate-50 rounded">
+              <span className="text-xs font-medium text-gray-500">Harga per Lembar</span>
+              <span className="text-sm font-bold text-slate-800">{formatHarga(item.harga_per_lembar)}</span>
+            </div>
+            {item.harga_per_lembar > 0 && (
+              <div className="flex justify-between p-2 bg-slate-50 rounded">
+                <span className="text-xs font-medium text-gray-500">Harga per m²</span>
+                <span className="text-sm font-medium text-slate-800">{formatCurrency(perM2)}</span>
+              </div>
+            )}
+          </div>
+        </Card>
+      </div>
+    </Modal>
+  )
+}
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
+
 export default function DuplexDKPage() {
   const { dataDK, gramasiList, sheetSizeList, loading, loadingGramasi, error, stats, refetch } = useDuplexDK()
 
-  const [isPosting, setIsPosting] = useState(false)
   const [search, setSearch] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -247,77 +504,44 @@ export default function DuplexDKPage() {
 
   const [addForm, setAddForm] = useState<FormData>({ ...BASE_FORM })
   const [editForm, setEditForm] = useState<FormData>({ ...BASE_FORM })
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [addFormErrors, setAddFormErrors] = useState<Record<string, string>>({})
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({})
 
-  const [addSize, setAddSize] = useState<SheetSizeItem | null>(null)
-  const [editSize, setEditSize] = useState<SheetSizeItem | null>(null)
-  const [addGramasi, setAddGramasi] = useState<GramasiItem | null>(null)
-  const [editGramasi, setEditGramasi] = useState<GramasiItem | null>(null)
+  const resetAdd = () => { setAddForm({ ...BASE_FORM }); setAddFormErrors({}) }
+  const resetEdit = () => { setEditForm({ ...BASE_FORM }); setEditFormErrors({}) }
 
+  const { isPosting, handleAdd, handleEdit, handleDelete } = useDuplexActions({
+    dataDK,
+    sheetSizeList,
+    refetch,
+    setShowAddModal,
+    setShowEditModal,
+    resetAdd,
+    resetEdit,
+    setEditingItem,
+  })
+
+  // ===== DERIVED =====
   const sortedData = useMemo(() =>
     [...dataDK].sort((a, b) =>
-      a.gsm !== b.gsm ? a.gsm - b.gsm : (a.panjang * a.lebar) - (b.panjang * b.lebar)
+      a.gsm !== b.gsm ? a.gsm - b.gsm : a.panjang * a.lebar - b.panjang * b.lebar
     ), [dataDK])
 
   const filteredData = useMemo(() =>
     sortedData.filter(item =>
       item.gsm.toString().includes(search) ||
-      formatUkuranDisplay(item.panjang, item.lebar).includes(search)
+      formatUkuran(item.panjang, item.lebar).includes(search)
     ), [sortedData, search])
 
   const gsmOptions = useMemo(() =>
-    gramasiList.map((item, idx) => ({
-      value: item.gsm,
-      label: `${item.gsm} GSM`,
-      key: `gr-${item.gsm}-${idx}`
-    })), [gramasiList])
+    gramasiList.map(item => ({ value: item.gsm, label: `${item.gsm} GSM` }))
+  , [gramasiList])
 
   const sheetOptions = useMemo(() =>
-    sheetSizeList.map((i, idx) => ({
-      value: i.id_sh,
-      label: buildSheetLabel(i.panjang_sh, i.lebar_sh),
-      key: `sh-${i.id_sh}-${idx}`
-    })), [sheetSizeList])
+    sheetSizeList.map(i => ({ value: i.id_sh, label: buildSheetLabel(i.panjang_sh, i.lebar_sh) }))
+  , [sheetSizeList])
 
-  useEffect(() => {
-    setAddSize(sheetSizeList.find(i => i.id_sh === addForm.sheet_size_id) ?? null)
-  }, [addForm.sheet_size_id, sheetSizeList])
-
-  useEffect(() => {
-    setEditSize(sheetSizeList.find(i => i.id_sh === editForm.sheet_size_id) ?? null)
-  }, [editForm.sheet_size_id, sheetSizeList])
-
-  useEffect(() => {
-    setAddGramasi(gramasiList.find(i => i.gsm === addForm.gsm) ?? null)
-  }, [addForm.gsm, gramasiList])
-
-  useEffect(() => {
-    setEditGramasi(gramasiList.find(i => i.gsm === editForm.gsm) ?? null)
-  }, [editForm.gsm, gramasiList])
-
-  // ===== VALIDATION =====
-  const validate = (form: FormData, isEdit = false): Record<string, string> => {
-    const e: Record<string, string> = {}
-    if (!form.gsm) e.gsm = 'GSM tidak boleh kosong'
-    if (!form.sheet_size_id) e.sheet_size_id = 'Ukuran tidak boleh kosong'
-    if (form.harga_per_lembar.trim()) {
-      const h = parseFloat(form.harga_per_lembar)
-      if (isNaN(h)) e.harga_per_lembar = 'Harga harus berupa angka'
-      else if (h < 0) e.harga_per_lembar = 'Harga tidak boleh negatif'
-    }
-    if (!isEdit && form.gsm && form.sheet_size_id) {
-      const gNum = parseInt(form.gsm)
-      if (dataDK.some(d => d.sheet_size_id === form.sheet_size_id && d.gsm === gNum)) {
-        const sz = sheetSizeList.find(s => s.id_sh === form.sheet_size_id)
-        e.general = `Kombinasi ${sz ? buildSheetLabel(sz.panjang_sh, sz.lebar_sh) : ''} dengan ${form.gsm} GSM sudah ada`
-      }
-    }
-    return e
-  }
-
-  const resetAdd = () => { setAddForm({ ...BASE_FORM }); setAddSize(null); setAddGramasi(null); setFormErrors({}) }
-  const resetEdit = () => { setEditForm({ ...BASE_FORM }); setEditSize(null); setEditGramasi(null); setFormErrors({}) }
-
+  // ===== HANDLERS =====
   const handleAddClick = () => { resetAdd(); setShowAddModal(true) }
 
   const handleEditClick = (item: DuplexDataDK) => {
@@ -325,144 +549,52 @@ export default function DuplexDKPage() {
     setEditForm({
       gsm: item.gsm.toString(),
       sheet_size_id: item.sheet_size_id,
-      harga_per_lembar: item.harga_per_lembar > 0 ? item.harga_per_lembar.toString() : ''
+      harga_per_lembar: item.harga_per_lembar > 0 ? item.harga_per_lembar.toString() : '',
     })
-    setFormErrors({})
+    setEditFormErrors({})
     setShowEditModal(true)
   }
 
-  const handleViewClick = (item: DuplexDataDK) => { setSelectedItem(item); setShowViewModal(true) }
-
   const closeAdd = () => { if (!isPosting) { setShowAddModal(false); resetAdd() } }
   const closeEdit = () => { if (!isPosting) { setShowEditModal(false); setEditingItem(null); resetEdit() } }
-  const closeView = () => { setShowViewModal(false); setSelectedItem(null) }
 
-  const onAddChange = (f: string, v: string) => {
-    setAddForm(p => ({ ...p, [f]: v }))
-    setFormErrors(p => ({ ...p, [f]: '', general: '' }))
-  }
-  const onEditChange = (f: string, v: string) => {
-    setEditForm(p => ({ ...p, [f]: v }))
-    setFormErrors(p => ({ ...p, [f]: '' }))
+  const onAddChange = (field: string, value: string) => {
+    setAddForm(p => ({ ...p, [field]: value }))
+    setAddFormErrors(p => ({ ...p, [field]: '', general: '' }))
   }
 
-  const showDuplicateWarning = () => Swal.fire({
-    icon: 'warning', title: 'Data Sudah Ada!',
-    html: `<p class="text-gray-600">Kombinasi <strong>GSM</strong> dan <strong>Ukuran</strong> sudah terdaftar.</p>
-           <p class="text-sm text-gray-400 mt-2">Pilih kombinasi lain atau edit data yang sudah ada.</p>`,
-    confirmButtonColor: '#f59e0b', confirmButtonText: 'Mengerti'
-  })
-
-  const isDupErr = (err: unknown) => {
-    const s = JSON.stringify((err as { response?: { data?: unknown } })?.response?.data ?? '')
-    return s.includes('Duplicate entry') || s.includes('1062') || s.includes('uq_gsm_sheet')
+  const onEditChange = (field: string, value: string) => {
+    setEditForm(p => ({ ...p, [field]: value }))
+    setEditFormErrors(p => ({ ...p, [field]: '' }))
   }
 
-  const showErr = (err: unknown) => {
-    const msg = (err as { response?: { data?: { message?: string } }, message?: string })
-      ?.response?.data?.message || (err as { message?: string })?.message || 'Terjadi kesalahan'
-    Swal.fire({ icon: 'error', title: 'Error!', text: msg, confirmButtonColor: '#3b82f6' })
-  }
-
-  // ===== API HANDLERS =====
-  const handleAdd = async () => {
-    const errs = validate(addForm, false)
-    if (Object.keys(errs).length) {
-      setFormErrors(errs)
+  const submitAdd = async () => {
+    const errors = await handleAdd(addForm)
+    if (errors) {
+      setAddFormErrors(errors)
       Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Periksa kembali data yang diisi', confirmButtonColor: '#3b82f6' })
-      return
     }
-    const payload = {
-      gramasi: addForm.gsm,
-      pl: addForm.sheet_size_id,
-      harga_lembar: addForm.harga_per_lembar.trim() || '0'
-    }
-    try {
-      setIsPosting(true)
-      const res = await axios.post<ApiResponse>('Admin/Duplek/duplekKraftPricesAdd', payload)
-      const raw = res.data as unknown
-      if (typeof raw === 'string' && ((raw as string).includes('Duplicate') || (raw as string).includes('Database Error'))) {
-        showDuplicateWarning(); return
-      }
-      if (res.status === 200 || res.data?.status === 200) {
-        const harga = parseFloat(addForm.harga_per_lembar.trim() || '0')
-        if (harga > 0) {
-          await refetch()
-          const freshRes = await axios.get<ApiResponse<DuplexApiItem[]>>('Admin/Duplek/duplekKraftPrices')
-          const freshData: DuplexApiItem[] = (freshRes.data?.status === 200 && Array.isArray(freshRes.data.data))
-            ? freshRes.data.data : []
-          const newItem = freshData.find(d => d.gsm === addForm.gsm && d.id_sh === addForm.sheet_size_id)
-          if (newItem) {
-            await axios.put<ApiResponse>(
-              `Admin/Duplek/duplekKraftPricesEdit/${newItem.id}`,
-              { gramasi: addForm.gsm, pl: addForm.sheet_size_id, harga_lembar: harga }
-            )
-            await refetch()
-          }
-        } else {
-          await refetch()
-        }
-        Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data Duplex DK berhasil ditambahkan', timer: 1500, showConfirmButton: false })
-        setShowAddModal(false); resetAdd()
-      } else throw new Error(res.data?.message || 'Gagal')
-    } catch (e) { if (isDupErr(e)) { showDuplicateWarning(); return }; showErr(e) }
-    finally { setIsPosting(false) }
   }
 
-  const handleEdit = async () => {
+  const submitEdit = async () => {
     if (!editingItem) return
-    const errs = validate(editForm, true)
-    if (Object.keys(errs).length) {
-      setFormErrors(errs)
+    const errors = await handleEdit(editingItem, editForm)
+    if (errors) {
+      setEditFormErrors(errors)
       Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Periksa kembali data yang diisi', confirmButtonColor: '#3b82f6' })
-      return
     }
-    const payload = {
-      gramasi: editForm.gsm,
-      pl: editForm.sheet_size_id,
-      harga_lembar: parseFloat(editForm.harga_per_lembar || '0')
-    }
-    try {
-      setIsPosting(true)
-      const res = await axios.put<ApiResponse>(`Admin/Duplek/duplekKraftPricesEdit/${editingItem.id}`, payload)
-      const raw = res.data as unknown
-      if (typeof raw === 'string' && ((raw as string).includes('Duplicate') || (raw as string).includes('Database Error'))) {
-        showDuplicateWarning(); return
-      }
-      if (res.status === 200 || res.data?.status === 200) {
-        await refetch()
-        Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data Duplex DK berhasil diperbarui', timer: 1500, showConfirmButton: false })
-        setShowEditModal(false); setEditingItem(null); resetEdit()
-      } else throw new Error(res.data?.message || 'Gagal')
-    } catch (e) { if (isDupErr(e)) { showDuplicateWarning(); return }; showErr(e) }
-    finally { setIsPosting(false) }
   }
 
-  const handleDelete = async (id: number, gsm: number, ukuran: string) => {
-    const ok = await Swal.fire({
-      title: 'Konfirmasi Hapus', text: `Hapus data GSM ${gsm} - ${ukuran}?`,
-      icon: 'warning', showCancelButton: true,
-      confirmButtonColor: '#ef4444', confirmButtonText: 'Ya, Hapus!', cancelButtonText: 'Batal'
-    })
-    if (!ok.isConfirmed) return
-    try {
-      setIsPosting(true)
-      const res = await axios.delete<ApiResponse>(`Admin/Duplek/duplekKraftPricesDel/${id}`)
-      if (res.status === 200) {
-        await refetch()
-        Swal.fire({ icon: 'success', title: 'Dihapus!', text: 'Data berhasil dihapus', timer: 1500, showConfirmButton: false })
-      } else throw new Error(res.data?.message || 'Gagal')
-    } catch (e) { showErr(e) }
-    finally { setIsPosting(false) }
-  }
+  const sharedFormProps = { gsmOptions, sheetOptions, gramasiList, sheetSizeList, loadingGramasi, isPosting }
 
-  if (loading && dataDK.length === 0 && !error)
-    return <LoadingState message="Memuat Data Duplex DK..." submessage="Harap tunggu sebentar" icon="mdi:package-variant-closed" />
+  if (loading && dataDK.length === 0 && !error) return (
+    <LoadingState message="Memuat Data Duplex DK..." submessage="Harap tunggu sebentar" icon="mdi:package-variant-closed" />
+  )
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
 
-      {/* ===== HEADER ===== */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
@@ -479,65 +611,16 @@ export default function DuplexDKPage() {
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={refetch} className="border-gray-300 hover:bg-gray-50" icon="mdi:refresh">
-            Refresh
-          </Button>
-          <Button
-            onClick={handleAddClick}
-            variant="primary"
-            size="md"
-            icon="mdi:plus"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Tambah Ukuran DK
-          </Button>
+          <Button variant="outline" onClick={refetch} icon="mdi:refresh">Refresh</Button>
+          <Button onClick={handleAddClick} variant="primary" size="md" icon="mdi:plus">Tambah Ukuran DK</Button>
         </div>
       </div>
 
-      {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          {
-            icon: 'mdi:package-variant-closed',
-            label: 'Total Records',
-            value: stats.totalRecords,
-            sub: `${stats.uniqueGsm} variasi GSM · ${stats.uniqueSizes} ukuran`
-          },
-          {
-            icon: 'mdi:ruler-square',
-            label: 'Kombinasi Ukuran',
-            value: stats.totalCombinations,
-            sub: `${stats.uniqueGsm} GSM × ${stats.uniqueSizes} ukuran`
-          },
-          {
-            icon: 'mdi:cash-multiple',
-            label: 'Rata-rata Harga',
-            value: formatHargaDisplay(stats.averagePrice),
-            sub: 'per lembar'
-          },
-          {
-            icon: 'mdi:check-circle',
-            label: 'Data dengan Harga',
-            value: stats.withPrice,
-            sub: `${Math.round((stats.withPrice / stats.totalRecords) * 100) || 0}% dari total`
-          }
-        ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
-        ))}
-      </div>
+      {/* Stats */}
+      <StatsCards stats={stats} />
 
-      {/* ===== TABLE CARD ===== */}
+      {/* Table */}
       <Card shadow="md" padding="none">
-        {/* Toolbar */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
           <div>
             <h3 className="text-base font-semibold text-slate-800">Daftar Ukuran Duplex DK</h3>
@@ -549,415 +632,55 @@ export default function DuplexDKPage() {
             <Input
               placeholder="Cari GSM atau Ukuran..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={e => setSearch(e.target.value)}
               leftIcon="mdi:magnify"
             />
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          {sortedData.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data Duplex DK</p>
-              <Button onClick={handleAddClick} variant="primary" icon="mdi:plus" size="sm">
-                Tambah Ukuran Baru
-              </Button>
-            </div>
-          ) : filteredData.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
-              <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
-              <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
-                Hapus Pencarian
-              </Button>
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['No', 'GSM', 'Ukuran (cm)', 'Harga per Lembar', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {filteredData.map((item, idx) => {
-                  const luas = (item.panjang * item.lebar) / 10000
-                  const perM2 = item.harga_per_lembar > 0 ? item.harga_per_lembar / luas : 0
-                  const color = getGSMColor(item.gsm)
-                  return (
-                    <tr key={`dk-${item.id}`} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm text-slate-600">{idx + 1}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge color={color.bg}>
-                          {item.gsm} GSM
-                        </Badge>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                            <Icon icon="mdi:ruler-square" className="w-4 h-4 text-blue-500" />
-                          </div>
-                          <span className="text-sm font-medium text-slate-800">
-                            {formatUkuranDisplay(item.panjang, item.lebar)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        {item.harga_per_lembar > 0 ? (
-                          <div>
-                            <div className="text-sm font-bold text-slate-800">{formatHargaDisplay(item.harga_per_lembar)}</div>
-                            <div className="text-xs text-gray-400 mt-0.5">{formatCurrency(perM2)}/m²</div>
-                          </div>
-                        ) : <span className="text-sm text-gray-300 italic">-</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleViewClick(item)}
-                            title="Lihat Detail"
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:eye-outline" className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleEditClick(item)}
-                            title="Edit"
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id, item.gsm, formatUkuranDisplay(item.panjang, item.lebar))}
-                            title="Hapus"
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:delete-outline" className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Footer */}
-        {filteredData.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{filteredData.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{stats.totalRecords}</span> data
-            </p>
-          </div>
-        )}
+        <DuplexTable
+          data={filteredData}
+          totalCount={sortedData.length}
+          search={search}
+          onSearchClear={() => setSearch('')}
+          onView={item => { setSelectedItem(item); setShowViewModal(true) }}
+          onEdit={handleEditClick}
+          onDelete={item => handleDelete(item.id, item.gsm, formatUkuran(item.panjang, item.lebar))}
+          onAdd={handleAddClick}
+        />
       </Card>
 
-      {/* ===== ADD MODAL ===== */}
-      <Modal 
-        isOpen={showAddModal} 
-        onClose={closeAdd} 
-        title="➕ Tambah Ukuran Duplex DK" 
-        size="lg"
-        closeOnOverlayClick={!isPosting}
-        footer={
-          <>
-            <Button variant="outline" size="md" onClick={closeAdd} disabled={isPosting}>Batal</Button>
-            <Button variant="primary" size="md" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">Simpan Data</Button>
-          </>
-        }>
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
-            <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <p className="text-sm text-blue-700">
-              Pilih GSM Duplex dan Ukuran. Harga boleh dikosongkan jika belum tersedia.
-            </p>
-          </div>
+      {/* Modals */}
+      <AddModal
+        isOpen={showAddModal}
+        form={addForm}
+        formErrors={addFormErrors}
+        onChange={onAddChange}
+        onClose={closeAdd}
+        onSubmit={submitAdd}
+        {...sharedFormProps}
+      />
 
-          {/* GSM */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">GSM <span className="text-red-500">*</span></label>
-            {loadingGramasi ? (
-              <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
-                <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
-                <span className="text-sm text-gray-600">Memuat data GSM Duplex...</span>
-              </div>
-            ) : (
-              <Select 
-                value={addForm.gsm} 
-                onChange={e => onAddChange('gsm', e.target.value)}
-                options={gsmOptions} 
-                placeholder="-- Pilih GSM Duplex --"
-                disabled={isPosting} 
-                className={formErrors.gsm ? 'border-red-500' : ''} 
-              />
-            )}
-            {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
-            {!loadingGramasi && gramasiList.length === 0 && (
-              <p className="text-xs text-amber-600 mt-2">⚠ Data GSM Duplex tidak tersedia</p>
-            )}
-          </div>
+      <EditModal
+        isOpen={showEditModal}
+        editingItem={editingItem}
+        form={editForm}
+        formErrors={editFormErrors}
+        onChange={onEditChange}
+        onClose={closeEdit}
+        onSubmit={submitEdit}
+        {...sharedFormProps}
+      />
 
-          {/* Ukuran */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran <span className="text-red-500">*</span></label>
-            <Select 
-              value={addForm.sheet_size_id} 
-              onChange={e => onAddChange('sheet_size_id', e.target.value)}
-              options={sheetOptions} 
-              placeholder="-- Pilih Ukuran --"
-              disabled={isPosting} 
-              className={formErrors.sheet_size_id ? 'border-red-500' : ''} 
-            />
-            {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
-          </div>
-
-          {/* Harga */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Harga per Lembar <span className="text-xs text-gray-400 ml-1">(opsional)</span>
-            </label>
-            <Input 
-              type="number" 
-              value={addForm.harga_per_lembar} 
-              onChange={e => onAddChange('harga_per_lembar', e.target.value)}
-              placeholder="Masukkan harga per lembar" 
-              leftIcon="mdi:cash" 
-              disabled={isPosting}
-              className={formErrors.harga_per_lembar ? 'border-red-500' : ''} 
-              min="1" 
-              step="100" 
-            />
-            {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
-          </div>
-
-          {/* Preview */}
-          {addSize && addGramasi && (
-            <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-              <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
-                </div>
-                Preview Data
-              </h4>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div><p className="text-gray-500 mb-1">GSM:</p><p className="font-medium">{addGramasi.gsm} GSM</p></div>
-                <div><p className="text-gray-500 mb-1">Ukuran:</p><p className="font-medium">{buildSheetLabel(addSize.panjang_sh, addSize.lebar_sh)}</p></div>
-                <div><p className="text-gray-500 mb-1">Luas:</p><p className="font-medium">{((parseInt(addSize.panjang_sh) / 10) * (parseInt(addSize.lebar_sh) / 10) / 10000).toFixed(2)} m²</p></div>
-                <div>
-                  <p className="text-gray-500 mb-1">Harga:</p>
-                  <p className="font-medium">
-                    {addForm.harga_per_lembar && parseFloat(addForm.harga_per_lembar) > 0
-                      ? formatCurrency(parseFloat(addForm.harga_per_lembar))
-                      : <span className="text-gray-400 italic">(kosong / 0)</span>}
-                  </p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {formErrors.general && (
-            <div className="bg-red-50 p-4 rounded-xl border border-red-200 flex items-start gap-3">
-              <Icon icon="mdi:alert-circle" className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-800">{formErrors.general}</p>
-            </div>
-          )}
-        </div>
-      </Modal>
-
-      {/* ===== EDIT MODAL ===== */}
-      <Modal 
-        isOpen={showEditModal} 
-        onClose={closeEdit} 
-        title={`✏️ Edit Data — ${editingItem?.gsm} GSM`} 
-        size="lg"
-        closeOnOverlayClick={!isPosting}
-        footer={
-          <>
-            <Button variant="outline" size="md" onClick={closeEdit} disabled={isPosting}>Batal</Button>
-            <Button variant="primary" size="md" onClick={handleEdit} loading={isPosting} disabled={isPosting} icon="mdi:check">Update Data</Button>
-          </>
-        }>
-        {editingItem && (
-          <div className="space-y-5">
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-blue-900 mb-1">Data Saat Ini</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm mt-2">
-                    <div><p className="text-blue-700 text-xs mb-1">Ukuran</p><p className="font-medium text-blue-900">{formatUkuranDisplay(editingItem.panjang, editingItem.lebar)}</p></div>
-                    <div><p className="text-blue-700 text-xs mb-1">GSM</p><p className="font-medium text-blue-900">{editingItem.gsm} GSM</p></div>
-                    <div><p className="text-blue-700 text-xs mb-1">Harga</p><p className="font-medium text-blue-900">{formatHargaDisplay(editingItem.harga_per_lembar)}</p></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">GSM Baru <span className="text-red-500">*</span></label>
-              {loadingGramasi ? (
-                <div className="flex items-center gap-2 px-4 py-3 border border-gray-300 rounded-lg bg-gray-50">
-                  <Icon icon="mdi:loading" className="w-4 h-4 text-blue-600 animate-spin" />
-                  <span className="text-sm text-gray-600">Memuat data GSM Duplex...</span>
-                </div>
-              ) : (
-                <Select 
-                  value={editForm.gsm} 
-                  onChange={e => onEditChange('gsm', e.target.value)}
-                  options={gsmOptions} 
-                  placeholder="-- Pilih GSM Duplex --"
-                  disabled={isPosting} 
-                  className={formErrors.gsm ? 'border-red-500' : ''} 
-                />
-              )}
-              {formErrors.gsm && <p className="text-xs text-red-600 mt-2">{formErrors.gsm}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Ukuran Baru <span className="text-red-500">*</span></label>
-              <Select 
-                value={editForm.sheet_size_id} 
-                onChange={e => onEditChange('sheet_size_id', e.target.value)}
-                options={sheetOptions} 
-                placeholder="-- Pilih Ukuran --"
-                disabled={isPosting} 
-                className={formErrors.sheet_size_id ? 'border-red-500' : ''} 
-              />
-              {formErrors.sheet_size_id && <p className="text-xs text-red-600 mt-2">{formErrors.sheet_size_id}</p>}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Harga Baru <span className="text-xs text-gray-400 ml-1">(opsional)</span>
-              </label>
-              <Input 
-                type="number" 
-                value={editForm.harga_per_lembar} 
-                onChange={e => onEditChange('harga_per_lembar', e.target.value)}
-                placeholder="Kosongkan atau isi 0 jika belum ada harga" 
-                leftIcon="mdi:cash" 
-                disabled={isPosting}
-                className={formErrors.harga_per_lembar ? 'border-red-500' : ''} 
-                min="0" 
-                step="100" 
-              />
-              {formErrors.harga_per_lembar && <p className="text-xs text-red-600 mt-2">{formErrors.harga_per_lembar}</p>}
-            </div>
-
-            {editSize && editGramasi && (
-              <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-                <h4 className="font-medium text-green-800 mb-3 flex items-center gap-2">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                    <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
-                  </div>
-                  Preview Update
-                </h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div><p className="text-gray-500 mb-1">GSM Baru:</p><p className="font-medium">{editGramasi.gsm} GSM</p></div>
-                  <div><p className="text-gray-500 mb-1">Ukuran Baru:</p><p className="font-medium">{buildSheetLabel(editSize.panjang_sh, editSize.lebar_sh)}</p></div>
-                  <div><p className="text-gray-500 mb-1">Luas:</p><p className="font-medium">{((parseInt(editSize.panjang_sh) / 10) * (parseInt(editSize.lebar_sh) / 10) / 10000).toFixed(2)} m²</p></div>
-                  <div>
-                    <p className="text-gray-500 mb-1">Harga Baru:</p>
-                    <p className="font-medium">
-                      {editForm.harga_per_lembar && parseFloat(editForm.harga_per_lembar) > 0
-                        ? formatCurrency(parseFloat(editForm.harga_per_lembar))
-                        : <span className="text-gray-400 italic">(kosong / 0)</span>}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      {/* ===== VIEW MODAL ===== */}
-      <Modal 
-        isOpen={showViewModal} 
-        onClose={closeView} 
-        title="Detail Duplex DK" 
-        size="md"
-        footer={
-          <>
-            <Button variant="outline" size="md" onClick={closeView}>Tutup</Button>
-            <Button 
-              variant="primary" 
-              size="md" 
-              icon="mdi:pencil-outline" 
-              onClick={() => { closeView(); if (selectedItem) handleEditClick(selectedItem) }}
-            >
-              Edit Data
-            </Button>
-          </>
-        }>
-        {selectedItem && (() => {
-          const luas = (selectedItem.panjang * selectedItem.lebar) / 10000
-          const perM2 = selectedItem.harga_per_lembar > 0 ? selectedItem.harga_per_lembar / luas : 0
-          const color = getGSMColor(selectedItem.gsm)
-          return (
-            <div className="space-y-4">
-              {/* Identity */}
-              <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: `${color.bg}0d` }}>
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color.bg}20` }}>
-                  <Icon icon="mdi:package-variant-closed" className="w-7 h-7" style={{ color: color.bg }} />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-slate-800">Duplex DK</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge color={color.bg}>
-                      {selectedItem.gsm} GSM
-                    </Badge>
-                  </div>
-                </div>
-              </div>
-
-              {/* Ukuran Info */}
-              <Card shadow="none" padding="sm" bordered>
-                <p className="text-xs text-gray-500 mb-2">Informasi Ukuran</p>
-                <div className="space-y-2">
-                  <div className="flex justify-between p-2 bg-slate-50 rounded">
-                    <span className="text-xs font-medium text-gray-500">Dimensi</span>
-                    <span className="text-sm font-medium text-slate-800">{formatUkuranDisplay(selectedItem.panjang, selectedItem.lebar)}</span>
-                  </div>
-                  <div className="flex justify-between p-2 bg-slate-50 rounded">
-                    <span className="text-xs font-medium text-gray-500">Luas</span>
-                    <span className="text-sm font-medium text-slate-800">{luas.toFixed(2)} m²</span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Harga Info */}
-              <Card shadow="none" padding="sm" bordered>
-                <p className="text-xs text-gray-500 mb-2">Informasi Harga</p>
-                <div className="space-y-2">
-                  <div className="flex justify-between p-2 bg-slate-50 rounded">
-                    <span className="text-xs font-medium text-gray-500">Harga per Lembar</span>
-                    <span className="text-sm font-bold text-slate-800">{formatHargaDisplay(selectedItem.harga_per_lembar)}</span>
-                  </div>
-                  {selectedItem.harga_per_lembar > 0 && (
-                    <div className="flex justify-between p-2 bg-slate-50 rounded">
-                      <span className="text-xs font-medium text-gray-500">Harga per m²</span>
-                      <span className="text-sm font-medium text-slate-800">{formatCurrency(perM2)}</span>
-                    </div>
-                  )}
-                </div>
-              </Card>
-            </div>
-          )
-        })()}
-      </Modal>
+      <ViewModal
+        isOpen={showViewModal}
+        item={selectedItem}
+        onClose={() => { setShowViewModal(false); setSelectedItem(null) }}
+        onEdit={() => {
+          setShowViewModal(false)
+          if (selectedItem) handleEditClick(selectedItem)
+        }}
+      />
     </div>
   )
 }

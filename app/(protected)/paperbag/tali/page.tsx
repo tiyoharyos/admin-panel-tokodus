@@ -53,6 +53,9 @@ const getErrMsg = (err: unknown, fallback: string): string => {
   return fallback
 }
 
+// PHP empty("0") === true, so send "0.00" instead to bypass that quirk
+const normalizeHarga = (raw: string): string => (parseFloat(raw) || 0).toFixed(2)
+
 // ============ BADGE ============
 function Badge({ color, children }: { color: string; children: React.ReactNode }) {
   return (
@@ -130,8 +133,13 @@ export default function PaperbagTaliPage() {
 
   // ===== VALIDATION =====
   const validateForm = (form: TaliForm): boolean => {
-    if (!form.kode.trim() || !form.nama.trim() || !form.deskripsi.trim() || !form.harga_per_pcs.trim()) {
+    if (!form.kode.trim() || !form.nama.trim() || !form.deskripsi.trim()) {
       Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Semua field wajib diisi', confirmButtonColor: '#3b82f6' })
+      return false
+    }
+    // Cek terpisah: harga boleh 0, tapi tidak boleh kosong
+    if (form.harga_per_pcs.trim() === '') {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Harga harus diisi (boleh 0)', confirmButtonColor: '#3b82f6' })
       return false
     }
     if (isNaN(Number(form.harga_per_pcs))) {
@@ -147,20 +155,17 @@ export default function PaperbagTaliPage() {
     try {
       setIsPosting(true)
 
-      // Gunakan URLSearchParams untuk mengirim sebagai form-urlencoded
       const formData = new URLSearchParams()
       formData.append('kode', addForm.kode.trim())
       formData.append('nama', addForm.nama.trim())
       formData.append('deskripsi', addForm.deskripsi.trim())
-      formData.append('harga_per_pcs', addForm.harga_per_pcs.trim())
+      formData.append('harga_per_pcs', normalizeHarga(addForm.harga_per_pcs)) // FIX: "0" → "0.00"
+      formData.append('status', '1') // FIX: backend wajib ada field status
 
       const { data } = await axios.post<ApiResponse>(
         '/Admin/Paperbag/PaperbagTaliAdd',
         formData,
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          timeout: 15000,
-        }
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 }
       )
 
       if (data?.status === 200) {
@@ -196,16 +201,13 @@ export default function PaperbagTaliPage() {
       formData.append('kode', form.kode.trim())
       formData.append('nama', form.nama.trim())
       formData.append('deskripsi', form.deskripsi.trim())
-      formData.append('harga_per_pcs', form.harga_per_pcs.trim())
+      formData.append('harga_per_pcs', normalizeHarga(form.harga_per_pcs)) // FIX: normalize harga
+      formData.append('status', editingItem.status) // preserve status asli
 
-      // Jika backend mengharapkan POST untuk edit, ganti api.put menjadi api.post
       const { data } = await axios.put<ApiResponse>(
         `/Admin/Paperbag/PaperbagTaliEdit/${editingItem.id}`,
         formData,
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          timeout: 15000,
-        }
+        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 }
       )
 
       if (data?.status === 200) {
@@ -224,52 +226,37 @@ export default function PaperbagTaliPage() {
   }
 
   // ===== DELETE =====
-// ===== DELETE =====
-const handleDelete = async (item: PaperbagTali) => {
-  const result = await Swal.fire({
-    title: 'Konfirmasi Hapus',
-    html: `Hapus <strong>${item.nama}</strong>?`,
-    icon: 'warning',
-    showCancelButton: true,
-    confirmButtonColor: '#ef4444',
-    cancelButtonText: 'Batal',
-    confirmButtonText: 'Ya, Hapus!',
-  })
-  if (!result.isConfirmed) return
-  
-  try {
-    const { data } = await axios.delete<ApiResponse>(`/Admin/Paperbag/PaperbagTaliDel/${item.id}`)
-    
-    // TOLERANSI ERROR 500 - tetap anggap berhasil jika status 200 ATAU 500 (karena data ternyata terhapus)
-    if (data?.status === 200) {
-      await Swal.fire({ icon: 'success', title: 'Dihapus!', text: data.message, timer: 1500, showConfirmButton: false })
-      await refetch()
-    } else {
-      // TAMBAHKAN: Cek apakah data masih ada dengan melakukan fetch ulang
-      await refetch()
-      
-      // Cek apakah item masih ada di items setelah refetch
-      const stillExists = items.some(i => i.id === item.id)
-      
-      if (!stillExists) {
-        // Data sudah tidak ada, anggap berhasil
-        await Swal.fire({ 
-          icon: 'success', 
-          title: 'Dihapus!', 
-          text: 'Data berhasil dihapus', 
-          timer: 1500, 
-          showConfirmButton: false 
-        })
+  const handleDelete = async (item: PaperbagTali) => {
+    const result = await Swal.fire({
+      title: 'Konfirmasi Hapus',
+      html: `Hapus <strong>${item.nama}</strong>?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonText: 'Batal',
+      confirmButtonText: 'Ya, Hapus!',
+    })
+    if (!result.isConfirmed) return
+
+    try {
+      const { data } = await axios.delete<ApiResponse>(`/Admin/Paperbag/PaperbagTaliDel/${item.id}`)
+      if (data?.status === 200) {
+        await Swal.fire({ icon: 'success', title: 'Dihapus!', text: data.message, timer: 1500, showConfirmButton: false })
+        await refetch()
       } else {
-        // Data masih ada, baru tampilkan error
-        Swal.fire({ icon: 'error', title: 'Gagal', text: data?.message || 'Gagal menghapus data', confirmButtonColor: '#3b82f6' })
+        await refetch()
+        const stillExists = items.some(i => i.id === item.id)
+        if (!stillExists) {
+          await Swal.fire({ icon: 'success', title: 'Dihapus!', text: 'Data berhasil dihapus', timer: 1500, showConfirmButton: false })
+        } else {
+          Swal.fire({ icon: 'error', title: 'Gagal', text: data?.message || 'Gagal menghapus data', confirmButtonColor: '#3b82f6' })
+        }
       }
+    } catch (err) {
+      Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menghapus data'), confirmButtonColor: '#3b82f6' })
     }
-  } catch (err) {
-    // Tangani error network dll
-    Swal.fire({ icon: 'error', title: 'Error!', text: getErrMsg(err, 'Gagal menghapus data'), confirmButtonColor: '#3b82f6' })
   }
-}
+
   // ===== CLICK HANDLERS =====
   const handleViewClick = useCallback((item: PaperbagTali) => {
     setSelectedItem(item)
@@ -316,20 +303,13 @@ const handleDelete = async (item: PaperbagTali) => {
       {error && <ErrorState message={error} onRetry={refetch} />}
 
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {[
           {
             icon: 'ion:bag-handle-outline',
             label: 'Total Tali',
             value: stats.total,
-            sub: `${stats.aktif} aktif · ${stats.nonaktif} nonaktif`,
-          },
-          {
-            icon: 'mdi:check-circle-outline',
-            label: 'Aktif',
-            value: stats.aktif,
-            sub: `dari ${stats.total} total tali`,
-            bar: stats.total ? (stats.aktif / stats.total) * 100 : 0,
+            sub: `Total Tali : ${stats.total}`,
           },
           {
             icon: 'mdi:cash',
@@ -374,13 +354,11 @@ const handleDelete = async (item: PaperbagTali) => {
             </p>
           </div>
           <div className="relative w-full sm:w-64">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg" />
-            <input
-              type="text"
+            <Input
               placeholder="Cari nama, kode, deskripsi..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-lg bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              onChange={e => setSearch(e.target.value)}
+              leftIcon="mdi:magnify"
             />
           </div>
         </div>
@@ -396,7 +374,7 @@ const handleDelete = async (item: PaperbagTali) => {
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Tali', 'Kode', 'Deskripsi', 'Harga / Pcs',  'Aksi'].map(h => (
+                  {['Tali', 'Kode', 'Deskripsi', 'Harga / Pcs', 'Aksi'].map(h => (
                     <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                       {h}
                     </th>
@@ -406,7 +384,7 @@ const handleDelete = async (item: PaperbagTali) => {
               <tbody className="bg-white divide-y divide-gray-100">
                 {filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
+                    <td colSpan={5} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
                         <Icon icon="mdi:rope" className="w-16 h-16 text-gray-300" />
                         <p className="text-gray-500 font-medium">Tidak ada hasil</p>
@@ -452,7 +430,6 @@ const handleDelete = async (item: PaperbagTali) => {
                           {formatRupiah(item.harga_per_pcs)}
                         </span>
                       </td>
-
 
                       {/* Aksi */}
                       <td className="px-6 py-4">
@@ -520,7 +497,7 @@ const handleDelete = async (item: PaperbagTali) => {
         <div className="space-y-4">
           <div className="flex items-center gap-2 px-3 py-3 bg-amber-50 border border-amber-100 rounded-lg">
             <Icon icon="mdi:information-outline" className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <p className="text-sm text-amber-700">Isi semua field yang diperlukan.</p>
+            <p className="text-sm text-amber-700">Isi semua field yang diperlukan. Harga boleh diisi 0.</p>
           </div>
 
           <Input
@@ -563,6 +540,7 @@ const handleDelete = async (item: PaperbagTali) => {
             disabled={isPosting}
             leftIcon="mdi:cash"
             min="0"
+            helperText="Boleh diisi 0 jika tidak ada biaya"
           />
         </div>
       </Modal>
@@ -598,12 +576,6 @@ const handleDelete = async (item: PaperbagTali) => {
               </div>
               <div>
                 <p className="text-base font-semibold text-slate-800">{selectedItem.nama}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <Badge color={selectedItem.status === '1' ? '#10b981' : '#ef4444'}>
-                    {selectedItem.status === '1' ? '✓ Aktif' : '✗ Nonaktif'}
-                  </Badge>
-                  <span className="text-xs text-gray-400 font-mono">{selectedItem.kode}</span>
-                </div>
               </div>
             </div>
 
@@ -645,13 +617,8 @@ const handleDelete = async (item: PaperbagTali) => {
             <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
               <h4 className="text-sm font-semibold text-slate-700 mb-3">Informasi Tali</h4>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  label="ID"
-                  value={editingItem.id}
-                  disabled
-                  leftIcon="mdi:identifier"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-1 gap-1">
+               
                 <Input
                   label="Kode Tali"
                   value={editingItem.kode}
@@ -695,6 +662,7 @@ const handleDelete = async (item: PaperbagTali) => {
                   disabled={isPosting}
                   leftIcon="mdi:cash"
                   min="0"
+                  helperText="Boleh diisi 0 jika tidak ada biaya"
                 />
               </div>
             </div>

@@ -7,7 +7,6 @@ import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
-import ErrorState from '@/components/UI/ErrorState'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
 
@@ -657,12 +656,7 @@ export default function LaminasiPage() {
         {selectedItem && (
           <div className="space-y-4">
             {/* Info */}
-            <div className="flex items-center gap-2 px-3 py-3 bg-indigo-50 border border-indigo-100 rounded-lg">
-              <Icon icon="mdi:information-outline" className="w-4 h-4 text-indigo-500 flex-shrink-0" />
-              <p className="text-sm text-indigo-700">
-                ID: <span className="font-semibold">{selectedItem.id_lt}</span> — semua field dapat diubah.
-              </p>
-            </div>
+
 
             {/* Fields */}
             <Input
