@@ -10,14 +10,13 @@ import LoadingState from '@/components/UI/LoadingState'
 import ErrorState from '@/components/UI/ErrorState'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
-import Select from '@/components/UI/Select'
 
 // ============================================================
 // TYPES
 // ============================================================
 interface PaperbagPrice {
-  price_id: string       
-  id: string             
+  price_id: string
+  id: string
   material_type_id: string
   gsm: string
   sheet_size_id: string
@@ -54,6 +53,7 @@ const EMPTY_FORM: FormState = {
   sheet_size_id: '',
   harga_lembar: '',
 }
+
 const MATERIAL_OPTIONS = [
   { id: '1',  name: 'Brown Kraft', type: 'K'  },
   { id: '6',  name: 'Ivory',       type: 'IV' },
@@ -62,7 +62,6 @@ const MATERIAL_OPTIONS = [
   { id: '22', name: 'Duplex',      type: 'D'  },
 ]
 
-// Sheet size options hardcoded — ganti dengan API jika tersedia
 const SHEET_SIZE_OPTIONS = [
   { id: '1', code: '65x100',  panjang_mm: '650',  lebar_mm: '1000', keterangan: '65x100 cm' },
   { id: '2', code: '65x105',  panjang_mm: '650',  lebar_mm: '1050', keterangan: '65x105 cm' },
@@ -72,7 +71,7 @@ const SHEET_SIZE_OPTIONS = [
 ]
 
 // ============================================================
-// ACCENT COLORS PER MATERIAL TYPE
+// ACCENT COLORS
 // ============================================================
 const ACCENT_MAP: Record<string, { bg: string; text: string }> = {
   AP: { bg: '#3b82f6', text: '#1d4ed8' },
@@ -133,11 +132,11 @@ const validateForm = (f: FormState): string | null => {
   if (!f.material_type_id) return 'Pilih material terlebih dahulu.'
   if (!f.sheet_size_id)    return 'Pilih ukuran sheet terlebih dahulu.'
   if (!f.gsm || isNaN(Number(f.gsm)) || Number(f.gsm) <= 0) return 'GSM tidak valid.'
-  if (!f.harga_lembar || isNaN(Number(f.harga_lembar)) || Number(f.harga_lembar) <= 0) return 'Harga lembar tidak valid.'
+  if (!f.harga_lembar || isNaN(Number(f.harga_lembar)) || Number(f.harga_lembar) <= 0)
+    return 'Harga lembar tidak valid.'
   return null
 }
 
-// Buat unique key per baris karena id dari API = material_type_id (bukan PK unik)
 const rowKey = (item: PaperbagPrice) =>
   `${item.material_type_id}-${item.sheet_size_id}-${item.gsm}`
 
@@ -155,6 +154,92 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
   )
 }
 
+const TABLE_HEADERS = ['GSM', 'Harga / Lembar', 'Harga / m²', 'Ukuran Sheet', 'Aksi']
+
+function TableHead() {
+  return (
+    <thead className="bg-gray-50">
+      <tr>
+        {TABLE_HEADERS.map(h => (
+          <th
+            key={h}
+            className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+          >
+            {h}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  )
+}
+
+interface TableRowsProps {
+  items: PaperbagPrice[]
+  onDetail: (item: PaperbagPrice) => void
+  onEdit: (item: PaperbagPrice) => void
+  onDelete: (item: PaperbagPrice) => void
+}
+
+function TableRows({ items, onDetail, onEdit, onDelete }: TableRowsProps) {
+  return (
+    <>
+      {items.map(item => {
+        const accent = getAccent(item.material_type)
+        const area   = calcArea(item.panjang_mm, item.lebar_mm)
+        const perM2  = area > 0 ? parseFloat(item.harga_lembar) / area : 0
+
+        return (
+          <tr key={rowKey(item)} className="hover:bg-slate-50/80 transition-colors">
+            <td className="px-5 py-3.5 whitespace-nowrap">
+              <Badge color="#6b7280">{item.gsm} gsm</Badge>
+            </td>
+            <td className="px-5 py-3.5 whitespace-nowrap">
+              <span className="text-sm font-bold text-slate-800">
+                {fmtCurrency(item.harga_lembar)}
+              </span>
+            </td>
+            <td className="px-5 py-3.5 whitespace-nowrap">
+              <span className="text-sm font-medium" style={{ color: accent.text }}>
+                {fmtCurrency(perM2.toFixed(0))}
+              </span>
+            </td>
+            <td className="px-5 py-3.5 whitespace-nowrap">
+              <span className="text-xs text-gray-500">
+                {item.code} • {item.keterangan}
+              </span>
+            </td>
+            <td className="px-5 py-3.5">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => onDetail(item)}
+                  title="Detail"
+                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  <Icon icon="mdi:eye-outline" className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onEdit(item)}
+                  title="Edit"
+                  className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                >
+                  <Icon icon="mdi:pencil-outline" className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => onDelete(item)}
+                  title="Hapus"
+                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Icon icon="mdi:delete-outline" className="w-4 h-4" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        )
+      })}
+    </>
+  )
+}
+
 // ============================================================
 // MAIN PAGE
 // ============================================================
@@ -164,15 +249,20 @@ export default function PaperbagSheetPricesPage() {
   const [error, setError]         = useState<string | null>(null)
   const [isPosting, setIsPosting] = useState(false)
 
-  const [filterMat, setFilterMat]   = useState('all')
-  const [searchGsm, setSearchGsm]   = useState('')
+  const [filterMat, setFilterMat] = useState('all')
+
+  // FIX 1: Ganti nama state menjadi konsisten — sebelumnya
+  // dideklarasikan sebagai [searchGsm, setSearchGsm] tapi
+  // di JSX dipakai sebagai {search} dan {setSearch} yang
+  // tidak pernah dideklarasikan → crash runtime.
+  const [search, setSearch] = useState('')
 
   const [showAddModal,    setShowAddModal]    = useState(false)
   const [showEditModal,   setShowEditModal]   = useState(false)
   const [showDetailModal, setShowDetailModal] = useState(false)
 
-  const [detailItem,   setDetailItem]   = useState<PaperbagPrice | null>(null)
-  const [editingItem,  setEditingItem]  = useState<PaperbagPrice | null>(null)
+  const [detailItem,  setDetailItem]  = useState<PaperbagPrice | null>(null)
+  const [editingItem, setEditingItem] = useState<PaperbagPrice | null>(null)
 
   const [addForm,  setAddForm]  = useState<FormState>(EMPTY_FORM)
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM)
@@ -211,11 +301,12 @@ export default function PaperbagSheetPricesPage() {
 
   const filteredList = useMemo(() => {
     return priceList.filter(p => {
-      const matchMat  = filterMat === 'all' || p.material_type === filterMat
-      const matchGsm  = !searchGsm || p.gsm.includes(searchGsm)
-      return matchMat && matchGsm
+      const matchMat = filterMat === 'all' || p.material_type === filterMat
+      // FIX 1 lanjutan: filter sekarang pakai `search` yang konsisten dengan input
+      const matchSearch = !search || p.gsm.includes(search) || p.keterangan.toLowerCase().includes(search.toLowerCase())
+      return matchMat && matchSearch
     })
-  }, [priceList, filterMat, searchGsm])
+  }, [priceList, filterMat, search])
 
   const filteredGroups = useMemo(() => {
     const groups: Record<string, PaperbagPrice[]> = {}
@@ -258,14 +349,15 @@ export default function PaperbagSheetPricesPage() {
 
   const handleAdd = async () => {
     const err = validateForm(addForm)
-    if (err) { Swal.fire({ icon: 'error', title: 'Validasi Error', text: err, confirmButtonColor: '#3b82f6' }); return }
-
+    if (err) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: err, confirmButtonColor: '#3b82f6' })
+      return
+    }
     try {
       setIsPosting(true)
-      // Kirim sebagai application/x-www-form-urlencoded (sesuai $this->post())
       const fd = new URLSearchParams()
       fd.append('material_type_id', addForm.material_type_id)
-      fd.append('panjang_mm', addForm.gsm)          // Backend PHP pakai nama 'panjang_mm' untuk field gsm
+      fd.append('panjang_mm', addForm.gsm)
       fd.append('sheet_size_id', addForm.sheet_size_id)
       fd.append('harga_lembar', addForm.harga_lembar)
 
@@ -274,7 +366,6 @@ export default function PaperbagSheetPricesPage() {
         fd.toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       )
-
       if (data?.status === 200) {
         await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Harga sheet baru berhasil ditambahkan!', timer: 1500, showConfirmButton: false })
         setShowAddModal(false)
@@ -291,13 +382,15 @@ export default function PaperbagSheetPricesPage() {
   const handleUpdate = async () => {
     if (!editingItem) return
     const err = validateForm(editForm)
-    if (err) { Swal.fire({ icon: 'error', title: 'Validasi Error', text: err, confirmButtonColor: '#3b82f6' }); return }
-
+    if (err) {
+      Swal.fire({ icon: 'error', title: 'Validasi Error', text: err, confirmButtonColor: '#3b82f6' })
+      return
+    }
     try {
       setIsPosting(true)
       const fd = new URLSearchParams()
       fd.append('material_type_id', editForm.material_type_id)
-      fd.append('panjang_mm', editForm.gsm)       // controller PHP: $this->put('panjang_mm') → gsm
+      fd.append('panjang_mm', editForm.gsm)
       fd.append('sheet_size_id', editForm.sheet_size_id)
       fd.append('harga_lembar', editForm.harga_lembar)
 
@@ -306,7 +399,6 @@ export default function PaperbagSheetPricesPage() {
         fd.toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       )
-
       if (data?.status === 200) {
         await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data harga sheet berhasil diperbarui!', timer: 1500, showConfirmButton: false })
         setShowEditModal(false)
@@ -333,16 +425,12 @@ export default function PaperbagSheetPricesPage() {
 
     try {
       const fd = new URLSearchParams()
-      fd.append('id_paperbag', item.price_id)   // controller PHP: $this->delete('id_paperbag')
+      fd.append('id_paperbag', item.price_id)
 
       const { data } = await axios.delete<ApiResponse>(
         `/Admin/Paperbag/PaperbagSheetPricesDelete/${item.price_id}`,
-        {
-          data: fd.toString(),
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        }
+        { data: fd.toString(), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       )
-
       if (data?.status === 200) {
         Swal.fire({ icon: 'success', title: 'Berhasil Dihapus!', timer: 1500, showConfirmButton: false })
         await fetchData()
@@ -365,67 +453,14 @@ export default function PaperbagSheetPricesPage() {
     setShowEditModal(true)
   }
 
-  const openDetail = (item: PaperbagPrice) => { setDetailItem(item); setShowDetailModal(true) }
+  const openDetail = (item: PaperbagPrice) => {
+    setDetailItem(item)
+    setShowDetailModal(true)
+  }
 
   // ── Render ─────────────────────────────────────────────────
   if (loading) return <LoadingState message="Memuat Data Harga Sheet Paperbag..." icon="mdi:tag-multiple-outline" />
   if (error)   return <ErrorState message={error} onRetry={fetchData} />
-
-  const TABLE_HEADERS = ['GSM', 'Harga / Lembar', 'Harga / m²', 'Ukuran Sheet', 'Aksi']
-
-  const TableHead = () => (
-    <thead className="bg-gray-50">
-      <tr>
-        {TABLE_HEADERS.map(h => (
-          <th key={h} className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-            {h}
-          </th>
-        ))}
-      </tr>
-    </thead>
-  )
-
-  const renderRows = (items: PaperbagPrice[]) =>
-    items.map(item => {
-      const accent   = getAccent(item.material_type)
-      const area     = calcArea(item.panjang_mm, item.lebar_mm)
-      const perM2    = area > 0 ? parseFloat(item.harga_lembar) / area : 0
-
-      return (
-        <tr key={rowKey(item)} className="hover:bg-slate-50/80 transition-colors">
-          <td className="px-5 py-3.5 whitespace-nowrap">
-            <Badge color="#6b7280">{item.gsm} gsm</Badge>
-          </td>
-          <td className="px-5 py-3.5 whitespace-nowrap">
-            <span className="text-sm font-bold text-slate-800">{fmtCurrency(item.harga_lembar)}</span>
-          </td>
-          <td className="px-5 py-3.5 whitespace-nowrap">
-            <span className="text-sm font-medium" style={{ color: accent.text }}>
-              {fmtCurrency(perM2.toFixed(0))}
-            </span>
-          </td>
-          <td className="px-5 py-3.5 whitespace-nowrap">
-            <span className="text-xs text-gray-500">{item.code} • {item.keterangan}</span>
-          </td>
-          <td className="px-5 py-3.5">
-            <div className="flex items-center gap-1">
-              <button onClick={() => openDetail(item)} title="Detail"
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                <Icon icon="mdi:eye-outline" className="w-4 h-4" />
-              </button>
-              <button onClick={() => openEdit(item)} title="Edit"
-                className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
-                <Icon icon="mdi:pencil-outline" className="w-4 h-4" />
-              </button>
-              <button onClick={() => handleDelete(item)} title="Hapus"
-                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                <Icon icon="mdi:delete-outline" className="w-4 h-4" />
-              </button>
-            </div>
-          </td>
-        </tr>
-      )
-    })
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
@@ -445,7 +480,10 @@ export default function PaperbagSheetPricesPage() {
           <Button onClick={handleRefresh} variant="outline" size="md" icon="mdi:refresh">
             Refresh
           </Button>
-          <Button onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }} variant="primary" size="md" icon="mdi:plus">
+          <Button
+            onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }}
+            variant="primary" size="md" icon="mdi:plus"
+          >
             Tambah Data Baru
           </Button>
         </div>
@@ -454,10 +492,10 @@ export default function PaperbagSheetPricesPage() {
       {/* ── STATS ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {[
-          { icon: 'mdi:format-list-bulleted', label: 'Total Variasi',  value: String(stats.total),              sub: `${stats.mats} material · ${stats.sizes} ukuran` },
-          { icon: 'mdi:currency-idr',          label: 'Harga Terendah', value: fmtCurrency(stats.minPrice),       sub: 'per lembar' },
-          { icon: 'mdi:currency-idr',          label: 'Harga Tertinggi',value: fmtCurrency(stats.maxPrice),       sub: 'per lembar' },
-          { icon: 'mdi:chart-line',            label: 'Rata-rata Harga',value: fmtCurrency(stats.avgPrice),       sub: 'per lembar' },
+          { icon: 'mdi:format-list-bulleted', label: 'Total Variasi',   value: String(stats.total),        sub: `${stats.mats} material · ${stats.sizes} ukuran` },
+          { icon: 'mdi:currency-idr',          label: 'Harga Terendah',  value: fmtCurrency(stats.minPrice), sub: 'per lembar' },
+          { icon: 'mdi:currency-idr',          label: 'Harga Tertinggi', value: fmtCurrency(stats.maxPrice), sub: 'per lembar' },
+          { icon: 'mdi:chart-line',            label: 'Rata-rata Harga', value: fmtCurrency(stats.avgPrice), sub: 'per lembar' },
         ].map((s, i) => (
           <Card key={i} shadow="sm" padding="md" hoverable>
             <div className="flex items-center justify-between mb-3">
@@ -475,13 +513,14 @@ export default function PaperbagSheetPricesPage() {
       {/* ── FILTER & SEARCH ── */}
       <Card shadow="sm" padding="md">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          {/* Material tabs */}
           <div className="flex items-center gap-2 flex-wrap flex-1">
             <Icon icon="mdi:filter-outline" className="w-4 h-4 text-gray-500 flex-shrink-0" />
             <button
               onClick={() => setFilterMat('all')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                filterMat === 'all' ? 'bg-slate-800 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                filterMat === 'all'
+                  ? 'bg-slate-800 text-white shadow-sm'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               Semua ({priceList.length})
@@ -490,40 +529,30 @@ export default function PaperbagSheetPricesPage() {
               const accent   = getAccent(type)
               const isActive = filterMat === type
               return (
-                <button key={type}
+                <button
+                  key={type}
                   onClick={() => setFilterMat(isActive ? 'all' : type)}
                   className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
-                  style={isActive
-                    ? { background: accent.bg, color: '#fff' }
-                    : { background: `${accent.bg}15`, color: accent.text }}>
+                  style={
+                    isActive
+                      ? { background: accent.bg, color: '#fff' }
+                      : { background: `${accent.bg}15`, color: accent.text }
+                  }
+                >
                   {MATERIAL_LABEL[type] || type} ({items.length})
                 </button>
               )
             })}
           </div>
-          {/* GSM search */}
           <div className="relative flex-shrink-0">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="number"
-              placeholder="Cari GSM..."
-              value={searchGsm}
-              onChange={e => setSearchGsm(e.target.value)}
-              className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm text-slate-700 w-32 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            <Input
+              placeholder="Cari GSM atau keterangan..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              leftIcon="mdi:magnify"
             />
           </div>
         </div>
-        {(filterMat !== 'all' || searchGsm) && (
-          <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-            <p className="text-xs text-gray-500">
-              Menampilkan <span className="font-semibold text-slate-700">{filteredList.length}</span> dari {priceList.length} data
-            </p>
-            <button onClick={() => { setFilterMat('all'); setSearchGsm('') }}
-              className="text-xs text-blue-600 hover:underline font-medium">
-              Reset Filter
-            </button>
-          </div>
-        )}
       </Card>
 
       {/* ── TABLE ── */}
@@ -532,7 +561,11 @@ export default function PaperbagSheetPricesPage() {
           <div className="flex flex-col items-center gap-3 py-16">
             <Icon icon="mdi:database-off" className="w-16 h-16 text-gray-300" />
             <p className="text-gray-500 font-medium text-lg">Tidak ada data ditemukan</p>
-            <Button variant="primary" size="sm" onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }} icon="mdi:plus">
+            <Button
+              variant="primary" size="sm"
+              onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }}
+              icon="mdi:plus"
+            >
               Tambah Data Baru
             </Button>
           </div>
@@ -543,12 +576,15 @@ export default function PaperbagSheetPricesPage() {
             const accent = getAccent(type)
             return (
               <Card key={type} shadow="md" padding="none">
-                {/* Group header */}
-                <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between"
-                  style={{ background: `${accent.bg}08` }}>
+                <div
+                  className="px-5 py-4 border-b border-gray-100 flex items-center justify-between"
+                  style={{ background: `${accent.bg}08` }}
+                >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${accent.bg}18` }}>
+                    <div
+                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                      style={{ background: `${accent.bg}18` }}
+                    >
                       <Icon icon="mdi:file-document-outline" className="w-5 h-5" style={{ color: accent.bg }} />
                     </div>
                     <div>
@@ -562,12 +598,17 @@ export default function PaperbagSheetPricesPage() {
                   </div>
                   <Badge color={accent.bg}>{items.length} item</Badge>
                 </div>
-                {/* Table */}
+                {/* FIX 2 & 3: Pakai TableHead dan TableRows sebagai komponen terpisah */}
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-100">
                     <TableHead />
                     <tbody className="bg-white divide-y divide-gray-100">
-                      {renderRows(items)}
+                      <TableRows
+                        items={items}
+                        onDetail={openDetail}
+                        onEdit={openEdit}
+                        onDelete={handleDelete}
+                      />
                     </tbody>
                   </table>
                 </div>
@@ -578,14 +619,20 @@ export default function PaperbagSheetPricesPage() {
       )}
 
       {/* ── ADD MODAL ── */}
+      {/* FIX 4: Tambah closeOnOverlayClick agar konsisten dengan Edit Modal */}
       <Modal
         isOpen={showAddModal}
         onClose={() => { if (!isPosting) { setShowAddModal(false); setAddForm(EMPTY_FORM) } }}
         title="Tambah Harga Sheet Baru"
         size="lg"
+        closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" onClick={() => { if (!isPosting) { setShowAddModal(false); setAddForm(EMPTY_FORM) } }} disabled={isPosting}>
+            <Button
+              variant="outline"
+              onClick={() => { if (!isPosting) { setShowAddModal(false); setAddForm(EMPTY_FORM) } }}
+              disabled={isPosting}
+            >
               Batal
             </Button>
             <Button variant="primary" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">
@@ -606,7 +653,11 @@ export default function PaperbagSheetPricesPage() {
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" onClick={() => { if (!isPosting) { setShowEditModal(false); setEditingItem(null) } }} disabled={isPosting}>
+            <Button
+              variant="outline"
+              onClick={() => { if (!isPosting) { setShowEditModal(false); setEditingItem(null) } }}
+              disabled={isPosting}
+            >
               Batal
             </Button>
             <Button variant="primary" onClick={handleUpdate} loading={isPosting} disabled={isPosting} icon="mdi:check">
@@ -628,11 +679,16 @@ export default function PaperbagSheetPricesPage() {
         size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowDetailModal(false); setDetailItem(null) }}>Tutup</Button>
-            <Button variant="primary" icon="mdi:pencil-outline"
+            <Button variant="outline" onClick={() => { setShowDetailModal(false); setDetailItem(null) }}>
+              Tutup
+            </Button>
+            <Button
+              variant="primary"
+              icon="mdi:pencil-outline"
               onClick={() => {
                 if (detailItem) { setShowDetailModal(false); setDetailItem(null); openEdit(detailItem) }
-              }}>
+              }}
+            >
               Edit Data
             </Button>
           </>
@@ -669,13 +725,19 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
 
   return (
     <div className="space-y-5">
-      {/* Banner */}
-      <div className="flex items-center gap-3 p-4 rounded-lg border"
-        style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}>
-        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: `${accent.bg}18` }}>
-          <Icon icon={mode === 'add' ? 'mdi:plus-circle-outline' : 'mdi:pencil-outline'}
-            className="w-5 h-5" style={{ color: accent.bg }} />
+      <div
+        className="flex items-center gap-3 p-4 rounded-lg border"
+        style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}
+      >
+        <div
+          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+          style={{ background: `${accent.bg}18` }}
+        >
+          <Icon
+            icon={mode === 'add' ? 'mdi:plus-circle-outline' : 'mdi:pencil-outline'}
+            className="w-5 h-5"
+            style={{ color: accent.bg }}
+          />
         </div>
         <div>
           <p className="text-sm font-semibold text-slate-800">
@@ -689,7 +751,6 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
         </div>
       </div>
 
-      {/* Material & Size */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
@@ -730,7 +791,6 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
         </div>
       </div>
 
-      {/* GSM & Price */}
       <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
         <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
           <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
@@ -764,22 +824,30 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
         </div>
       </div>
 
-      {/* Live Preview */}
       {isPreviewReady && (
-        <div className="rounded-xl px-4 py-3.5 border"
-          style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}>
-          <p className="text-xs font-semibold flex items-center gap-1.5 mb-3" style={{ color: accent.text }}>
+        <div
+          className="rounded-xl px-4 py-3.5 border"
+          style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}
+        >
+          <p
+            className="text-xs font-semibold flex items-center gap-1.5 mb-3"
+            style={{ color: accent.text }}
+          >
             <Icon icon="mdi:eye-check-outline" className="w-4 h-4" />
             Preview Data
           </p>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             {[
-              { label: 'Material',      value: selectedMat  ? `${selectedMat.name} (${selectedMat.type})` : '—' },
-              { label: 'Ukuran',        value: selectedSize ? selectedSize.keterangan : '—' },
-              { label: 'GSM',           value: `${form.gsm} gsm` },
-              { label: 'Harga Lembar',  value: fmtCurrency(form.harga_lembar) },
-              ...(previewPricePerM2 !== null ? [{ label: 'Harga / m²', value: fmtCurrency(previewPricePerM2.toFixed(0)) }] : []),
-              ...(selectedSize ? [{ label: 'Luas Sheet', value: fmtArea(selectedSize.panjang_mm, selectedSize.lebar_mm) }] : []),
+              { label: 'Material',     value: selectedMat  ? `${selectedMat.name} (${selectedMat.type})` : '—' },
+              { label: 'Ukuran',       value: selectedSize ? selectedSize.keterangan : '—' },
+              { label: 'GSM',          value: `${form.gsm} gsm` },
+              { label: 'Harga Lembar', value: fmtCurrency(form.harga_lembar) },
+              ...(previewPricePerM2 !== null
+                ? [{ label: 'Harga / m²', value: fmtCurrency(previewPricePerM2.toFixed(0)) }]
+                : []),
+              ...(selectedSize
+                ? [{ label: 'Luas Sheet', value: fmtArea(selectedSize.panjang_mm, selectedSize.lebar_mm) }]
+                : []),
             ].map(({ label, value }) => (
               <div key={label} className="flex justify-between gap-2">
                 <span className="text-gray-500">{label}:</span>
@@ -797,16 +865,20 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
 // DETAIL VIEW
 // ============================================================
 function DetailView({ item }: { item: PaperbagPrice }) {
-  const accent  = getAccent(item.material_type)
-  const area    = calcArea(item.panjang_mm, item.lebar_mm)
-  const perM2   = area > 0 ? parseFloat(item.harga_lembar) / area : 0
+  const accent = getAccent(item.material_type)
+  const area   = calcArea(item.panjang_mm, item.lebar_mm)
+  const perM2  = area > 0 ? parseFloat(item.harga_lembar) / area : 0
 
   return (
     <div className="space-y-4">
-      {/* Identity */}
-      <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: `${accent.bg}0d` }}>
-        <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: `${accent.bg}20` }}>
+      <div
+        className="flex items-center gap-4 p-4 rounded-xl"
+        style={{ background: `${accent.bg}0d` }}
+      >
+        <div
+          className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: `${accent.bg}20` }}
+        >
           <Icon icon="mdi:file-document-outline" className="w-7 h-7" style={{ color: accent.bg }} />
         </div>
         <div>
@@ -819,7 +891,6 @@ function DetailView({ item }: { item: PaperbagPrice }) {
         </div>
       </div>
 
-      {/* Price */}
       <Card shadow="none" padding="sm" bordered>
         <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
           <Icon icon="mdi:cash-multiple" className="w-3.5 h-3.5" /> Informasi Harga
@@ -831,12 +902,13 @@ function DetailView({ item }: { item: PaperbagPrice }) {
           </div>
           <div className="p-3 rounded-lg" style={{ background: `${accent.bg}10` }}>
             <p className="text-xs mb-1" style={{ color: accent.text }}>Harga / m²</p>
-            <p className="font-bold text-lg" style={{ color: accent.bg }}>{fmtCurrency(perM2.toFixed(0))}</p>
+            <p className="font-bold text-lg" style={{ color: accent.bg }}>
+              {fmtCurrency(perM2.toFixed(0))}
+            </p>
           </div>
         </div>
       </Card>
 
-      {/* Dimension */}
       <Card shadow="none" padding="sm" bordered>
         <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
           <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5" /> Informasi Ukuran
@@ -852,18 +924,19 @@ function DetailView({ item }: { item: PaperbagPrice }) {
           </div>
           <div className="bg-purple-50 p-2 rounded-lg">
             <p className="text-xs text-purple-600">Luas</p>
-            <p className="font-semibold text-purple-800 text-sm">{fmtArea(item.panjang_mm, item.lebar_mm)}</p>
+            <p className="font-semibold text-purple-800 text-sm">
+              {fmtArea(item.panjang_mm, item.lebar_mm)}
+            </p>
           </div>
         </div>
       </Card>
 
-      {/* Meta */}
       <Card shadow="none" padding="sm" bordered>
         <div className="space-y-2 text-sm">
           {[
-            { label: 'Keterangan',     value: item.keterangan },
-            { label: 'ID Record',      value: <span className="font-mono text-xs">{item.id}</span> },
-            { label: 'Terakhir Update',value: fmtDate(item.updated_at) },
+            { label: 'Keterangan',      value: item.keterangan },
+            { label: 'ID Record',       value: <span className="font-mono text-xs">{item.id}</span> },
+            { label: 'Terakhir Update', value: fmtDate(item.updated_at) },
           ].map(({ label, value }) => (
             <div key={label} className="flex justify-between items-center">
               <span className="text-gray-400">{label}</span>

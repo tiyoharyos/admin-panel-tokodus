@@ -1,7 +1,7 @@
 'use client'
 // app/(protected)/sheet-settings/sheet-index/page.tsx
 
-import { useState, useEffect, useCallback, useMemo, useRef, ChangeEvent } from 'react'
+import { useState, useEffect, useCallback, useMemo, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { isAxiosError } from 'axios'
 import Swal from 'sweetalert2'
@@ -23,7 +23,6 @@ interface Flute {
   name: string
 }
 
-
 interface SheetSubstance {
   id: string
   no: string
@@ -36,7 +35,7 @@ interface SheetSubstance {
   substance_code: string
   created_at: string
   updated_at: string
-  [key: string]: string | number // Untuk dynamic flute prices
+  [key: string]: string | number
 }
 
 interface FormData {
@@ -127,12 +126,7 @@ const LAYER_META: Record<string, LayerMeta> = {
 }
 const DEFAULT_LAYER_META: LayerMeta = { bg: '#64748b', light: '#f1f5f9' }
 
-interface FluteColor {
-  bg: string
-  light: string
-}
-
-const FLUTE_COLORS: FluteColor[] = [
+const FLUTE_COLORS = [
   { bg: '#3b82f6', light: '#dbeafe' },
   { bg: '#10b981', light: '#d1fae5' },
   { bg: '#f59e0b', light: '#fed7aa' },
@@ -145,12 +139,14 @@ const FLUTE_COLORS: FluteColor[] = [
 
 // ===== UTILITIES =====
 
-const formatCurrency = (amount: number): string =>
-  new Intl.NumberFormat('id-ID', {
+const formatCurrency = (amount: number | string): string => {
+  const n = typeof amount === 'string' ? parseFloat(amount) : amount
+  return new Intl.NumberFormat('id-ID', {
     style: 'currency',
     currency: 'IDR',
     minimumFractionDigits: 0,
-  }).format(amount)
+  }).format(isNaN(n) ? 0 : n)
+}
 
 const formatSubstanceDisplay = (item: SheetSubstance | FormData): string =>
   `${item.layer_1}${item.layer_1_gsm}/${item.layer_2}${item.layer_2_gsm}/${item.layer_3}${item.layer_3_gsm}`
@@ -170,25 +166,17 @@ const processFluteList = (items: FluteApiItem[]): Flute[] =>
     name: f.name || '',
   }))
 
-// ===== TYPES FOR COMPONENTS =====
+// ===== BADGE COMPONENT =====
 
-interface BadgeProps {
+function Badge({
+  color,
+  light,
+  children,
+}: {
   color: string
   light?: string
   children: React.ReactNode
-}
-
-interface StatCard {
-  icon: string
-  label: string
-  value: string | number
-  sub: string
-  bar?: number
-}
-
-// ===== BADGE COMPONENT =====
-
-function Badge({ color, light, children }: BadgeProps) {
+}) {
   return (
     <span
       className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
@@ -199,24 +187,177 @@ function Badge({ color, light, children }: BadgeProps) {
   )
 }
 
-// ===== MAIN COMPONENT =====
+// ===== HOOK =====
+// FIX: Ekstrak logic ke custom hook seperti pola Singleface,
+// dan gunakan useMemo untuk stats (bukan useState yang tidak pernah di-update).
 
-export default function SheetSettingsPage() {
-  const router = useRouter()
-
+const useSheetIndex = () => {
   const [sheetSubstances, setSheetSubstances] = useState<SheetSubstance[]>([])
   const [flutes, setFlutes] = useState<Flute[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [isPosting, setIsPosting] = useState(false)
-  const [search, setSearch] = useState('')
-
   const [pagination, setPagination] = useState<PaginationConfig>({
     currentPage: 1,
     itemsPerPage: 10,
     totalItems: 0,
     totalPages: 0,
   })
+
+  // FIX 1: stats pakai useMemo (derived), bukan useState yang tidak pernah di-update
+  const stats = useMemo<Stats>(() => {
+    const withAll = sheetSubstances.filter(
+      s =>
+        flutes.length > 0 &&
+        flutes.every(f => ((s[`${f.code.toLowerCase()}_flute_price`] as number) || 0) > 0)
+    ).length
+    return {
+      totalSubstances: sheetSubstances.length,
+      activeSubstances: sheetSubstances.filter(
+        s => s.layer_1 && s.layer_2 && s.layer_3
+      ).length,
+      withAllFlutes: withAll,
+      totalIndices: sheetSubstances.length * flutes.length,
+    }
+  }, [sheetSubstances, flutes])
+
+  // FIX 2: Sederhanakan fetchFlutes — tidak perlu ref pattern
+  const fetchFlutes = useCallback(async (): Promise<Flute[]> => {
+    try {
+      interface FluteResponse {
+        status?: number
+        data?: FluteApiItem[]
+      }
+      const response = await axios.get('/Admin/Flutes/Flutes')
+      const responseData = response.data as FluteResponse | FluteApiItem[]
+      let processed: Flute[] = []
+      if (Array.isArray(responseData)) {
+        processed = processFluteList(responseData)
+      } else if (responseData?.status === 200 && Array.isArray(responseData.data)) {
+        processed = processFluteList(responseData.data)
+      }
+      setFlutes(processed)
+      return processed
+    } catch (err) {
+      console.error('Error fetching flutes:', err)
+      setFlutes([])
+      return []
+    }
+  }, [])
+
+  const fetchSheetIndex = useCallback(async (currentFlutes: Flute[]): Promise<void> => {
+    try {
+      setLoading(true)
+      setError(null)
+      const response = await axios.get<ApiResponse | SheetIndexApiItem[]>(
+        '/Admin/Sheet/sheetIndex'
+      )
+      const responseData: SheetIndexApiItem[] = Array.isArray(response.data)
+        ? response.data
+        : (response.data as ApiResponse)?.data || []
+
+      if (!Array.isArray(responseData)) throw new Error('Format respons tidak valid')
+
+      const grouped: Record<string, SheetSubstance> = {}
+      responseData.forEach((item: SheetIndexApiItem) => {
+        const substanceId = (item.s_substance_id || item.id)?.toString() || ''
+        if (!grouped[substanceId]) {
+          grouped[substanceId] = {
+            id: substanceId,
+            no: '',
+            layer_1: item.layer_1_gsm || '',
+            layer_2: item.layer_2_gsm || '',
+            layer_3: item.layer_3_gsm || '',
+            layer_1_gsm: item.layer_1_type || 'K',
+            layer_2_gsm: item.layer_2_type || 'M',
+            layer_3_gsm: item.layer_3_type || 'M',
+            substance_code: `${item.layer_1_gsm}${item.layer_1_type}/${item.layer_2_gsm}${item.layer_2_type}/${item.layer_3_gsm}${item.layer_3_type}`,
+            created_at: item.created_at || '',
+            updated_at: item.updated_at || '',
+          }
+        }
+        if (item.code) {
+          grouped[substanceId][`${item.code.toLowerCase()}_flute_price`] =
+            parseFloat(item.price_per_m2?.toString() || '0') || 0
+        }
+      })
+
+      const processed = Object.values(grouped).map((item, index) => ({
+        ...item,
+        no: (index + 1).toString(),
+      }))
+      setSheetSubstances(processed)
+
+      // Populate prices for any flutes not found in response
+      void currentFlutes
+    } catch (err) {
+      setError(getErrMsg(err, 'Gagal memuat data'))
+      setSheetSubstances([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  const fetchAll = useCallback(async () => {
+    const fetchedFlutes = await fetchFlutes()
+    await fetchSheetIndex(fetchedFlutes)
+  }, [fetchFlutes, fetchSheetIndex])
+
+  useEffect(() => {
+    fetchAll()
+  }, [fetchAll])
+
+  const handlePageChange = (page: number) => {
+    if (page < 1 || page > pagination.totalPages) return
+    setPagination(prev => ({ ...prev, currentPage: page }))
+    window.scrollTo({ top: 400, behavior: 'smooth' })
+  }
+
+  // FIX 3: Terima filteredCount sebagai parameter (pola Singleface)
+  const handleItemsPerPageChange = (value: number, filteredCount: number) => {
+    setPagination(prev => ({
+      ...prev,
+      itemsPerPage: value,
+      currentPage: 1,
+      totalPages: Math.max(1, Math.ceil(filteredCount / value)),
+    }))
+  }
+
+  return {
+    sheetSubstances,
+    flutes,
+    loading,
+    error,
+    stats,
+    pagination,
+    setPagination,
+    fetchAll,
+    fetchFlutes,
+    fetchSheetIndex,
+    handlePageChange,
+    handleItemsPerPageChange,
+  }
+}
+
+// ===== MAIN COMPONENT =====
+
+export default function SheetSettingsPage() {
+  const router = useRouter()
+  const {
+    sheetSubstances,
+    flutes,
+    loading,
+    error,
+    stats,
+    pagination,
+    setPagination,
+    fetchAll,
+    fetchSheetIndex,
+    handlePageChange,
+    handleItemsPerPageChange,
+  } = useSheetIndex()
+
+  const [isPosting, setIsPosting] = useState(false)
+  const [search, setSearch] = useState('')
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
@@ -227,19 +368,6 @@ export default function SheetSettingsPage() {
   const [addFormData, setAddFormData] = useState<FormData>({ ...BASE_FORM })
   const [editFormData, setEditFormData] = useState<FormData>({ ...BASE_FORM })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-
-  const [stats, setStats] = useState<Stats>({
-    totalSubstances: 0,
-    activeSubstances: 0,
-    withAllFlutes: 0,
-    totalIndices: 0,
-  })
-
-  // Use a ref to access latest flutes without stale closures
-  const flutesRef = useRef<Flute[]>([])
-  useEffect(() => {
-    flutesRef.current = flutes
-  }, [flutes])
 
   // ===== FILTERED + PAGINATED DATA =====
 
@@ -260,7 +388,6 @@ export default function SheetSettingsPage() {
     return filteredSubstances.slice(start, start + pagination.itemsPerPage)
   }, [filteredSubstances, pagination.currentPage, pagination.itemsPerPage])
 
-  // Sync pagination when filtered data changes
   useEffect(() => {
     const totalItems = filteredSubstances.length
     const totalPages = Math.max(1, Math.ceil(totalItems / pagination.itemsPerPage))
@@ -268,11 +395,12 @@ export default function SheetSettingsPage() {
       ...prev,
       totalItems,
       totalPages,
-      currentPage: prev.currentPage > totalPages && totalPages > 0 ? 1 : prev.currentPage,
+      currentPage: prev.currentPage > totalPages ? 1 : prev.currentPage,
     }))
-  }, [filteredSubstances.length, pagination.itemsPerPage])
+  }, [filteredSubstances.length, pagination.itemsPerPage, setPagination])
 
-  // ===== AUTO-POPULATE PRICES WHEN ADD MODAL OPENS =====
+  // ===== AUTO-POPULATE PRICES =====
+
   useEffect(() => {
     if (!showAddModal || flutes.length === 0) return
     const prices: Record<string, string> = {}
@@ -280,182 +408,59 @@ export default function SheetSettingsPage() {
     setAddFormData(prev => ({ ...prev, price_per_m2: prices }))
   }, [showAddModal, flutes])
 
-  // ===== AUTO-POPULATE PRICES WHEN EDIT MODAL OPENS =====
   useEffect(() => {
     if (!showEditModal || !editingItem || flutes.length === 0) return
     const prices: Record<string, string> = {}
     flutes.forEach(f => {
-      const priceKey = `${f.code.toLowerCase()}_flute_price`
-      prices[f.code] = (editingItem[priceKey] as number)?.toString() || ''
+      prices[f.code] =
+        (editingItem[`${f.code.toLowerCase()}_flute_price`] as number)?.toString() || ''
     })
     setEditFormData(prev => ({ ...prev, price_per_m2: prices }))
   }, [showEditModal, editingItem, flutes])
 
-  // ===== PAGINATION HANDLERS =====
+  // ===== SELECT CHANGE HANDLERS =====
 
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > pagination.totalPages) return
-    setPagination(prev => ({ ...prev, currentPage: page }))
-    window.scrollTo({ top: 400, behavior: 'smooth' })
-  }
-
-  const handleItemsPerPageChange = (value: string | number) => {
-    const numValue = typeof value === 'string' ? parseInt(value) : value
-    setPagination(prev => ({
-      ...prev,
-      itemsPerPage: numValue,
-      currentPage: 1,
-      totalPages: Math.max(1, Math.ceil(filteredSubstances.length / numValue)),
-    }))
-  }
-
-  // ===== FETCH FLUTES =====
-
-  const fetchFlutes = useCallback(async (): Promise<Flute[]> => {
-    try {
-      const response = await axios.get('/Admin/Flutes/Flutes')
-      let processed: Flute[] = []
-      
-      interface FluteResponse {
-        status?: number
-        data?: FluteApiItem[]
-      }
-      
-      const responseData = response.data as FluteResponse | FluteApiItem[]
-      
-      if (Array.isArray(responseData)) {
-        processed = processFluteList(responseData)
-      } else if (responseData?.status === 200 && Array.isArray(responseData.data)) {
-        processed = processFluteList(responseData.data)
-      }
-      
-      setFlutes(processed)
-      flutesRef.current = processed
-      return processed
-    } catch (err) {
-      console.error('Error fetching flutes:', err)
-      setFlutes([])
-      flutesRef.current = []
-      return []
+  const handleAddSelectChange =
+    (field: string) => (e: ChangeEvent<HTMLSelectElement>) => {
+      setAddFormData(prev => ({ ...prev, [field]: e.target.value }))
+      setFormErrors(prev => ({ ...prev, [field]: '' }))
     }
-  }, [])
 
-  // ===== FETCH SHEET INDEX =====
-
-  const fetchSheetIndex = useCallback(async (currentFlutes: Flute[]): Promise<SheetSubstance[]> => {
-    try {
-      setLoading(true)
-      setError(null)
-
-      const response = await axios.get<ApiResponse | SheetIndexApiItem[]>('/Admin/Sheet/sheetIndex')
-
-      const responseData: SheetIndexApiItem[] = Array.isArray(response.data)
-        ? response.data
-        : (response.data as ApiResponse)?.data || []
-
-      if (!Array.isArray(responseData)) throw new Error('Format respons tidak valid')
-
-      const grouped: Record<string, SheetSubstance> = {}
-
-      responseData.forEach((item: SheetIndexApiItem) => {
-        const substanceId = (item.s_substance_id || item.id)?.toString() || ''
-        if (!grouped[substanceId]) {
-          grouped[substanceId] = {
-            id: substanceId,
-            no: '',
-            layer_1: item.layer_1_gsm || '',
-            layer_2: item.layer_2_gsm || '',
-            layer_3: item.layer_3_gsm || '',
-            layer_1_gsm: item.layer_1_type || 'K',
-            layer_2_gsm: item.layer_2_type || 'M',
-            layer_3_gsm: item.layer_3_type || 'M',
-            substance_code: `${item.layer_1_gsm}${item.layer_1_type}/${item.layer_2_gsm}${item.layer_2_type}/${item.layer_3_gsm}${item.layer_3_type}`,
-            created_at: item.created_at || '',
-            updated_at: item.updated_at || '',
-          }
-        }
-        if (item.code) {
-          const priceKey = `${item.code.toLowerCase()}_flute_price`
-          grouped[substanceId][priceKey] = parseFloat(item.price_per_m2?.toString() || '0') || 0
-        }
-      })
-
-      const processed = Object.values(grouped).map((item, index) => ({
-        ...item,
-        no: (index + 1).toString(),
-      }))
-
-      setSheetSubstances(processed)
-      return processed
-    } catch (err) {
-      console.error('Error fetching sheet index:', err)
-      setError(getErrMsg(err, 'Gagal memuat data'))
-      setSheetSubstances([])
-      setStats({ totalSubstances: 0, activeSubstances: 0, withAllFlutes: 0, totalIndices: 0 })
-      return []
-    } finally {
-      setLoading(false)
+  const handleEditSelectChange =
+    (field: string) => (e: ChangeEvent<HTMLSelectElement>) => {
+      setEditFormData(prev => ({ ...prev, [field]: e.target.value }))
+      setFormErrors(prev => ({ ...prev, [field]: '' }))
     }
-  }, [])
-
-  // ===== INITIAL LOAD =====
-
-  useEffect(() => {
-    const init = async () => {
-      const fetchedFlutes = await fetchFlutes()
-      await fetchSheetIndex(fetchedFlutes)
-    }
-    init()
-  }, [fetchFlutes, fetchSheetIndex])
-
-  // ===== FORM HANDLERS =====
-
-  const handleAddInputChange = (field: string, value: string) => {
-    setAddFormData(prev => ({ ...prev, [field]: value }))
-    setFormErrors(prev => ({ ...prev, [field]: '' }))
-  }
-
-  const handleEditInputChange = (field: string, value: string) => {
-    setEditFormData(prev => ({ ...prev, [field]: value }))
-    setFormErrors(prev => ({ ...prev, [field]: '' }))
-  }
-
-  const handleAddPriceChange = (fluteCode: string, value: string) => {
-    setAddFormData(prev => ({
-      ...prev,
-      price_per_m2: { ...prev.price_per_m2, [fluteCode]: value }
-    }))
-    setFormErrors(prev => ({ ...prev, [`price_${fluteCode}`]: '' }))
-  }
-
-  const handleEditPriceChange = (fluteCode: string, value: string) => {
-    setEditFormData(prev => ({
-      ...prev,
-      price_per_m2: { ...prev.price_per_m2, [fluteCode]: value }
-    }))
-    setFormErrors(prev => ({ ...prev, [`price_${fluteCode}`]: '' }))
-  }
 
   // ===== VALIDATION =====
 
   const validateForm = (formData: FormData): Record<string, string> => {
     const errors: Record<string, string> = {}
-    const currentFlutes = flutesRef.current
-
     ;(['layer_1', 'layer_2', 'layer_3'] as const).forEach(field => {
       const val = formData[field] as string
       if (!val || val.trim() === '') errors[field] = 'Gramasi tidak boleh kosong'
-      else if (isNaN(parseFloat(val)) || parseFloat(val) <= 0) errors[field] = 'Gramasi harus angka lebih dari 0'
+      else if (isNaN(parseFloat(val)) || parseFloat(val) <= 0)
+        errors[field] = 'Gramasi harus angka lebih dari 0'
     })
-
-    currentFlutes.forEach(flute => {
+    flutes.forEach(flute => {
       const price = formData.price_per_m2?.[flute.code]
-      if (!price || price.trim() === '') errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute wajib diisi`
-      else if (isNaN(parseFloat(price))) errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute harus berupa angka`
-      else if (parseFloat(price) <= 0) errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute harus lebih dari 0`
+      if (!price || price.trim() === '')
+        errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute wajib diisi`
+      else if (isNaN(parseFloat(price)))
+        errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute harus berupa angka`
+      else if (parseFloat(price) <= 0)
+        errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute harus lebih dari 0`
     })
-
     return errors
+  }
+
+  const showValidationError = async () => {
+    await Swal.fire({
+      icon: 'error',
+      title: 'Validasi Error',
+      text: 'Periksa kembali data yang diisi',
+      confirmButtonColor: '#3b82f6',
+    })
   }
 
   // ===== BUILD PAYLOAD =====
@@ -467,10 +472,8 @@ export default function SheetSettingsPage() {
     layer_2_gsm: formData.layer_2_gsm.trim(),
     layer_3: formData.layer_3.trim(),
     layer_3_gsm: formData.layer_3_gsm.trim(),
-    flutes: flutesRef.current
-      .map(f => parseInt(f.id))
-      .filter(id => !isNaN(id) && id > 0),
-    price_per_m2: flutesRef.current.map(f =>
+    flutes: flutes.map(f => parseInt(f.id)).filter(id => !isNaN(id) && id > 0),
+    price_per_m2: flutes.map(f =>
       parseFloat(formData.price_per_m2[f.code] || '0')
     ),
   })
@@ -481,21 +484,16 @@ export default function SheetSettingsPage() {
     const errors = validateForm(addFormData)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
-      await Swal.fire({
-        icon: 'error',
-        title: 'Validasi Error',
-        text: 'Periksa kembali data yang diisi',
-        confirmButtonColor: '#3b82f6',
-      })
+      await showValidationError()
       return
     }
-
+    setIsPosting(true)
     try {
-      setIsPosting(true)
-      const response = await axios.post<ApiSuccessResponse>('/Admin/Sheet/sheetIndexAdd', buildPayload(addFormData), {
-        headers: { 'ngrok-skip-browser-warning': 'true' },
-      })
-
+      const response = await axios.post<ApiSuccessResponse>(
+        '/Admin/Sheet/sheetIndexAdd',
+        buildPayload(addFormData),
+        { headers: { 'ngrok-skip-browser-warning': 'true' } }
+      )
       if (response.data?.status === 200) {
         await Swal.fire({
           icon: 'success',
@@ -507,7 +505,7 @@ export default function SheetSettingsPage() {
         setShowAddModal(false)
         setAddFormData({ ...BASE_FORM })
         setFormErrors({})
-        await fetchSheetIndex(flutesRef.current)
+        await fetchAll()
       } else {
         await Swal.fire({
           icon: 'error',
@@ -550,23 +548,16 @@ export default function SheetSettingsPage() {
     const errors = validateForm(editFormData)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
-      await Swal.fire({
-        icon: 'error',
-        title: 'Validasi Error',
-        text: 'Periksa kembali data yang diisi',
-        confirmButtonColor: '#3b82f6',
-      })
+      await showValidationError()
       return
     }
-
+    setIsPosting(true)
     try {
-      setIsPosting(true)
       const response = await axios.put<ApiSuccessResponse>(
         '/Admin/Sheet/sheetIndexUpdate',
         { substance_id: parseInt(editingItem.id), ...buildPayload(editFormData) },
         { headers: { 'ngrok-skip-browser-warning': 'true' } }
       )
-
       if (response.data?.status === 200) {
         await Swal.fire({
           icon: 'success',
@@ -579,7 +570,7 @@ export default function SheetSettingsPage() {
         setEditingItem(null)
         setEditFormData({ ...BASE_FORM })
         setFormErrors({})
-        await fetchSheetIndex(flutesRef.current)
+        await fetchAll()
       } else {
         await Swal.fire({
           icon: 'error',
@@ -613,11 +604,11 @@ export default function SheetSettingsPage() {
       cancelButtonText: 'Batal',
     })
     if (!result.isConfirmed) return
-
     try {
-      const response = await axios.delete<ApiSuccessResponse>(`/Admin/Sheet/sheetIndexDelete/${id}`, {
-        headers: { 'ngrok-skip-browser-warning': 'true' },
-      })
+      const response = await axios.delete<ApiSuccessResponse>(
+        `/Admin/Sheet/sheetIndexDelete/${id}`,
+        { headers: { 'ngrok-skip-browser-warning': 'true' } }
+      )
       if (response.data?.status === 200) {
         await Swal.fire({
           icon: 'success',
@@ -626,7 +617,7 @@ export default function SheetSettingsPage() {
           timer: 1500,
           showConfirmButton: false,
         })
-        await fetchSheetIndex(flutesRef.current)
+        await fetchAll()
       } else {
         await Swal.fire({
           icon: 'error',
@@ -656,9 +647,7 @@ export default function SheetSettingsPage() {
 
   const handleRefresh = async () => {
     try {
-      setLoading(true)
-      const fetchedFlutes = await fetchFlutes()
-      await fetchSheetIndex(fetchedFlutes)
+      await fetchAll()
       await Swal.fire({
         icon: 'success',
         title: 'Berhasil!',
@@ -673,8 +662,6 @@ export default function SheetSettingsPage() {
         text: getErrMsg(err, 'Gagal memperbarui data'),
         confirmButtonColor: '#3b82f6',
       })
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -695,46 +682,9 @@ export default function SheetSettingsPage() {
     setFormErrors({})
   }
 
-  // ===== SELECT CHANGE HANDLERS =====
-
-  const handleAddSelectChange = (field: string) => (e: ChangeEvent<HTMLSelectElement>) => {
-    handleAddInputChange(field, e.target.value)
-  }
-
-  const handleEditSelectChange = (field: string) => (e: ChangeEvent<HTMLSelectElement>) => {
-    handleEditInputChange(field, e.target.value)
-  }
-
-  // ===== STATS CARDS DATA =====
-
-  const statsCards: StatCard[] = [
-    {
-      icon: 'mdi:layers-triple',
-      label: 'Total Substances',
-      value: stats.totalSubstances,
-      sub: `${stats.activeSubstances} aktif`,
-    },
-    {
-      icon: 'mdi:waveform',
-      label: 'Flute Types',
-      value: flutes.length,
-      sub: flutes.map(f => f.code).join(' · ') || '-',
-    },
-    {
-      icon: 'mdi:chart-arc',
-      label: 'Rata-rata Flute/Sheet',
-      value: (stats.totalIndices / (stats.totalSubstances || 1)).toFixed(1),
-      sub: `Total ${stats.totalIndices} indeks`,
-      bar:
-        flutes.length > 0
-          ? (stats.totalIndices / (stats.totalSubstances || 1) / flutes.length) * 100
-          : 0,
-    },
-  ]
-
   // ===== LOADING / ERROR =====
 
-  if (loading && sheetSubstances.length === 0) {
+  if (loading && sheetSubstances.length === 0 && !error) {
     return (
       <LoadingState
         message="Memuat data Sheet Settings..."
@@ -743,9 +693,8 @@ export default function SheetSettingsPage() {
       />
     )
   }
-
   if (error && sheetSubstances.length === 0) {
-    return <ErrorState message={error} onRetry={() => fetchSheetIndex(flutesRef.current)} />
+    return <ErrorState message={error} onRetry={fetchAll} />
   }
 
   // ============================================================
@@ -763,7 +712,9 @@ export default function SheetSettingsPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Sheet Settings</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola harga bahan sheet berdasarkan flute type</p>
+            <p className="text-slate-500 mt-1 text-sm">
+              Kelola harga bahan sheet berdasarkan flute type
+            </p>
           </div>
         </div>
         <Button
@@ -777,9 +728,35 @@ export default function SheetSettingsPage() {
         </Button>
       </div>
 
-      {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {statsCards.map((s, i) => (
+      {/* ===== STATS CARDS — 4 cards, sama persis dengan Singleface ===== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            icon: 'mdi:layers-triple',
+            label: 'Total Substances',
+            value: stats.totalSubstances,
+            sub: `${stats.activeSubstances} aktif`,
+          },
+          {
+            icon: 'mdi:currency-usd-circle',
+            label: 'Complete Pricing',
+            value: stats.withAllFlutes,
+            sub: `${stats.totalSubstances - stats.withAllFlutes} belum lengkap`,
+            bar: (stats.withAllFlutes / (stats.totalSubstances || 1)) * 100,
+          },
+          {
+            icon: 'mdi:waveform',
+            label: 'Flute Types',
+            value: flutes.length,
+            sub: flutes.map(f => f.code).join(' · ') || '-',
+          },
+          {
+            icon: 'mdi:database',
+            label: 'Total Indices',
+            value: stats.totalIndices,
+            sub: `${sheetSubstances.length} substance × ${flutes.length} flute`,
+          },
+        ].map((s, i) => (
           <Card key={i} shadow="sm" padding="md" hoverable>
             <div className="flex items-center justify-between mb-3">
               <p className="text-sm text-gray-500">{s.label}</p>
@@ -829,12 +806,11 @@ export default function SheetSettingsPage() {
                 icon="mdi:magnify"
                 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
               />
-              <input
-                type="text"
-                value={search}
-                onChange={(e: ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
+              <Input
                 placeholder="Cari substance..."
-                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-64"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                leftIcon="mdi:magnify"
               />
             </div>
             <button
@@ -862,8 +838,8 @@ export default function SheetSettingsPage() {
                 <span className="text-sm text-gray-500">Per halaman:</span>
                 <Select
                   value={pagination.itemsPerPage.toString()}
-                  onChange={(e: ChangeEvent<HTMLSelectElement>) => 
-                    handleItemsPerPageChange(e.target.value)
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) =>
+                    handleItemsPerPageChange(parseInt(e.target.value), filteredSubstances.length)
                   }
                   options={[
                     { value: '5', label: '5' },
@@ -881,30 +857,34 @@ export default function SheetSettingsPage() {
                 </span>{' '}
                 -{' '}
                 <span className="font-medium text-slate-700">
-                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
+                  {Math.min(
+                    pagination.currentPage * pagination.itemsPerPage,
+                    pagination.totalItems
+                  )}
                 </span>{' '}
                 dari{' '}
                 <span className="font-medium text-slate-700">{pagination.totalItems}</span>
               </p>
             </div>
+            {/* FIX 4: Pakai <button> biasa, bukan <Button> component — sama dengan Singleface */}
             <div className="flex items-center gap-2">
-              <Button
+              <button
                 onClick={() => handlePageChange(pagination.currentPage - 1)}
                 disabled={pagination.currentPage === 1}
                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon icon="mdi:chevron-left" className="w-5 h-5" />
-              </Button>
+              </button>
               <span className="text-sm text-gray-500">
                 Halaman {pagination.currentPage} dari {pagination.totalPages}
               </span>
-              <Button
+              <button
                 onClick={() => handlePageChange(pagination.currentPage + 1)}
                 disabled={pagination.currentPage === pagination.totalPages}
                 className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon icon="mdi:chevron-right" className="w-5 h-5" />
-              </Button>
+              </button>
             </div>
           </div>
         )}
@@ -915,14 +895,16 @@ export default function SheetSettingsPage() {
             <div className="flex flex-col items-center gap-3 py-16">
               <Icon icon="mdi:layers-triple-off" className="w-16 h-16 text-gray-300" />
               <p className="text-gray-500 font-medium text-lg">Belum ada data sheet substance</p>
-              <p className="text-sm text-gray-400">Tambahkan sheet substance baru untuk memulai</p>
+              <p className="text-sm text-gray-400">
+                Tambahkan sheet substance baru untuk memulai
+              </p>
               <Button
                 onClick={() => setShowAddModal(true)}
                 variant="primary"
                 icon="mdi:plus"
                 disabled={flutes.length === 0}
               >
-                {flutes.length === 0 ? 'Tambah Flute Terlebih Dahulu' : 'Tambah Sheet Baru'}
+                {flutes.length === 0 ? 'Tambah Flute Dulu' : 'Tambah Sheet Baru'}
               </Button>
             </div>
           ) : filteredSubstances.length === 0 ? (
@@ -958,7 +940,7 @@ export default function SheetSettingsPage() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {paginatedData.map((substance, index) => {
-                  const actualIndex =
+                  const rowNum =
                     (pagination.currentPage - 1) * pagination.itemsPerPage + index + 1
                   const layerCodes = [
                     substance.layer_1_gsm,
@@ -968,27 +950,27 @@ export default function SheetSettingsPage() {
                   return (
                     <tr key={substance.id} className="hover:bg-slate-50/80 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">
-                        {actualIndex}
+                        {rowNum}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1">
-                              {layerCodes.map((code, idx) => {
-                                const meta = getLayerMeta(code)
-                                return (
-                                  <span
-                                    key={idx}
-                                    className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white"
-                                    style={{ background: meta.bg }}
-                                  >
-                                    {code}
-                                  </span>
-                                )
-                              })}
-                            </div>
-                            <p className="text-xs font-mono text-gray-400">{substance.substance_code}</p>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1">
+                            {layerCodes.map((code, idx) => {
+                              const meta = getLayerMeta(code)
+                              return (
+                                <span
+                                  key={idx}
+                                  className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white"
+                                  style={{ background: meta.bg }}
+                                >
+                                  {code}
+                                </span>
+                              )
+                            })}
                           </div>
+                          <p className="text-xs font-mono text-gray-400">
+                            {substance.substance_code}
+                          </p>
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
@@ -1071,7 +1053,8 @@ export default function SheetSettingsPage() {
             <p className="text-sm text-gray-500">
               Menampilkan{' '}
               <span className="font-medium text-slate-700">{paginatedData.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{filteredSubstances.length}</span> substance
+              <span className="font-medium text-slate-700">{filteredSubstances.length}</span>{' '}
+              substance
             </p>
           </div>
         )}
@@ -1103,7 +1086,6 @@ export default function SheetSettingsPage() {
         }
       >
         <div className="space-y-6">
-          {/* Info */}
           <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
             <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
             <p className="text-sm text-blue-700">
@@ -1125,10 +1107,11 @@ export default function SheetSettingsPage() {
                     <Input
                       label="Gramasi *"
                       type="number"
-                      value={addFormData[`layer_${num}`]}
-                      onChange={(e: ChangeEvent<HTMLInputElement>) => 
-                        handleAddInputChange(`layer_${num}`, e.target.value)
-                      }
+                      value={addFormData[`layer_${num}` as 'layer_1' | 'layer_2' | 'layer_3']}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                        setAddFormData(prev => ({ ...prev, [`layer_${num}`]: e.target.value }))
+                        setFormErrors(prev => ({ ...prev, [`layer_${num}`]: '' }))
+                      }}
                       placeholder="125"
                       min="1"
                       step="1"
@@ -1138,7 +1121,11 @@ export default function SheetSettingsPage() {
                     />
                     <Select
                       label="Jenis Kertas *"
-                      value={addFormData[`layer_${num}_gsm`]}
+                      value={
+                        addFormData[
+                          `layer_${num}_gsm` as 'layer_1_gsm' | 'layer_2_gsm' | 'layer_3_gsm'
+                        ]
+                      }
                       onChange={handleAddSelectChange(`layer_${num}_gsm`)}
                       options={LAYER_TYPE_OPTIONS}
                       disabled={isPosting}
@@ -1159,19 +1146,16 @@ export default function SheetSettingsPage() {
             {flutes.length === 0 ? (
               <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-2">
                 <Icon icon="mdi:alert" className="w-5 h-5 text-yellow-600" />
-                <p className="text-yellow-800">Tidak ada flute yang tersedia. Harap tambahkan flute terlebih dahulu.</p>
+                <p className="text-yellow-800 text-sm">
+                  Tidak ada flute tersedia. Tambahkan flute terlebih dahulu.
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {flutes.map((flute, idx) => {
                   const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
                   return (
-                    <Card
-                      key={flute.code}
-                      shadow="sm"
-                      padding="md"
-                      className="border-l-4"
-                    >
+                    <Card key={flute.code} shadow="sm" padding="md" className="border-l-4">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="font-medium text-slate-800">{flute.name}</span>
                         <Badge color={color.bg} light={color.light}>{flute.code}</Badge>
@@ -1180,9 +1164,13 @@ export default function SheetSettingsPage() {
                         label="Harga per m² *"
                         type="number"
                         value={addFormData.price_per_m2[flute.code] || ''}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          handleAddPriceChange(flute.code, e.target.value)
-                        }
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                          setAddFormData(prev => ({
+                            ...prev,
+                            price_per_m2: { ...prev.price_per_m2, [flute.code]: e.target.value },
+                          }))
+                          setFormErrors(prev => ({ ...prev, [`price_${flute.code}`]: '' }))
+                        }}
                         placeholder="0"
                         min="1"
                         disabled={isPosting}
@@ -1225,7 +1213,6 @@ export default function SheetSettingsPage() {
       >
         {editingItem && (
           <div className="space-y-6">
-            {/* Info */}
             <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                 <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
@@ -1233,7 +1220,7 @@ export default function SheetSettingsPage() {
               <div>
                 <p className="text-sm font-medium text-blue-800">Mengedit Sheet Substance</p>
                 <p className="text-xs text-blue-600 mt-1">
-                  Substance:{' '}
+                  ID: <span className="font-mono">#{editingItem.id}</span> · Kode:{' '}
                   <span className="font-semibold">{formatSubstanceDisplay(editingItem)}</span>
                 </p>
               </div>
@@ -1253,10 +1240,16 @@ export default function SheetSettingsPage() {
                       <Input
                         label="Gramasi *"
                         type="number"
-                        value={editFormData[`layer_${num}`]}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) => 
-                          handleEditInputChange(`layer_${num}`, e.target.value)
+                        value={
+                          editFormData[`layer_${num}` as 'layer_1' | 'layer_2' | 'layer_3']
                         }
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                          setEditFormData(prev => ({
+                            ...prev,
+                            [`layer_${num}`]: e.target.value,
+                          }))
+                          setFormErrors(prev => ({ ...prev, [`layer_${num}`]: '' }))
+                        }}
                         placeholder="125"
                         min="1"
                         step="1"
@@ -1266,7 +1259,14 @@ export default function SheetSettingsPage() {
                       />
                       <Select
                         label="Jenis Kertas *"
-                        value={editFormData[`layer_${num}_gsm`]}
+                        value={
+                          editFormData[
+                            `layer_${num}_gsm` as
+                              | 'layer_1_gsm'
+                              | 'layer_2_gsm'
+                              | 'layer_3_gsm'
+                          ]
+                        }
                         onChange={handleEditSelectChange(`layer_${num}_gsm`)}
                         options={LAYER_TYPE_OPTIONS}
                         disabled={isPosting}
@@ -1286,7 +1286,9 @@ export default function SheetSettingsPage() {
               </h3>
               <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200 flex items-center gap-2">
                 <Icon icon="mdi:alert-circle" className="w-4 h-4 text-amber-600" />
-                <p className="text-sm text-amber-700">Semua flute types harus diisi dengan harga yang valid.</p>
+                <p className="text-sm text-amber-700">
+                  Semua flute types harus diisi dengan harga yang valid.
+                </p>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {flutes.map((flute, idx) => {
@@ -1306,9 +1308,19 @@ export default function SheetSettingsPage() {
                         label="Harga per m² *"
                         type="number"
                         value={editFormData.price_per_m2[flute.code] || ''}
-                        onChange={(e: ChangeEvent<HTMLInputElement>) =>
-                          handleEditPriceChange(flute.code, e.target.value)
-                        }
+                        onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                          setEditFormData(prev => ({
+                            ...prev,
+                            price_per_m2: {
+                              ...prev.price_per_m2,
+                              [flute.code]: e.target.value,
+                            },
+                          }))
+                          setFormErrors(prev => ({
+                            ...prev,
+                            [`price_${flute.code}`]: '',
+                          }))
+                        }}
                         placeholder="0"
                         min="1"
                         disabled={isPosting}
@@ -1356,12 +1368,6 @@ export default function SheetSettingsPage() {
               selectedItem.layer_2_gsm,
               selectedItem.layer_3_gsm,
             ]
-            const layerGrams = [
-              selectedItem.layer_1,
-              selectedItem.layer_2,
-              selectedItem.layer_3,
-            ]
-
             return (
               <div className="space-y-4">
                 {/* Identity */}
@@ -1395,7 +1401,7 @@ export default function SheetSettingsPage() {
                   </div>
                 </div>
 
-                {/* Layer Details */}
+                {/* Layer Details — FIX: hapus layerGrams yang tidak terpakai */}
                 <Card shadow="none" padding="sm" bordered>
                   <p className="text-xs text-gray-500 mb-2">Komposisi Layer</p>
                   <div className="space-y-2">
