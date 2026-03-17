@@ -696,7 +696,7 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
             <Icon icon="mdi:material-ui" className="w-4 h-4 text-gray-400" />
             Material <span className="text-red-500">*</span>
           </label>
-          <Select
+          <select
             value={form.material_type_id}
             onChange={e => onFormChange({ ...form, material_type_id: e.target.value })}
             disabled={disabled}
@@ -706,7 +706,7 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
             {MATERIAL_OPTIONS.map(m => (
               <option key={m.id} value={m.id}>{m.name} ({m.type})</option>
             ))}
-          </Select>
+          </select>
         </div>
 
         <div className="space-y-1.5">
