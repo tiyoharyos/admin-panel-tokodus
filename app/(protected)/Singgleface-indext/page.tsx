@@ -58,12 +58,20 @@ interface ApiResponse<T = unknown> {
   data?: T
 }
 
+interface FluteSelection {
+  id: string
+  code: string
+  name: string
+  selected: boolean
+  price: string
+}
+
 interface FormData {
   layer_1: string
   layer_1_type: string
   layer_2: string
   layer_2_type: string
-  price_per_m2: Record<string, string>
+  flutes: FluteSelection[]
 }
 
 interface PaginationConfig {
@@ -119,7 +127,7 @@ const BASE_FORM: FormData = {
   layer_1_type: 'K',
   layer_2: '',
   layer_2_type: 'M',
-  price_per_m2: {},
+  flutes: [],
 }
 
 // ============================================================
@@ -210,9 +218,7 @@ function Badge({
 }
 
 // ============================================================
-// FIX 1: FlutePricingGrid dipindahkan ke LUAR komponen utama
-// Sebelumnya didefinisikan di dalam SinglefaceSettingsPage,
-// sehingga di-remount setiap kali parent re-render.
+// FLUTE PRICING GRID COMPONENT
 // ============================================================
 
 interface FlutePricingGridProps {
@@ -222,6 +228,7 @@ interface FlutePricingGridProps {
   errors: Record<string, string>
   setErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>
   disabled: boolean
+  mode?: 'add' | 'edit'
 }
 
 function FlutePricingGrid({
@@ -232,12 +239,49 @@ function FlutePricingGrid({
   setErrors,
   disabled,
 }: FlutePricingGridProps) {
+  // Handler untuk toggle selected flute
+  const handleToggleFlute = (fluteCode: string, checked: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      flutes: prev.flutes.map(f =>
+        f.code === fluteCode ? { ...f, selected: checked } : f
+      ),
+    }))
+    
+    // Clear error jika flute diseleksi
+    if (checked) {
+      setErrors(prev => ({ ...prev, [`price_${fluteCode}`]: '' }))
+    }
+  }
+
+  // Handler untuk update price
+  const handlePriceChange = (fluteCode: string, price: string) => {
+    setFormData(prev => ({
+      ...prev,
+      flutes: prev.flutes.map(f =>
+        f.code === fluteCode ? { ...f, price } : f
+      ),
+    }))
+    setErrors(prev => ({ ...prev, [`price_${fluteCode}`]: '' }))
+  }
+
+  // Hitung jumlah flute yang dipilih
+  const selectedCount = formData.flutes.filter(f => f.selected).length
+
   return (
     <div>
-      <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-        <Icon icon="mdi:currency-usd" className="w-4 h-4 text-green-500" />
-        Harga per Flute
-      </h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+          <Icon icon="mdi:currency-usd" className="w-4 h-4 text-green-500" />
+          Harga per Flute
+        </h3>
+        {selectedCount > 0 && (
+          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full">
+            {selectedCount} flute dipilih
+          </span>
+        )}
+      </div>
+
       {flutes.length === 0 ? (
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-2">
           <Icon icon="mdi:alert" className="w-5 h-5 text-yellow-600" />
@@ -246,39 +290,93 @@ function FlutePricingGrid({
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {flutes.map((flute, idx) => {
-            const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
-            return (
-              <Card key={flute.code} shadow="sm" padding="md" className="border-l-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="font-medium text-slate-800">{flute.name}</span>
-                    <Badge color={color.bg} light={color.light}>
-                      {flute.code}
-                    </Badge>
+        <div className="space-y-3">
+          {/* Info message */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+            <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500" />
+            <p className="text-xs text-blue-700">
+              Centang flute yang ingin digunakan. Minimal satu flute harus dipilih.
+            </p>
+          </div>
+
+          {/* Error summary jika tidak ada flute dipilih */}
+          {errors.flutes && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <p className="text-sm text-red-600 flex items-center gap-2">
+                <Icon icon="mdi:alert-circle" className="w-4 h-4" />
+                {errors.flutes}
+              </p>
+            </div>
+          )}
+
+          {/* Flute list */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {formData.flutes.map((flute, idx) => {
+              const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
+              return (
+                <Card 
+                  key={flute.code} 
+                  shadow="sm" 
+                  padding="md" 
+                  className={`border-l-4 transition-all ${
+                    flute.selected ? 'border-l-green-500 bg-green-50/30' : 'border-l-gray-300 opacity-70'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <div className="pt-1">
+                      <input
+                        type="checkbox"
+                        id={`flute-${flute.code}`}
+                        checked={flute.selected}
+                        onChange={(e) => handleToggleFlute(flute.code, e.target.checked)}
+                        disabled={disabled}
+                        className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <label 
+                            htmlFor={`flute-${flute.code}`}
+                            className="font-medium text-slate-800 cursor-pointer"
+                          >
+                            {flute.name}
+                          </label>
+                          <Badge color={color.bg} light={color.light}>
+                            {flute.code}
+                          </Badge>
+                        </div>
+                      </div>
+
+                      <Input
+                        label="Harga per m²"
+                        type="number"
+                        value={flute.price}
+                        onChange={e => handlePriceChange(flute.code, e.target.value)}
+                        placeholder={flute.selected ? "0" : "-"}
+                        min="1"
+                        disabled={disabled || !flute.selected}
+                        error={flute.selected ? errors[`price_${flute.code}`] : ''}
+                        leftIcon="mdi:currency-usd"
+                        className={!flute.selected ? 'opacity-50' : ''}
+                      />
+                      
+                      {/* Warning jika dipilih tapi belum diisi */}
+                      {flute.selected && !flute.price && (
+                        <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                          <Icon icon="mdi:alert-circle" className="w-3 h-3" />
+                          Harga harus diisi
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                <Input
-                  label="Harga per m² *"
-                  type="number"
-                  value={formData.price_per_m2[flute.code] || ''}
-                  onChange={e => {
-                    setFormData(prev => ({
-                      ...prev,
-                      price_per_m2: { ...prev.price_per_m2, [flute.code]: e.target.value },
-                    }))
-                    setErrors(prev => ({ ...prev, [`price_${flute.code}`]: '' }))
-                  }}
-                  placeholder="0"
-                  min="1"
-                  disabled={disabled}
-                  error={errors[`price_${flute.code}`]}
-                  leftIcon="mdi:currency-usd"
-                />
-              </Card>
-            )
-          })}
+                </Card>
+              )
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -326,8 +424,7 @@ const useSingleface = () => {
   const stats = useMemo<Stats>(() => {
     const withAll = substances.filter(
       s =>
-        flutes.length > 0 &&
-        flutes.every(f => (s[`${f.code.toLowerCase()}_flute_price`] || 0) > 0)
+        flutes.length 
     ).length
     return {
       totalSubstances: substances.length,
@@ -343,8 +440,6 @@ const useSingleface = () => {
     window.scrollTo({ top: 400, behavior: 'smooth' })
   }
 
-  // FIX 3: Terima filteredCount sebagai parameter
-  // agar tidak bergantung pada substances.length dari closure
   const handleItemsPerPageChange = (value: number, filteredCount: number) => {
     setPagination(prev => ({
       ...prev,
@@ -443,7 +538,6 @@ export default function SinglefaceSettingsPage() {
     return filteredSubstances.slice(start, start + pagination.itemsPerPage)
   }, [filteredSubstances, pagination.currentPage, pagination.itemsPerPage])
 
-  // FIX 4: useEffect dependency array diperbaiki, tidak perlu eslint-disable
   useEffect(() => {
     const totalItems = filteredSubstances.length
     const totalPages = Math.max(1, Math.ceil(totalItems / pagination.itemsPerPage))
@@ -455,39 +549,73 @@ export default function SinglefaceSettingsPage() {
     }))
   }, [filteredSubstances.length, pagination.itemsPerPage, setPagination])
 
+  // Inisialisasi flute untuk Add Modal
   useEffect(() => {
     if (!showAddModal || flutes.length === 0) return
-    const prices: Record<string, string> = {}
-    flutes.forEach(f => {
-      prices[f.code] = ''
-    })
-    setAddFormData(prev => ({ ...prev, price_per_m2: prices }))
+    
+    const fluteSelections: FluteSelection[] = flutes.map(f => ({
+      id: f.id,
+      code: f.code,
+      name: f.name,
+      selected: true, // Default semua terpilih
+      price: '',
+    }))
+    
+    setAddFormData(prev => ({ ...prev, flutes: fluteSelections }))
   }, [showAddModal, flutes])
 
+  // Inisialisasi flute untuk Edit Modal
   useEffect(() => {
     if (!showEditModal || !editingItem || flutes.length === 0) return
-    const prices: Record<string, string> = {}
-    flutes.forEach(f => {
-      prices[f.code] = editingItem[`${f.code.toLowerCase()}_flute_price`]?.toString() || ''
+    
+    const fluteSelections: FluteSelection[] = flutes.map(f => {
+      const price = editingItem[`${f.code.toLowerCase()}_flute_price`]
+      const hasPrice = price !== undefined && price !== null && parseFloat(price as string) > 0
+      
+      return {
+        id: f.id,
+        code: f.code,
+        name: f.name,
+        selected: hasPrice, // Hanya flute dengan harga yang terpilih
+        price: hasPrice ? price.toString() : '',
+      }
     })
-    setEditFormData(prev => ({ ...prev, price_per_m2: prices }))
+    
+    setEditFormData(prev => ({ ...prev, flutes: fluteSelections }))
   }, [showEditModal, editingItem, flutes])
 
   // ===== VALIDATION =====
   const validateForm = (form: FormData): Record<string, string> => {
     const errors: Record<string, string> = {}
-    if (!form.layer_1?.toString().trim()) errors.layer_1 = 'Gramasi layer 1 tidak boleh kosong'
-    else if (parseFloat(form.layer_1) <= 0) errors.layer_1 = 'Gramasi harus lebih dari 0'
+    
+    // Validasi layer
+    if (!form.layer_1?.toString().trim()) {
+      errors.layer_1 = 'Gramasi layer 1 tidak boleh kosong'
+    } else if (parseFloat(form.layer_1) <= 0) {
+      errors.layer_1 = 'Gramasi harus lebih dari 0'
+    }
 
-    if (!form.layer_2?.toString().trim()) errors.layer_2 = 'Gramasi layer 2 tidak boleh kosong'
-    else if (parseFloat(form.layer_2) <= 0) errors.layer_2 = 'Gramasi harus lebih dari 0'
+    if (!form.layer_2?.toString().trim()) {
+      errors.layer_2 = 'Gramasi layer 2 tidak boleh kosong'
+    } else if (parseFloat(form.layer_2) <= 0) {
+      errors.layer_2 = 'Gramasi harus lebih dari 0'
+    }
 
-    flutes.forEach(f => {
-      const price = form.price_per_m2?.[f.code]
-      if (!price?.toString().trim()) errors[`price_${f.code}`] = `Harga ${f.code}-Flute wajib diisi`
-      else if (isNaN(parseFloat(price)) || parseFloat(price) <= 0)
-        errors[`price_${f.code}`] = `Harga ${f.code}-Flute harus lebih dari 0`
+    // Validasi flute - minimal satu dipilih
+    const selectedFlutes = form.flutes.filter(f => f.selected)
+    if (selectedFlutes.length === 0) {
+      errors.flutes = 'Minimal satu flute harus dipilih'
+    }
+
+    // Validasi harga untuk flute yang dipilih
+    selectedFlutes.forEach(flute => {
+      if (!flute.price?.toString().trim()) {
+        errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute wajib diisi`
+      } else if (isNaN(parseFloat(flute.price)) || parseFloat(flute.price) <= 0) {
+        errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute harus lebih dari 0`
+      }
     })
+
     return errors
   }
 
@@ -500,14 +628,19 @@ export default function SinglefaceSettingsPage() {
     })
   }
 
-  const buildPayload = (form: FormData) => ({
-    layer_1: parseFloat(form.layer_1.trim()),
-    layer_1_type: form.layer_1_type,
-    layer_2: parseFloat(form.layer_2.trim()),
-    layer_2_type: form.layer_2_type,
-    flutes: flutes.map(f => parseInt(f.id)).filter(id => id > 0),
-    price_per_m2: flutes.map(f => parseFloat(form.price_per_m2[f.code] || '0')),
-  })
+  const buildPayload = (form: FormData) => {
+    // Filter hanya flute yang dipilih
+    const selectedFlutes = form.flutes.filter(f => f.selected)
+    
+    return {
+      layer_1: parseFloat(form.layer_1.trim()),
+      layer_1_type: form.layer_1_type,
+      layer_2: parseFloat(form.layer_2.trim()),
+      layer_2_type: form.layer_2_type,
+      flutes: selectedFlutes.map(f => parseInt(f.id)).filter(id => id > 0),
+      price_per_m2: selectedFlutes.map(f => parseFloat(f.price || '0')),
+    }
+  }
 
   // ===== ADD HANDLERS =====
   const handleAddSave = async () => {
@@ -517,7 +650,10 @@ export default function SinglefaceSettingsPage() {
       await showValidationError()
       return
     }
+    
     const newCode = `${addFormData.layer_1}${addFormData.layer_1_type}/${addFormData.layer_2}${addFormData.layer_2_type}`
+    
+    // Cek duplikat kombinasi layer
     if (substances.some(s => s.substance_code === newCode)) {
       await Swal.fire({
         icon: 'error',
@@ -527,6 +663,7 @@ export default function SinglefaceSettingsPage() {
       })
       return
     }
+    
     setIsPosting(true)
     try {
       const res = await addItem(buildPayload(addFormData))
@@ -570,7 +707,7 @@ export default function SinglefaceSettingsPage() {
       layer_1_type: item.layer_1_type || 'K',
       layer_2: item.layer_2 || '',
       layer_2_type: item.layer_2_type || 'M',
-      price_per_m2: {},
+      flutes: [],
     })
     setFormErrors({})
     setShowEditModal(true)
@@ -578,13 +715,17 @@ export default function SinglefaceSettingsPage() {
 
   const handleEditSave = async () => {
     if (!editingItem) return
+    
     const errors = validateForm(editFormData)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
       await showValidationError()
       return
     }
+    
     const newCode = `${editFormData.layer_1}${editFormData.layer_1_type}/${editFormData.layer_2}${editFormData.layer_2_type}`
+    
+    // Cek duplikat kombinasi layer (kecuali untuk item yang sedang diedit)
     if (substances.some(s => s.id !== editingItem.id && s.substance_code === newCode)) {
       await Swal.fire({
         icon: 'error',
@@ -594,6 +735,7 @@ export default function SinglefaceSettingsPage() {
       })
       return
     }
+    
     setIsPosting(true)
     try {
       const res = await updateItem({
@@ -704,14 +846,21 @@ export default function SinglefaceSettingsPage() {
   const handleCloseAddModal = () => {
     if (isPosting) return
     setShowAddModal(false)
-    setAddFormData({ ...BASE_FORM })
+    setAddFormData({ 
+      ...BASE_FORM,
+      flutes: [] // Reset flutes
+    })
     setFormErrors({})
   }
+
   const handleCloseEditModal = () => {
     if (isPosting) return
     setShowEditModal(false)
     setEditingItem(null)
-    setEditFormData({ ...BASE_FORM })
+    setEditFormData({ 
+      ...BASE_FORM,
+      flutes: [] // Reset flutes
+    })
     setFormErrors({})
   }
 
@@ -869,7 +1018,6 @@ export default function SinglefaceSettingsPage() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-500">Per halaman:</span>
-                {/* FIX 2: Type Select onChange menggunakan React.ChangeEvent<HTMLSelectElement> */}
                 <Select
                   value={pagination.itemsPerPage.toString()}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -972,7 +1120,6 @@ export default function SinglefaceSettingsPage() {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                     Layer 2
                   </th>
-                  {/* FIX 5: Hapus parameter idx yang tidak dipakai */}
                   {flutes.map(flute => (
                     <th
                       key={flute.id}
@@ -1140,7 +1287,7 @@ export default function SinglefaceSettingsPage() {
               className="w-4 h-4 text-blue-500 flex-shrink-0"
             />
             <p className="text-sm text-blue-700">
-              Isi gramasi dan jenis kertas untuk setiap layer. Harga per flute wajib diisi semua.
+              Isi gramasi dan jenis kertas untuk setiap layer. Pilih flute yang ingin digunakan dan isi harganya.
             </p>
           </div>
 
@@ -1169,7 +1316,6 @@ export default function SinglefaceSettingsPage() {
                       error={formErrors[`layer_${num}`]}
                       leftIcon="mdi:weight"
                     />
-                    {/* FIX 2: Konsisten menggunakan React.ChangeEvent<HTMLSelectElement> */}
                     <Select
                       label="Jenis Kertas *"
                       value={
@@ -1191,7 +1337,6 @@ export default function SinglefaceSettingsPage() {
             </div>
           </div>
 
-          {/* FIX 1: Teruskan flutes sebagai prop ke FlutePricingGrid */}
           <FlutePricingGrid
             flutes={flutes}
             formData={addFormData}
@@ -1199,6 +1344,7 @@ export default function SinglefaceSettingsPage() {
             errors={formErrors}
             setErrors={setFormErrors}
             disabled={isPosting}
+            mode="add"
           />
         </div>
       </Modal>
@@ -1281,7 +1427,6 @@ export default function SinglefaceSettingsPage() {
                         error={formErrors[`layer_${num}`]}
                         leftIcon="mdi:weight"
                       />
-                      {/* FIX 2: Konsisten menggunakan React.ChangeEvent<HTMLSelectElement> */}
                       <Select
                         label="Jenis Kertas *"
                         value={
@@ -1303,61 +1448,15 @@ export default function SinglefaceSettingsPage() {
               </div>
             </div>
 
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                <Icon icon="mdi:currency-usd" className="w-4 h-4 text-green-500" />
-                Harga per Flute
-              </h3>
-              <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200 flex items-center gap-2">
-                <Icon icon="mdi:alert-circle" className="w-4 h-4 text-amber-600" />
-                <p className="text-sm text-amber-700">
-                  Semua flute types harus diisi dengan harga yang valid.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {flutes.map((flute, idx) => {
-                  const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
-                  return (
-                    <Card
-                      key={flute.code}
-                      shadow="sm"
-                      padding="md"
-                      className="border-l-4"
-                    >
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="font-medium text-slate-800">{flute.name}</span>
-                        <Badge color={color.bg} light={color.light}>
-                          {flute.code}
-                        </Badge>
-                      </div>
-                      <Input
-                        label="Harga per m² *"
-                        type="number"
-                        value={editFormData.price_per_m2[flute.code] || ''}
-                        onChange={e => {
-                          setEditFormData(prev => ({
-                            ...prev,
-                            price_per_m2: {
-                              ...prev.price_per_m2,
-                              [flute.code]: e.target.value,
-                            },
-                          }))
-                          setFormErrors(prev => ({
-                            ...prev,
-                            [`price_${flute.code}`]: '',
-                          }))
-                        }}
-                        placeholder="0"
-                        min="1"
-                        disabled={isPosting}
-                        error={formErrors[`price_${flute.code}`]}
-                        leftIcon="mdi:currency-usd"
-                      />
-                    </Card>
-                  )
-                })}
-              </div>
-            </div>
+            <FlutePricingGrid
+              flutes={flutes}
+              formData={editFormData}
+              setFormData={setEditFormData}
+              errors={formErrors}
+              setErrors={setFormErrors}
+              disabled={isPosting}
+              mode="edit"
+            />
           </div>
         )}
       </Modal>
@@ -1469,11 +1568,14 @@ export default function SinglefaceSettingsPage() {
                   <div className="grid grid-cols-2 gap-2">
                     {flutes.map((flute, idx) => {
                       const price = selectedItem[`${flute.code.toLowerCase()}_flute_price`] || 0
+                      const hasPrice = parseFloat(price as string) > 0
                       const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
                       return (
                         <div
                           key={flute.code}
-                          className="flex items-center justify-between p-2 bg-slate-50 rounded"
+                          className={`flex items-center justify-between p-2 bg-slate-50 rounded ${
+                            !hasPrice ? 'opacity-50' : ''
+                          }`}
                         >
                           <div className="flex items-center gap-2">
                             <Badge color={color.bg} light={color.light}>
@@ -1482,7 +1584,7 @@ export default function SinglefaceSettingsPage() {
                             <span className="text-xs text-gray-600">{flute.name}</span>
                           </div>
                           <span className="text-sm font-medium" style={{ color: color.bg }}>
-                            {parseFloat(price as string) > 0 ? formatCurrency(price as string) : '—'}
+                            {hasPrice ? formatCurrency(price as string) : '—'}
                           </span>
                         </div>
                       )
