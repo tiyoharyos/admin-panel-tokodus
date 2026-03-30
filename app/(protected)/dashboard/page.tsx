@@ -330,7 +330,6 @@ export default function DashboardPage() {
               Total Orders
             </p>
             <div className="flex items-baseline gap-2">
-              <p className="text-2xl font-bold text-gray-900">{data.stats.totalOrders.toLocaleString()}</p>
               <span className="text-sm text-green-600 font-medium flex items-center">
                 <CustomIcon icon="mdi:trending-up" className="w-4 h-4 mr-1" />
                 {data.stats.orderGrowth}%
@@ -429,7 +428,6 @@ export default function DashboardPage() {
               <div key={product.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors">
                 <div>
                   <p className="font-medium text-gray-900">{product.name}</p>
-                  <p className="text-sm text-gray-500">{product.sales.toLocaleString()} sales</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-green-600">

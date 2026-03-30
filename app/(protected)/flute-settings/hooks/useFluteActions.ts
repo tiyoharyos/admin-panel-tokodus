@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { AxiosError } from 'axios'
 import axios from '@/lib/axios'
-import SweetAlert from '@/components/UI/SweetAlert'
+import Swal from 'sweetalert2'
 import type { ApiResponse, Flute, FluteApiItem, FluteSingleResponse, FormData } from '../types/types'
 import { extractErrorMessage, isDuplicateError, mapFluteItem } from '../lib/utils'
 
@@ -26,9 +26,18 @@ export const useFluteActions = ({
 
   // ===== VALIDATION =====
   const validate = (data: FormData): boolean => {
-    if (!data.code.trim()) { SweetAlert.error('Validasi Error', 'Kode tidak boleh kosong'); return false }
-    if (data.code.length > 3) { SweetAlert.error('Validasi Error', 'Kode maksimal 3 karakter'); return false }
-    if (!data.name.trim()) { SweetAlert.error('Validasi Error', 'Nama tidak boleh kosong'); return false }
+    if (!data.code.trim()) { 
+      Swal.fire('Validasi Error', 'Kode tidak boleh kosong', 'error')
+      return false 
+    }
+    if (data.code.length > 3) { 
+      Swal.fire('Validasi Error', 'Kode maksimal 3 karakter', 'error')
+      return false 
+    }
+    if (!data.name.trim()) { 
+      Swal.fire('Validasi Error', 'Nama tidak boleh kosong', 'error')
+      return false 
+    }
     return true
   }
 
@@ -37,7 +46,10 @@ export const useFluteActions = ({
     if (!validate(form)) return
 
     const isDuplicate = flutes.some(f => f.code.toUpperCase() === form.code.trim().toUpperCase())
-    if (isDuplicate) { SweetAlert.error('Kode Sudah Ada!', `Kode "${form.code}" sudah terdaftar.`); return }
+    if (isDuplicate) { 
+      Swal.fire('Kode Sudah Ada!', `Kode "${form.code}" sudah terdaftar.`, 'error')
+      return 
+    }
 
     try {
       setIsPosting(true)
@@ -48,16 +60,16 @@ export const useFluteActions = ({
       )
 
       if (res.data?.status === 200) {
-        SweetAlert.success('Berhasil!', 'Flute berhasil ditambahkan!')
+        Swal.fire('Berhasil!', 'Flute berhasil ditambahkan!', 'success')
         setShowAddModal(false)
         resetAdd()
         await refetch()
       } else {
-        SweetAlert.error('Gagal!', res.data?.message || 'Gagal menambahkan Flute')
+        Swal.fire('Gagal!', res.data?.message || 'Gagal menambahkan Flute', 'error')
       }
     } catch (err) {
       const dupMsg = isDuplicateError(err, form.code)
-      SweetAlert.error('Error!', dupMsg || extractErrorMessage(err, 'Terjadi kesalahan saat menyimpan data'))
+      Swal.fire('Error!', dupMsg || extractErrorMessage(err, 'Terjadi kesalahan saat menyimpan data'), 'error')
     } finally {
       setIsPosting(false)
     }
@@ -89,7 +101,10 @@ export const useFluteActions = ({
     const isDuplicate = flutes.some(
       f => f.id !== editingItem.id && f.code.toUpperCase() === editingItem.code.trim().toUpperCase()
     )
-    if (isDuplicate) { SweetAlert.error('Kode Sudah Ada!', `Kode "${editingItem.code}" sudah digunakan.`); return }
+    if (isDuplicate) { 
+      Swal.fire('Kode Sudah Ada!', `Kode "${editingItem.code}" sudah digunakan.`, 'error')
+      return 
+    }
 
     try {
       setIsPosting(true)
@@ -100,17 +115,17 @@ export const useFluteActions = ({
       )
 
       if (res.data?.status === 200) {
-        SweetAlert.success('Berhasil!', 'Flute berhasil diperbarui!')
+        Swal.fire('Berhasil!', 'Flute berhasil diperbarui!', 'success')
         setShowEditModal(false)
         setEditingItem(null)
         resetEdit()
         await refetch()
       } else {
-        SweetAlert.error('Gagal!', res.data?.message || 'Gagal mengupdate data')
+        Swal.fire('Gagal!', res.data?.message || 'Gagal mengupdate data', 'error')
       }
     } catch (err) {
       const dupMsg = isDuplicateError(err, editingItem.code)
-      SweetAlert.error('Error!', dupMsg || extractErrorMessage(err, 'Terjadi kesalahan saat mengupdate data'))
+      Swal.fire('Error!', dupMsg || extractErrorMessage(err, 'Terjadi kesalahan saat mengupdate data'), 'error')
     } finally {
       setIsPosting(false)
     }
@@ -118,7 +133,17 @@ export const useFluteActions = ({
 
   // ===== DELETE =====
   const handleDelete = async (id: string, name: string): Promise<void> => {
-    const result = await SweetAlert.confirmDelete()
+    const result = await Swal.fire({
+      title: 'Apakah Anda yakin?',
+      text: `Data "${name}" akan dihapus secara permanen!`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Ya, hapus!',
+      cancelButtonText: 'Batal'
+    })
+    
     if (!result.isConfirmed) return
 
     try {
@@ -127,16 +152,16 @@ export const useFluteActions = ({
         { headers: { 'ngrok-skip-browser-warning': 'true' } }
       )
       if (res.data?.status === 200) {
-        SweetAlert.success('Dihapus!', `Flute "${name}" berhasil dihapus!`)
+        Swal.fire('Dihapus!', `Flute "${name}" berhasil dihapus!`, 'success')
         await refetch()
       } else {
-        SweetAlert.error('Gagal!', res.data?.message || 'Gagal menghapus Flute')
+        Swal.fire('Gagal!', res.data?.message || 'Gagal menghapus Flute', 'error')
       }
     } catch (err) {
       const axiosMsg = err instanceof AxiosError
         ? (err.response?.data as { message?: string })?.message
         : undefined
-      SweetAlert.error('Error!', axiosMsg || 'Terjadi kesalahan saat menghapus data')
+      Swal.fire('Error!', axiosMsg || 'Terjadi kesalahan saat menghapus data', 'error')
     }
   }
 

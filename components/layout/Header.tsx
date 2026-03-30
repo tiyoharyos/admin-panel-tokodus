@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { Icon } from '@iconify/react'
 import { useRouter, usePathname } from 'next/navigation'
 import Swal from 'sweetalert2'
-import { navItems, NavItem } from '@/constants/menu' // pastikan path ini benar
+import { navItems } from '@/constants/menu'
+import { removeToken } from '@/lib/auth'
 
 interface UserData {
   id: string
@@ -37,7 +38,6 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
   const [pageTitle, setPageTitle] = useState('Tokodus')
   const [activeItemIcon, setActiveItemIcon] = useState<string | null>(null)
 
-  // Cari judul dan ikon halaman berdasarkan pathname
   useEffect(() => {
     const findActiveItem = (path: string): { name: string; icon?: string } => {
       for (const item of navItems) {
@@ -47,7 +47,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
         if (item.subItems) {
           for (const sub of item.subItems) {
             if (sub.path === path) {
-              return { name: sub.name, icon: item.icon } // gunakan ikon parent
+              return { name: sub.name, icon: item.icon }
             }
           }
         }
@@ -99,9 +99,11 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
       reverseButtons: true,
       focusCancel: true,
     })
+
     if (result.isConfirmed) {
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
+      // Hapus token dari localStorage DAN cookie sekaligus
+      removeToken()
+
       await Swal.fire({
         icon: 'success',
         title: 'Logged Out',
@@ -109,6 +111,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
         timer: 1200,
         showConfirmButton: false,
       })
+
       router.push('/login')
     }
   }
@@ -140,7 +143,6 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
 
           <div className="hidden sm:block w-px h-5 bg-white/10" />
 
-          {/* Judul dengan ikon (jika ada) */}
           <div className="hidden sm:flex items-center gap-2">
             {activeItemIcon && (
               <div className="w-6 h-6 rounded-lg bg-indigo-500/20 flex items-center justify-center">
@@ -167,19 +169,14 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
             >
               <Icon icon="mdi:bell-outline" className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span
-                  className="absolute top-[9px] right-[9px] w-2 h-2 rounded-full bg-red-500 border-2 border-slate-900 animate-pulse"
-                />
+                <span className="absolute top-[9px] right-[9px] w-2 h-2 rounded-full bg-red-500 border-2 border-slate-900 animate-pulse" />
               )}
             </button>
 
             {showNotifications && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
-                <div
-                  className="absolute right-0 mt-2.5 w-80 z-50 overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200"
-                >
-                  {/* header notifikasi putih */}
+                <div className="absolute right-0 mt-2.5 w-80 z-50 overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-slate-900">Notifikasi</span>
@@ -198,8 +195,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                     {notifications.map((n) => (
                       <div
                         key={n.id}
-                        className="flex items-start gap-3 px-5 py-3.5 cursor-pointer
-                                   hover:bg-slate-50 transition-colors duration-150"
+                        className="flex items-start gap-3 px-5 py-3.5 cursor-pointer hover:bg-slate-50 transition-colors duration-150"
                       >
                         <span
                           className={`block mt-[7px] w-2 h-2 rounded-full flex-shrink-0
@@ -208,9 +204,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                         <div>
                           <p
                             className={`text-[13px] leading-snug ${
-                              n.unread
-                                ? 'font-medium text-slate-800'
-                                : 'font-normal text-slate-500'
+                              n.unread ? 'font-medium text-slate-800' : 'font-normal text-slate-500'
                             }`}
                           >
                             {n.title}
@@ -247,7 +241,6 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
               }}
               className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-white/10 transition-all duration-150 group"
             >
-              {/* Name & Role */}
               <div className="hidden md:block text-right">
                 <p className="text-[13px] font-semibold text-slate-700 tracking-tight">
                   {displayName}
@@ -255,10 +248,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                 <p className="text-[11px] text-slate-500 leading-tight">{displayRole}</p>
               </div>
 
-              {/* Avatar */}
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white bg-gradient-to-br from-indigo-500 to-indigo-700 group-hover:ring-2 group-hover:ring-indigo-400 transition-all duration-200"
-              >
+              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white bg-gradient-to-br from-indigo-500 to-indigo-700 group-hover:ring-2 group-hover:ring-indigo-400 transition-all duration-200">
                 {avatarInitial}
               </div>
 
@@ -272,28 +262,17 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
             {showDropdown && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
-                <div
-                  className="absolute right-0 mt-2.5 w-56 z-50 overflow-hidden
-                             rounded-2xl bg-white border border-slate-200 shadow-xl
-                             animate-in fade-in slide-in-from-top-2 duration-200"
-                >
+                <div className="absolute right-0 mt-2.5 w-56 z-50 overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
                   {/* User card */}
                   <div className="px-4 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0
-                                   text-sm font-bold text-white
-                                   bg-gradient-to-br from-indigo-500 to-indigo-700"
-                      >
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-700">
                         {avatarInitial}
                       </div>
                       <div className="min-w-0">
                         <p className="text-[13px] font-semibold text-slate-900">{displayName}</p>
                         <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>
-                        <span
-                          className="inline-block mt-1 px-1.5 py-0.5 rounded-md
-                                     text-[10px] font-semibold bg-indigo-50 text-indigo-600"
-                        >
+                        <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-600">
                           {displayRole}
                         </span>
                       </div>
@@ -304,9 +283,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                   <div className="p-2">
                     <Link
                       href="/profile"
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full
-                                 text-[13px] font-medium text-slate-700
-                                 hover:bg-slate-50 transition-colors duration-150"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-colors duration-150"
                       onClick={() => setShowDropdown(false)}
                     >
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-indigo-50">
@@ -320,9 +297,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                   <div className="p-2 border-t border-slate-100">
                     <button
                       onClick={handleLogout}
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full
-                                 text-[13px] font-medium text-red-500
-                                 hover:bg-red-50 transition-colors duration-150"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-[13px] font-medium text-red-500 hover:bg-red-50 transition-colors duration-150"
                     >
                       <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-red-50">
                         <Icon icon="mdi:logout" className="w-3.5 h-3.5 text-red-500" />

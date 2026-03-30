@@ -103,8 +103,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       icon: 'mdi:printer-settings',
       name: 'Print Settings', 
        subItems: [
-        { name: 'Print Settings', path: '/print-settings' },
-        { name: 'Minimal Order Settings',  path: '/other-minorder' },
+        { name: 'Print Settings', path: '/print/print-settings' },
+        { name: 'Minimal Order Settings',  path: '/print/other-minorder' },
         // { name: 'Price  Paperbag',  path: '/paperbag/price' },
         // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
         // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
@@ -181,8 +181,8 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       icon: 'mdi:knife',
       name: 'Pisau Setting', 
       subItems: [
-        { name: 'Pisau Config', path: '/pisau-config' },
-        { name: 'Pisau Registri', path: '/pisau-registry' },
+        { name: 'Pisau Config', path: '/pisau/pisau-config' },
+        { name: 'Pisau Registri', path: '/pisau/pisau-registry' },
         // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
         // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
       ]

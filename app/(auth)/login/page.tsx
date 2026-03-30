@@ -8,7 +8,6 @@ import Image from 'next/image';
 import { Icon } from '@iconify/react';
 import Swal from 'sweetalert2';
 
-// Tambahkan interface untuk error response
 interface ErrorResponse {
     response?: {
         data?: {
@@ -28,8 +27,7 @@ export default function Login() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        
-        // Validasi form
+
         if (!form.email || !form.password) {
             setError('Email dan password harus diisi');
             return;
@@ -42,34 +40,27 @@ export default function Login() {
             const data = await loginService(form);
             setToken(data.access_token);
 
-            // Notifikasi sukses
             await Swal.fire({
                 icon: 'success',
                 title: 'Login Berhasil',
                 text: 'Selamat datang kembali!',
                 showConfirmButton: false,
                 timer: 1500,
-                backdrop: true,
             });
 
             router.push('/dashboard');
             router.refresh();
         } catch (err: unknown) {
-            const error = err as ErrorResponse;
-            
-            // Ambil pesan error dengan lebih baik
-            let message = 'Login gagal. Periksa email & password.';
-            
-            if (error.response?.data?.message) {
-                message = error.response.data.message;
-            } else if (error.response?.data?.error) {
-                message = error.response.data.error;
-            } else if (error.message) {
-                message = error.message;
-            }
+            const e = err as ErrorResponse;
+
+            const message =
+                e.response?.data?.message ||
+                e.response?.data?.error ||
+                e.message ||
+                'Login gagal. Periksa email & password.';
 
             setError(message);
-            
+
             Swal.fire({
                 icon: 'error',
                 title: 'Login Gagal',
@@ -81,176 +72,144 @@ export default function Login() {
         }
     };
 
-    const handleInputChange = (field: string, value: string) => {
+    const handleChange = (field: string, value: string) => {
         setForm(prev => ({ ...prev, [field]: value }));
         if (error) setError('');
     };
 
     return (
         <div
-            className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, #1a3a7d 0%, #1f4390 50%, #2557b8 100%)' }}
+            className="min-h-screen flex items-center justify-center px-4"
+            style={{
+                background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
+            }}
         >
-            <div className="w-full max-w-md relative z-10">
-                <div className="bg-white rounded-3xl shadow-2xl p-8 md:p-10">
+            <div className="w-full max-w-md">
 
-                    {/* Logo & Title */}
-                    <div className="text-center mb-8">
-                        <div className="flex justify-center mb-5">
-                            <div className="bg-black rounded-2xl p-4 shadow-lg border border-blue-100">
-                                <Image
-                                    src="/material/Tokodus__1_-removebg-preview.webp"
-                                    alt="Tokodus"
-                                    width={140}
-                                    height={40}
-                                    className="h-10 w-auto object-contain"
-                                    priority
-                                />
-                            </div>
+                {/* Card */}
+                <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8">
+
+                    {/* Logo */}
+                    <div className="flex justify-center mb-6">
+                        <div className="bg-black rounded-xl px-5 py-3 shadow-md">
+                            <Image
+                                src="/material/Tokodus__1_-removebg-preview.webp"
+                                alt="Tokodus"
+                                width={120}
+                                height={40}
+                                className="h-8 w-auto object-contain"
+                                priority
+                            />
                         </div>
-                        <h1 className="text-3xl font-bold text-blue-600 mb-2">Welcome Back</h1>
-                        <p className="text-gray-500 text-sm font-medium">Sign in to access your dashboard</p>
                     </div>
 
-                    {/* Error Message */}
+                    {/* Title */}
+                    <div className="text-center mb-6">
+                        <h1 className="text-2xl font-bold text-gray-800">
+                            Welcome Back
+                        </h1>
+                        <p className="text-sm text-gray-500 mt-1">
+                            Sistem Manajemen Produksi & Packaging
+                        </p>
+                    </div>
+
+                    {/* Error */}
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl animate-shake">
-                            <div className="flex items-start gap-3">
-                                <Icon icon="solar:danger-circle-bold" className="w-5 h-5 text-red-500 mt-0.5 flex-shrink-0" />
-                                <div>
-                                    <span className="font-semibold text-red-700 text-sm block">Login Gagal</span>
-                                    <p className="text-sm text-red-600 mt-0.5">{error}</p>
-                                </div>
-                            </div>
+                        <div className="mb-5 flex items-start gap-2 text-sm bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">
+                            <Icon icon="solar:danger-circle-bold" className="w-4 h-4 mt-0.5" />
+                            <span>{error}</span>
                         </div>
                     )}
 
                     {/* Form */}
-                    <form onSubmit={handleLogin} noValidate>
-                        <div className="space-y-5">
+                    <form onSubmit={handleLogin} className="space-y-4">
 
-                            {/* Email */}
-                            <div>
-                                <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Email Address
-                                </label>
-                                <div className="relative">
-                                    <Icon
-                                        icon="solar:letter-bold-duotone"
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                                    />
-                                    <input
-                                        id="email"
-                                        type="email"
-                                        value={form.email}
-                                        onChange={e => handleInputChange('email', e.target.value)}
-                                        placeholder="Masukkan email"
-                                        disabled={loading}
-                                        autoComplete="email"
-                                        className={`w-full pl-12 pr-4 py-3.5 border text-gray-700 rounded-xl
-                                            focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
-                                            hover:bg-gray-100 focus:bg-white
-                                            transition-all duration-200
-                                            disabled:opacity-50 disabled:cursor-not-allowed
-                                            ${error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}
-                                    />
-                                </div>
+                        {/* Email */}
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">
+                                Email
+                            </label>
+                            <div className="relative mt-1">
+                                <Icon
+                                    icon="solar:letter-bold-duotone"
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+                                <input
+                                    type="email"
+                                    autoFocus
+                                    value={form.email}
+                                    onChange={e => handleChange('email', e.target.value)}
+                                    placeholder="Masukkan email"
+                                    disabled={loading}
+                                    className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 text-gray-700
+                                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none
+                                    disabled:opacity-50"
+                                />
                             </div>
-
-                            {/* Password */}
-                            <div>
-                                <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-                                    Password
-                                </label>
-                                <div className="relative">
-                                    <Icon
-                                        icon="solar:lock-password-bold-duotone"
-                                        className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                                    />
-                                    <input
-                                        id="password"
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={form.password}
-                                        onChange={e => handleInputChange('password', e.target.value)}
-                                        placeholder="Masukkan password"
-                                        disabled={loading}
-                                        autoComplete="current-password"
-                                        className={`w-full pl-12 pr-12 py-3.5 text-gray-700 border rounded-xl
-                                            focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
-                                            hover:bg-gray-100 focus:bg-white
-                                            transition-all duration-200
-                                            disabled:opacity-50 disabled:cursor-not-allowed
-                                            ${error ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowPassword(p => !p)}
-                                        disabled={loading}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
-                                        aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-                                    >
-                                        <Icon
-                                            icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'}
-                                            className="w-5 h-5"
-                                        />
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* Submit */}
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                className="w-full font-semibold py-3.5 px-4 rounded-xl text-white
-                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500
-                                    disabled:opacity-50 disabled:cursor-not-allowed
-                                    transition-all duration-200 shadow-lg hover:shadow-xl
-                                    hover:-translate-y-0.5 transform"
-                                style={{
-                                    background: 'linear-gradient(135deg, #1f4390 0%, #2557b8 100%)',
-                                    boxShadow: '0 10px 25px -5px rgba(31, 67, 144, 0.3)',
-                                }}
-                            >
-                                {loading ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <Icon icon="svg-spinners:ring-resize" className="w-5 h-5" />
-                                        Memproses...
-                                    </span>
-                                ) : (
-                                    <span className="flex items-center justify-center gap-2">
-                                        Masuk
-                                        <Icon icon="solar:arrow-right-bold" className="w-5 h-5" />
-                                    </span>
-                                )}
-                            </button>
-
                         </div>
+
+                        {/* Password */}
+                        <div>
+                            <label className="text-sm font-medium text-gray-700">
+                                Password
+                            </label>
+                            <div className="relative mt-1">
+                                <Icon
+                                    icon="solar:lock-password-bold-duotone"
+                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                />
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={form.password}
+                                    onChange={e => handleChange('password', e.target.value)}
+                                    placeholder="Masukkan password"
+                                    disabled={loading}
+                                    className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 text-gray-700
+                                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none
+                                    disabled:opacity-50"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(p => !p)}
+                                    disabled={loading}
+                                    aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
+                                >
+                                    <Icon icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} width={17} height={17} />
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Button */}
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg
+                            transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                        >
+                            {loading ? (
+                                <span className="flex items-center justify-center gap-2">
+                                    <Icon icon="svg-spinners:ring-resize" />
+                                    Memproses...
+                                </span>
+                            ) : (
+                                'Masuk'
+                            )}
+                        </button>
+
                     </form>
 
-                    {/* Footer Info */}
-                    <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-                        <div className="flex items-center justify-center gap-1.5 text-xs text-gray-500">
-                            <Icon icon="solar:shield-check-bold-duotone" className="w-4 h-4 text-gray-400" />
-                            <p>Hubungi administrator untuk mendapatkan akses</p>
-                        </div>
+                    {/* Footer */}
+                    <div className="mt-6 text-center text-xs text-gray-500">
+                        Hubungi administrator untuk mendapatkan akses
                     </div>
-
                 </div>
 
-                {/* Bottom Footer */}
-                <div className="mt-6 text-center">
-                    <p className="text-xs text-white/70 font-medium">Powered by Tokodus Admin Platform</p>
-                </div>
+                {/* Bottom */}
+                <p className="text-center text-xs text-gray-400 mt-4">
+                    Powered by Tokodus Admin Platform
+                </p>
             </div>
-
-            <style>{`
-                @keyframes shake {
-                    0%, 100% { transform: translateX(0); }
-                    10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
-                    20%, 40%, 60%, 80% { transform: translateX(2px); }
-                }
-                .animate-shake { animation: shake 0.5s; }
-            `}</style>
         </div>
     );
 }

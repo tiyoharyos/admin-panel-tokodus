@@ -32,9 +32,7 @@ export default function ProtectedLayout({ children }) {
           ${isSidebarCollapsed ? 'ml-20' : 'ml-64'}
         `}
       >
-        <div className="p-4 sm:p-6 lg:p-8">
           {children}
-        </div>
       </main>
     </div>
   )
