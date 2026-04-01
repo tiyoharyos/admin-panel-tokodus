@@ -1,5 +1,5 @@
 'use client'
-
+// app/(protected)/box-models/page.tsx  
 import { useState, useMemo } from 'react'
 import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'

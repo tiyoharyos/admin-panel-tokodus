@@ -48,7 +48,7 @@ export interface FluteSelection {
   price: string
 }
 
-export interface FormData {
+export interface SinglefaceFormData {
   layer_1: string
   layer_1_type: string
   layer_2: string
@@ -63,9 +63,14 @@ export interface PaginationConfig {
   totalPages: number
 }
 
-export interface Stats {
+export interface SinglefaceStats {
   totalSubstances: number
   activeSubstances: number
   withAllFlutes: number
   totalIndices: number
+}
+
+export interface ParsedApiData {
+  flutes: Flute[]
+  substances: SinglefaceSubstance[]
 }

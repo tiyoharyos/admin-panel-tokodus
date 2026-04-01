@@ -1,4 +1,5 @@
 // constants/constants.ts
+import type { SinglefaceFormData } from '../types/types'
 
 export const API_BASE = '/Admin/Singelface'
 
@@ -31,7 +32,7 @@ export const FLUTE_COLORS = [
   { bg: '#84cc16', light: '#ecfccb' },
 ]
 
-export const BASE_FORM: FormData = {
+export const BASE_FORM: SinglefaceFormData = {
   layer_1: '',
   layer_1_type: 'K',
   layer_2: '',

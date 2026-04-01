@@ -1,10 +1,18 @@
+'use client'
 // hooks/useSingleface.ts
-
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import axios from '@/lib/axios'
-import { API_BASE } from '@/app/(protected)/Singgleface-indext/constants/constants'
-import { parseFlatApiResponse, getErrMsg } from '@/app/(protected)/Singgleface-indext/lib/utils'
-import type { ApiResponse, ApiRawItem, Flute, SinglefaceSubstance, PaginationConfig, Stats } from '@/app/(protected)/Singgleface-indext/types/types'
+import { parseFlatApiResponse } from '../lib/parsers'
+import { getErrMsg } from '../lib/utils'
+import { API_BASE } from '../constants/constants'
+import type {
+  Flute,
+  SinglefaceSubstance,
+  PaginationConfig,
+  SinglefaceStats,
+  ApiResponse,
+  ApiRawItem,
+} from '../types/types'
 
 export const useSingleface = () => {
   const [substances, setSubstances] = useState<SinglefaceSubstance[]>([])
@@ -40,21 +48,18 @@ export const useSingleface = () => {
     fetchAll()
   }, [fetchAll])
 
-  const stats = useMemo<Stats>(() => {
-    const withAll = substances.filter(
-      s =>
-        flutes.length 
-    ).length
-    return {
+  const stats = useMemo<SinglefaceStats>(
+    () => ({
       totalSubstances: substances.length,
       activeSubstances: substances.filter(s => s.layer_1 && s.layer_2).length,
-      withAllFlutes: withAll,
+      withAllFlutes: substances.filter(() => flutes.length > 0).length,
       totalIndices: substances.length * flutes.length,
-    }
-  }, [substances, flutes])
+    }),
+    [substances, flutes]
+  )
 
-  const handlePageChange = (page: number) => {
-    if (page < 1 || page > pagination.totalPages) return
+  const handlePageChange = (page: number, totalPages: number) => {
+    if (page < 1 || page > totalPages) return
     setPagination(prev => ({ ...prev, currentPage: page }))
     window.scrollTo({ top: 400, behavior: 'smooth' })
   }

@@ -1,10 +1,9 @@
 // lib/utils.ts
-
 import { isAxiosError } from 'axios'
-import { LAYER_META, DEFAULT_LAYER_META } from '@/app/(protected)/Singgleface-indext/constants/constants'
-import type { ApiRawItem, Flute, SinglefaceSubstance } from '@/app/(protected)/Singgleface-indext/types/types'
+import { LAYER_META, DEFAULT_LAYER_META } from '../constants/constants'
+import type { SinglefaceFormData } from '../types/types'
 
-export const formatCurrency = (val: number | string) => {
+export const formatCurrency = (val: number | string): string => {
   const num = parseFloat(val as string) || 0
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -28,34 +27,33 @@ export const getErrMsg = (err: unknown, fallback = 'Terjadi kesalahan'): string 
   return fallback
 }
 
-export const parseFlatApiResponse = (rawItems: ApiRawItem[]) => {
-  const fluteMap = new Map<string, Flute>()
-  rawItems.forEach(item => {
-    if (!fluteMap.has(item.id_f)) {
-      fluteMap.set(item.id_f, { id: item.id_f, code: item.code, name: item.name })
-    }
-  })
+export const validateSinglefaceForm = (form: SinglefaceFormData): Record<string, string> => {
+  const errors: Record<string, string> = {}
 
-  const substanceMap = new Map<string, SinglefaceSubstance>()
-  rawItems.forEach(item => {
-    if (!substanceMap.has(item.substance_id)) {
-      substanceMap.set(item.substance_id, {
-        id: item.substance_id,
-        layer_1: item.layer_1_gsm || '',
-        layer_1_type: item.layer_1_type || 'K',
-        layer_2: item.layer_2_gsm || '',
-        layer_2_type: item.layer_2_type || 'M',
-        substance_code: `${item.layer_1_gsm}${item.layer_1_type}/${item.layer_2_gsm}${item.layer_2_type}`,
-        created_at: item.created_at,
-        updated_at: item.updated_at,
-      })
-    }
-    const substance = substanceMap.get(item.substance_id)!
-    substance[`${item.code.toLowerCase()}_flute_price`] = parseFloat(item.price_per_m2) || 0
-  })
-
-  return {
-    flutes: Array.from(fluteMap.values()),
-    substances: Array.from(substanceMap.values()),
+  if (!form.layer_1?.toString().trim()) {
+    errors.layer_1 = 'Gramasi layer 1 tidak boleh kosong'
+  } else if (parseFloat(form.layer_1) <= 0) {
+    errors.layer_1 = 'Gramasi harus lebih dari 0'
   }
+
+  if (!form.layer_2?.toString().trim()) {
+    errors.layer_2 = 'Gramasi layer 2 tidak boleh kosong'
+  } else if (parseFloat(form.layer_2) <= 0) {
+    errors.layer_2 = 'Gramasi harus lebih dari 0'
+  }
+
+  const selectedFlutes = form.flutes.filter(f => f.selected)
+  if (selectedFlutes.length === 0) {
+    errors.flutes = 'Minimal satu flute harus dipilih'
+  }
+
+  selectedFlutes.forEach(flute => {
+    if (!flute.price?.toString().trim()) {
+      errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute wajib diisi`
+    } else if (isNaN(parseFloat(flute.price)) || parseFloat(flute.price) <= 0) {
+      errors[`price_${flute.code}`] = `Harga ${flute.code}-Flute harus lebih dari 0`
+    }
+  })
+
+  return errors
 }
