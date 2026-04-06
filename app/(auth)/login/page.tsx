@@ -84,130 +84,111 @@ export default function Login() {
                 background: 'linear-gradient(135deg, #1f2937 0%, #111827 100%)',
             }}
         >
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-sm">
+                {/* Logo Section */}
+                <div className="flex flex-col items-center mb-8">
+                    <div className="relative">
+                        <Image
+                            src="/material/Tokodus__1_-removebg-preview.webp"
+                            alt="Tokodus"
+                            width={140}
+                            height={46}
+                            className="object-contain mb-3 drop-shadow-md"
+                            priority
+                        />
+                    </div>
+                    <p className="text-xs font-medium text-slate-400/80 tracking-wide">
+                        Admin Panel
+                    </p>
+                </div>
 
                 {/* Card */}
-                <div className="bg-white/95 backdrop-blur rounded-2xl shadow-2xl p-8">
+                <div className="relative bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 px-8 py-8 transition-all duration-300 hover:shadow-slate-900/20">
+                    {/* Decorative top line */}
+                    <div className="absolute left-6 right-6 top-0 h-0.5 rounded-full bg-gradient-to-r from-amber-400/40 via-amber-500 to-amber-400/40" />
 
-                    {/* Logo */}
-                    <div className="flex justify-center mb-6">
-                        <div className="bg-black rounded-xl px-5 py-3 shadow-md">
-                            <Image
-                                src="/material/Tokodus__1_-removebg-preview.webp"
-                                alt="Tokodus"
-                                width={120}
-                                height={40}
-                                className="h-8 w-auto object-contain"
-                                priority
-                            />
-                        </div>
-                    </div>
-
-                    {/* Title */}
-                    <div className="text-center mb-6">
-                        <h1 className="text-2xl font-bold text-gray-800">
-                            Welcome Back
-                        </h1>
-                        <p className="text-sm text-gray-500 mt-1">
-                            Sistem Manajemen Produksi & Packaging
-                        </p>
-                    </div>
-
-                    {/* Error */}
+                    {/* Error Alert */}
                     {error && (
-                        <div className="mb-5 flex items-start gap-2 text-sm bg-red-50 border border-red-200 text-red-600 rounded-lg px-3 py-2">
-                            <Icon icon="solar:danger-circle-bold" className="w-4 h-4 mt-0.5" />
-                            <span>{error}</span>
+                        <div className="flex items-center gap-2.5 bg-red-50/90 border-l-4 border-red-500 text-red-700 text-sm rounded-xl px-4 py-3 mb-6 shadow-sm">
+                            <Icon icon="mdi:alert-circle-outline" className="w-5 h-5 flex-shrink-0 text-red-500" />
+                            <span className="font-medium">{error}</span>
                         </div>
                     )}
 
-                    {/* Form */}
-                    <form onSubmit={handleLogin} className="space-y-4">
-
-                        {/* Email */}
+                    <form onSubmit={handleLogin} className="space-y-5">
+                        {/* Email Field */}
                         <div>
-                            <label className="text-sm font-medium text-gray-700">
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">
                                 Email
                             </label>
-                            <div className="relative mt-1">
+                            <div className="relative group">
                                 <Icon
-                                    icon="solar:letter-bold-duotone"
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                    icon="mdi:email-outline"
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 transition-colors group-focus-within:text-amber-500"
                                 />
                                 <input
                                     type="email"
                                     autoFocus
                                     value={form.email}
                                     onChange={e => handleChange('email', e.target.value)}
-                                    placeholder="Masukkan email"
+                                    placeholder="nama@tokodus.com"
                                     disabled={loading}
-                                    className="w-full pl-10 pr-3 py-2.5 rounded-lg border border-gray-300 text-gray-700
-                                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none
-                                    disabled:opacity-50"
+                                    className="w-full pl-11 pr-4 py-3 text-sm text-slate-700 bg-slate-50/80 border border-slate-200 rounded-xl outline-none placeholder:text-slate-300 focus:bg-white focus:border-amber-300 focus:ring-2 focus:ring-amber-200/60 transition-all duration-200 disabled:opacity-50"
                                 />
                             </div>
                         </div>
 
-                        {/* Password */}
+                        {/* Password Field */}
                         <div>
-                            <label className="text-sm font-medium text-gray-700">
+                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">
                                 Password
                             </label>
-                            <div className="relative mt-1">
+                            <div className="relative group">
                                 <Icon
-                                    icon="solar:lock-password-bold-duotone"
-                                    className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                                    icon="mdi:lock-outline"
+                                    className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-slate-400 transition-colors group-focus-within:text-amber-500"
                                 />
                                 <input
                                     type={showPassword ? 'text' : 'password'}
                                     value={form.password}
                                     onChange={e => handleChange('password', e.target.value)}
-                                    placeholder="Masukkan password"
+                                    placeholder="••••••••"
                                     disabled={loading}
-                                    className="w-full pl-10 pr-10 py-2.5 rounded-lg border border-gray-300 text-gray-700
-                                    focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none
-                                    disabled:opacity-50"
+                                    className="w-full pl-11 pr-12 py-3 text-sm text-slate-700 bg-slate-50/80 border border-slate-200 rounded-xl outline-none placeholder:text-slate-300 focus:bg-white focus:border-amber-300 focus:ring-2 focus:ring-amber-200/60 transition-all duration-200 disabled:opacity-50"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(p => !p)}
                                     disabled={loading}
                                     aria-label={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors disabled:opacity-40"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-amber-500 transition-colors disabled:opacity-40"
                                 >
-                                    <Icon icon={showPassword ? 'solar:eye-bold' : 'solar:eye-closed-bold'} width={17} height={17} />
+                                    <Icon icon={showPassword ? 'mdi:eye-outline' : 'mdi:eye-off-outline'} className="w-4.5 h-4.5" />
                                 </button>
                             </div>
                         </div>
 
-                        {/* Button */}
+                        {/* Submit Button */}
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg
-                            transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50"
+                            className="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold py-3 rounded-xl transition-all duration-200 mt-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg active:scale-[0.98]"
                         >
                             {loading ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <Icon icon="svg-spinners:ring-resize" />
+                                <>
+                                    <Icon icon="mdi:loading" className="w-4.5 h-4.5 animate-spin" />
                                     Memproses...
-                                </span>
+                                </>
                             ) : (
                                 'Masuk'
                             )}
                         </button>
-
                     </form>
-
-                    {/* Footer */}
-                    <div className="mt-6 text-center text-xs text-gray-500">
-                        Hubungi administrator untuk mendapatkan akses
-                    </div>
                 </div>
 
-                {/* Bottom */}
-                <p className="text-center text-xs text-gray-400 mt-4">
-                    Powered by Tokodus Admin Platform
+                {/* Footer */}
+                <p className="text-center text-xs text-slate-400/70 mt-8 tracking-wide">
+                    Hubungi administrator untuk mendapatkan akses
                 </p>
             </div>
         </div>
