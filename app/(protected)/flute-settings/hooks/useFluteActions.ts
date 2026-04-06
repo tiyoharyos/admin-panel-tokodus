@@ -60,10 +60,13 @@ export const useFluteActions = ({
       )
 
       if (res.data?.status === 200) {
-        Swal.fire('Berhasil!', 'Flute berhasil ditambahkan!', 'success')
-        setShowAddModal(false)
+         Swal.fire({  icon: 'success', 
+                      title: 'Berhasil!', 
+                      text: 'Data berhasil ditambahkan', timer: 1500, showConfirmButton: false })
+            setShowAddModal(false)
         resetAdd()
         await refetch()
+      
       } else {
         Swal.fire('Gagal!', res.data?.message || 'Gagal menambahkan Flute', 'error')
       }
@@ -115,11 +118,14 @@ export const useFluteActions = ({
       )
 
       if (res.data?.status === 200) {
-        Swal.fire('Berhasil!', 'Flute berhasil diperbarui!', 'success')
+        Swal.fire({  icon: 'success', 
+                      title: 'Berhasil!', 
+                      text: 'Data berhasil diperbarui', timer: 1500, showConfirmButton: false })
         setShowEditModal(false)
         setEditingItem(null)
         resetEdit()
         await refetch()
+        
       } else {
         Swal.fire('Gagal!', res.data?.message || 'Gagal mengupdate data', 'error')
       }
@@ -152,7 +158,9 @@ export const useFluteActions = ({
         { headers: { 'ngrok-skip-browser-warning': 'true' } }
       )
       if (res.data?.status === 200) {
-        Swal.fire('Dihapus!', `Flute "${name}" berhasil dihapus!`, 'success')
+        Swal.fire({  icon: 'success', 
+                      title: `Flute "${name}" berhasil dihapus!`, 
+                      text: 'Data berhasil dihapus', timer: 1500, showConfirmButton: false })
         await refetch()
       } else {
         Swal.fire('Gagal!', res.data?.message || 'Gagal menghapus Flute', 'error')
