@@ -8,6 +8,7 @@ import Input from '@/components/UI/Input'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
 import ErrorState from '@/components/UI/ErrorState'
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
 
@@ -38,17 +39,31 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
   )
 }
 
+// ============ ACTION BUTTON ============
+function ActionButton({ onClick, icon, hoverClass, title }: {
+  onClick: () => void; icon: string; hoverClass: string; title: string
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`p-2 text-slate-400 rounded-lg transition-colors ${hoverClass}`}
+    >
+      <Icon icon={icon} className="w-5 h-5" />
+    </button>
+  )
+}
+
 // ============ CONSTANTS ============
 const CONFIG_META: Record<string, { label: string; icon: string; accent: string; desc: string }> = {
-  min_cetak:         { label: 'Min. Cetak',         icon: 'mdi:printer',         accent: '#3b82f6', desc: 'Minimal qty untuk cetakan (blok/tulisan/separasi)' },
-  min_laminasi:      { label: 'Min. Laminasi',       icon: 'mdi:layers-triple',   accent: '#8b5cf6', desc: 'Minimal qty untuk menggunakan laminasi' },
-  min_premium_white: { label: 'Min. Premium White',  icon: 'mdi:square-outline',  accent: '#64748b', desc: 'Minimal qty untuk material Premium White' },
-  min_non_kraft:     { label: 'Min. Non Kraft',      icon: 'mdi:package-variant', accent: '#f59e0b', desc: 'Minimal qty untuk material selain BrownKraft' },
-  min_paperbag:      { label: 'Min. Paperbag',       icon: 'mdi:shopping',        accent: '#10b981', desc: 'Minimal qty untuk pesanan paperbag/shopping bag' },
+  min_cetak:         { label: 'Min. Cetak',        icon: 'mdi:printer',         accent: '#3b82f6', desc: 'Minimal qty untuk cetakan (blok/tulisan/separasi)' },
+  min_laminasi:      { label: 'Min. Laminasi',      icon: 'mdi:layers-triple',   accent: '#8b5cf6', desc: 'Minimal qty untuk menggunakan laminasi' },
+  min_premium_white: { label: 'Min. Premium White', icon: 'mdi:square-outline',  accent: '#64748b', desc: 'Minimal qty untuk material Premium White' },
+  min_non_kraft:     { label: 'Min. Non Kraft',     icon: 'mdi:package-variant', accent: '#f59e0b', desc: 'Minimal qty untuk material selain BrownKraft' },
+  min_paperbag:      { label: 'Min. Paperbag',      icon: 'mdi:shopping',        accent: '#10b981', desc: 'Minimal qty untuk pesanan paperbag/shopping bag' },
 }
 
 const DEFAULT_META = { label: 'Konfigurasi', icon: 'mdi:cog', accent: '#64748b', desc: '-' }
-
 const getMeta = (key: string) => CONFIG_META[key] || DEFAULT_META
 
 // ============ HELPERS ============
@@ -58,15 +73,32 @@ const getErrMsg = (err: unknown, fallback: string): string => {
   return fallback
 }
 
-const formatDate = (date: string | null) => {
-  if (!date) return '-'
-  return new Date(date).toLocaleDateString('id-ID', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+// ============ STATS CARDS ============
+function StatsCards({ stats }: { stats: { total: number; minQty: number; maxQty: number; avgQty: number } }) {
+  const items = [
+    { icon: 'mdi:tune-variant',      label: 'Total Konfigurasi',  value: String(stats.total),                           sub: `${stats.total} aktif terkonfigurasi`, accent: '#6366f1' },
+    { icon: 'mdi:arrow-down-circle', label: 'Min. Qty Terendah',  value: stats.minQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terkecil',                  accent: '#10b981' },
+    { icon: 'mdi:arrow-up-circle',   label: 'Min. Qty Tertinggi', value: stats.maxQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terbesar',                  accent: '#f59e0b' },
+    { icon: 'mdi:chart-bell-curve',  label: 'Rata-rata Qty',      value: stats.avgQty.toLocaleString('id-ID') + ' pcs', sub: 'Rata-rata semua konfigurasi',         accent: '#8b5cf6' },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {items.map((s, i) => (
+        <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
+              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // ============ MAIN COMPONENT ============
@@ -81,7 +113,6 @@ export default function OtherMinOrderPage() {
   const [editingItem, setEditingItem] = useState<MinOrderConfig | null>(null)
   const [selectedItem, setSelectedItem] = useState<MinOrderConfig | null>(null)
 
-  // ✅ Form state mencakup semua field yang dikirim ke backend
   const [editQty, setEditQty] = useState('')
   const [editKeterangan, setEditKeterangan] = useState('')
 
@@ -144,8 +175,6 @@ export default function OtherMinOrderPage() {
     setSelectedItem(null)
   }
 
-  // ✅ UPDATED: endpoint ke /Admin/Other/MinOrderConfigEdit/:id
-  // payload sekarang juga menyertakan config_key dan keterangan (required oleh backend)
   const handleUpdate = async () => {
     if (!editingItem) return
 
@@ -161,12 +190,11 @@ export default function OtherMinOrderPage() {
     try {
       setIsPosting(true)
       await axios.put(`/Admin/Other/MinOrderConfigEdit/${editingItem.id}`, {
-        config_key:  editingItem.config_key,
-        min_qty:     editQty,
-        keterangan:  editKeterangan.trim(),
+        config_key: editingItem.config_key,
+        min_qty:    editQty,
+        keterangan: editKeterangan.trim(),
       })
 
-      // Update local state tanpa refetch
       setConfigs(prev => prev.map(c =>
         c.id === editingItem.id
           ? { ...c, min_qty: editQty, keterangan: editKeterangan.trim(), updated_at: new Date().toISOString() }
@@ -191,13 +219,16 @@ export default function OtherMinOrderPage() {
 
       {/* ===== HEADER ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:cog-outline" className="w-6 h-6 text-indigo-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:cog-outline" className="w-6 h-6 text-indigo-400" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-indigo-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Minimum Order Config</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola konfigurasi minimum qty pemesanan</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola konfigurasi minimum qty pemesanan</p>
           </div>
         </div>
         <Button variant="outline" size="md" onClick={fetchData} icon="mdi:refresh">
@@ -206,128 +237,100 @@ export default function OtherMinOrderPage() {
       </div>
 
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { icon: 'mdi:tune-variant',      label: 'Total Konfigurasi',  value: String(stats.total),                           sub: `${stats.total} aktif terkonfigurasi`, accent: '#6366f1' },
-          { icon: 'mdi:arrow-down-circle', label: 'Min. Qty Terendah',  value: stats.minQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terkecil',                  accent: '#10b981' },
-          { icon: 'mdi:arrow-up-circle',   label: 'Min. Qty Tertinggi', value: stats.maxQty.toLocaleString('id-ID') + ' pcs', sub: 'Nilai qty terbesar',                  accent: '#f59e0b' },
-          { icon: 'mdi:chart-bell-curve',  label: 'Rata-rata Qty',      value: stats.avgQty.toLocaleString('id-ID') + ' pcs', sub: 'Rata-rata semua konfigurasi',         accent: '#8b5cf6' },
-        ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${s.accent}15` }}>
-                <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-slate-800 truncate">{s.value}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
-        ))}
-      </div>
+      <StatsCards stats={stats} />
 
       {/* ===== TABLE CARD ===== */}
-      <Card shadow="md" padding="none">
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Konfigurasi</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.total} konfigurasi minimum order
-            </p>
-          </div>
-        </div>
-
-        {/* Table */}
-        <div className="overflow-x-auto">
-          {configs.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:cog-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada konfigurasi</p>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          {/* Gradient top line */}
+          <div className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: 'linear-gradient(90deg, #6366f1, #8b5cf6)' }}
+          />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Konfigurasi</h3>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Total {stats.total} konfigurasi minimum order
+              </p>
             </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Konfigurasi', 'Config Key', 'Min. Qty', 'Keterangan', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {configs.map((config) => {
-                  const meta = getMeta(config.config_key)
-                  return (
-                    <tr key={config.id} className="hover:bg-slate-50/80 transition-colors">
-
-                      {/* Konfigurasi */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ background: `${meta.accent}15` }}>
-                            <Icon icon={meta.icon} className="w-5 h-5" style={{ color: meta.accent }} />
-                          </div>
-                          <p className="text-sm font-medium text-slate-800">{meta.label}</p>
-                        </div>
-                      </td>
-
-                      {/* Config Key */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <Badge color={meta.accent}>{config.config_key}</Badge>
-                      </td>
-
-                      {/* Min Qty */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <Icon icon="mdi:package-variant-closed" className="w-4 h-4" style={{ color: meta.accent }} />
-                          <span className="text-sm font-bold" style={{ color: meta.accent }}>
-                            {Number(config.min_qty).toLocaleString('id-ID')} pcs
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Keterangan */}
-                      <td className="px-6 py-4">
-                        <p className="text-sm text-gray-600 max-w-xs line-clamp-2">{config.keterangan}</p>
-                      </td>
-
-                      {/* Aksi */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleViewClick(config)}
-                            title="Lihat Detail"
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:eye-outline" className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleEditClick(config)}
-                            title="Edit"
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
+          </div>
         </div>
 
-        {/* Footer */}
-        {configs.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{configs.length}</span> konfigurasi
-            </p>
+        {configs.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-16">
+            <Icon icon="mdi:cog-off" className="w-16 h-16 text-slate-300" />
+            <p className="text-slate-500 font-medium text-lg">Belum ada konfigurasi</p>
           </div>
+        ) : (
+          <>
+            <Table headers={['Konfigurasi', 'Config Key', 'Min. Qty', 'Keterangan', 'Aksi']}>
+              {configs.map((config) => {
+                const meta = getMeta(config.config_key)
+                return (
+                  <TableRow key={config.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+
+                    {/* Konfigurasi */}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                          style={{ background: `${meta.accent}15` }}>
+                          <Icon icon={meta.icon} className="w-5 h-5" style={{ color: meta.accent }} />
+                        </div>
+                        <p className="text-sm font-semibold text-slate-700">{meta.label}</p>
+                      </div>
+                    </TableCell>
+
+                    {/* Config Key */}
+                    <TableCell>
+                      <Badge color={meta.accent}>{config.config_key}</Badge>
+                    </TableCell>
+
+                    {/* Min Qty */}
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Icon icon="mdi:package-variant-closed" className="w-4 h-4" style={{ color: meta.accent }} />
+                        <span className="text-sm font-bold" style={{ color: meta.accent }}>
+                          {Number(config.min_qty).toLocaleString('id-ID')} pcs
+                        </span>
+                      </div>
+                    </TableCell>
+
+                    {/* Keterangan */}
+                    <TableCell className="whitespace-normal">
+                      <p className="text-sm text-slate-600 max-w-xs line-clamp-2">{config.keterangan}</p>
+                    </TableCell>
+
+                    {/* Aksi */}
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <ActionButton
+                          onClick={() => handleViewClick(config)}
+                          icon="mdi:eye-outline"
+                          hoverClass="hover:text-blue-600 hover:bg-blue-50"
+                          title="Lihat Detail"
+                        />
+                        <ActionButton
+                          onClick={() => handleEditClick(config)}
+                          icon="mdi:pencil-outline"
+                          hoverClass="hover:text-amber-600 hover:bg-amber-50"
+                          title="Edit"
+                        />
+                      </div>
+                    </TableCell>
+
+                  </TableRow>
+                )
+              })}
+            </Table>
+
+            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+              <p className="text-sm text-slate-400">
+                Menampilkan <span className="font-semibold text-slate-600">{configs.length}</span> konfigurasi
+              </p>
+            </div>
+          </>
         )}
-      </Card>
+      </div>
 
       {/* ===== VIEW MODAL ===== */}
       <Modal
@@ -337,17 +340,10 @@ export default function OtherMinOrderPage() {
         size="md"
         footer={
           <>
-            <Button variant="outline" size="md" onClick={handleCloseViewModal}>
-              Tutup
-            </Button>
+            <Button variant="outline" size="md" onClick={handleCloseViewModal}>Tutup</Button>
             <Button
-              variant="primary"
-              size="md"
-              icon="mdi:pencil-outline"
-              onClick={() => {
-                setShowViewModal(false)
-                if (selectedItem) handleEditClick(selectedItem)
-              }}
+              variant="primary" size="md" icon="mdi:pencil-outline"
+              onClick={() => { setShowViewModal(false); if (selectedItem) handleEditClick(selectedItem) }}
             >
               Edit
             </Button>
@@ -360,8 +356,9 @@ export default function OtherMinOrderPage() {
             <div className="space-y-4">
 
               {/* Identity */}
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-blue-50">
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-blue-100"
+              <div className="flex items-center gap-4 p-4 rounded-xl border"
+                style={{ background: `${meta.accent}08`, borderColor: `${meta.accent}25` }}>
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
                   style={{ background: `${meta.accent}18` }}>
                   <Icon icon={meta.icon} className="w-7 h-7" style={{ color: meta.accent }} />
                 </div>
@@ -373,36 +370,36 @@ export default function OtherMinOrderPage() {
                 </div>
               </div>
 
-              {/* Description */}
-              <Card shadow="none" padding="sm" bordered>
-                <p className="text-xs text-gray-500 mb-2">Deskripsi</p>
+              {/* Deskripsi */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-xs text-slate-400 mb-1.5">Deskripsi</p>
                 <p className="text-sm text-slate-700">{meta.desc}</p>
-              </Card>
+              </div>
 
               {/* Minimum Quantity */}
-              <Card shadow="none" padding="sm" bordered>
-                <p className="text-xs text-gray-500 mb-2">Minimum Quantity</p>
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg">
-                  <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-xs text-slate-400 mb-2">Minimum Quantity</p>
+                <div className="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-100">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center"
                     style={{ background: `${meta.accent}15` }}>
                     <Icon icon="mdi:package-variant-closed" className="w-5 h-5" style={{ color: meta.accent }} />
                   </div>
                   <div>
                     <p className="text-2xl font-bold" style={{ color: meta.accent }}>
-                      {Number(selectedItem.min_qty).toLocaleString('id-ID')} <span className="text-sm font-normal text-gray-500">pcs</span>
+                      {Number(selectedItem.min_qty).toLocaleString('id-ID')}{' '}
+                      <span className="text-sm font-normal text-slate-400">pcs</span>
                     </p>
-                    <p className="text-xs text-gray-400">Minimum order quantity</p>
+                    <p className="text-xs text-slate-400">Minimum order quantity</p>
                   </div>
                 </div>
-              </Card>
+              </div>
 
               {/* Keterangan */}
-              <Card shadow="none" padding="sm" bordered>
-                <p className="text-xs text-gray-500 mb-2">Keterangan</p>
-                <div className="p-3 bg-slate-50 rounded-lg">
-                  <p className="text-sm text-slate-700">{selectedItem.keterangan}</p>
-                </div>
-              </Card>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-xs text-slate-400 mb-1.5">Keterangan</p>
+                <p className="text-sm text-slate-700">{selectedItem.keterangan}</p>
+              </div>
+
             </div>
           )
         })()}
@@ -417,11 +414,9 @@ export default function OtherMinOrderPage() {
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" onClick={handleCloseEditModal} disabled={isPosting}>
-              Batal
-            </Button>
+            <Button variant="outline" onClick={handleCloseEditModal} disabled={isPosting}>Batal</Button>
             <Button variant="primary" onClick={handleUpdate} loading={isPosting} disabled={isPosting} icon="mdi:check">
-              {isPosting ? 'Menyimpan...' : 'Simpan Perubahan'}
+              Simpan Perubahan
             </Button>
           </>
         }
@@ -432,20 +427,20 @@ export default function OtherMinOrderPage() {
             <div className="space-y-5">
 
               {/* Info box */}
-              <div className="flex items-center gap-3 p-4 rounded-lg border"
+              <div className="flex items-center gap-3 p-4 rounded-xl border"
                 style={{ background: `${meta.accent}08`, borderColor: `${meta.accent}30` }}>
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: `${meta.accent}18` }}>
                   <Icon icon={meta.icon} className="w-5 h-5" style={{ color: meta.accent }} />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{meta.label}</p>
+                  <p className="text-sm font-semibold text-slate-800">{meta.label}</p>
                   <p className="text-xs font-mono mt-0.5" style={{ color: meta.accent }}>{editingItem.config_key}</p>
                 </div>
               </div>
 
               {/* Min Qty */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-gray-200 space-y-3">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                 <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
                     <Icon icon="mdi:package-variant-closed" className="w-3.5 h-3.5 text-indigo-600" />
@@ -462,7 +457,7 @@ export default function OtherMinOrderPage() {
                   disabled={isPosting}
                   leftIcon="mdi:package-variant-closed"
                 />
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-slate-400">
                   Nilai saat ini:{' '}
                   <span className="font-semibold" style={{ color: meta.accent }}>
                     {Number(editingItem.min_qty).toLocaleString('id-ID')} pcs
@@ -471,7 +466,7 @@ export default function OtherMinOrderPage() {
               </div>
 
               {/* Keterangan */}
-              <div className="bg-slate-50 p-4 rounded-lg border border-gray-200 space-y-3">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
                 <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                   <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
                     <Icon icon="mdi:text-box-outline" className="w-3.5 h-3.5 text-amber-600" />

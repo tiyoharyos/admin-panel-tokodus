@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import Image from 'next/image'
 import { Icon } from '@iconify/react'
 
-// Tipe sesuai response API login
 interface UserData {
   id: string
   email: string
@@ -26,7 +25,6 @@ interface SidebarProps {
   onToggle: () => void
 }
 
-// Map role ID → nama role
 const getRoleLabel = (role: string): string => {
   const map: Record<string, string> = {
     '1': 'Administrator',
@@ -36,7 +34,6 @@ const getRoleLabel = (role: string): string => {
   return map[role] ?? 'User'
 }
 
-// Ambil nama tampilan dari email
 const getDisplayName = (email: string): string => {
   const name = email.split('@')[0]
   return name.charAt(0).toUpperCase() + name.slice(1)
@@ -48,7 +45,6 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname()
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
-  // Baca user dari localStorage
   const [currentUser] = useState<UserData>(() => {
     try {
       const raw = localStorage.getItem('user')
@@ -66,167 +62,60 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const displayRole = getRoleLabel(currentUser.role)
   const avatarInitial = displayName.charAt(0).toUpperCase()
 
-  // Nav items
-    const navItems: NavItem[] = [
-    { 
-      icon: 'mdi:view-dashboard',
-      name: 'Dashboard', 
-      path: '/dashboard'
-    },
-    { 
-      icon: 'mdi:file-document-multiple',
-      name: 'Orders', 
-      path: '/orders',
-    },
-    // Menu-item yang dikeluarkan dari Settings
-    { 
-      icon: 'mdi:cube-outline',
-      name: 'Box Models', 
-      path: '/box-models'
-    },
-    // { 
-    //   icon: 'mdi:cash-multiple',
-    //   name: 'Price Settings', 
-    //   path: '/price-settings'
-    // },
-    // { 
-    //   icon: 'mdi:flask',
-    //   name: 'Material Formulas', 
-    //   path: '/material-formulas'
-    // },
-    // { 
-    //   icon: 'mdi:printer-settings',
-    //   name: 'Print Settings', 
-    //   path: '/print-settings'
-    // },
-    { 
+  const navItems: NavItem[] = [
+    { icon: 'mdi:view-dashboard', name: 'Dashboard', path: '/dashboard' },
+    { icon: 'mdi:file-document-multiple', name: 'Orders', path: '/orders' },
+    { icon: 'mdi:cube-outline', name: 'Box Models', path: '/box-models' },
+    {
       icon: 'mdi:printer-settings',
-      name: 'Print Settings', 
-       subItems: [
+      name: 'Print Settings',
+      subItems: [
         { name: 'Print Settings', path: '/print/print-settings' },
-        { name: 'Minimal Order Settings',  path: '/print/other-minorder' },
-        // { name: 'Price  Paperbag',  path: '/paperbag/price' },
-        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
-        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
-      ] 
+        { name: 'Minimal Order Settings', path: '/print/other-minorder' },
+      ],
     },
-    // { 
-    //   icon: 'mdi:file-table',
-    //   name: 'Sheet Settings', 
-    //   path: '/sheet-settings'
-    // },
-    
-    // { 
-    //   icon: 'mdi:file-document-outline',
-    //   name: 'Sheet K200', 
-    //   path: '/sheet-k200'
-    // },
-    { 
-      icon: 'mdi:google-circles-group',
-      name: 'Singgleface', 
-      path: '/Singgleface-indext'
-    },
-    { 
-      icon: 'mdi:package-variant',
-      name: 'Material', 
-      path: '/material'
-    },
-    // { 
-    //   icon: 'mdi:package-variant',
-    //   name: 'Testing Material GSM', 
-    //   path: '/materialtesting'
-    // },
-    
-
-    { 
-      icon: 'mdi:cog-outline',
-      name: 'Pengaturan Lainnya', 
-      path: '/index_lain'
-      //  subItems: [
-      //   { name: 'Pengaturan Costing',  path:  '/index_lain' },
-      //   { name: 'Minimal Order Settings',  path: '/other-minorder' },
-        // { name: 'Price  Paperbag',  path: '/paperbag/price' },
-        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
-        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
-      // ] 
-      // path: '/index_lain'
-    },
-    { 
-      icon: 'mdi:wave',
-      name: 'Flute Settings', 
-      path: '/flute-settings'
-    },
-    // { 
-    //   icon: 'mdi:wave',
-    //   name: 'Minimal Order Settings', 
-    //   path: '/other-minorder'
-    // },
-     { 
+    { icon: 'mdi:google-circles-group', name: 'Singgleface', path: '/Singgleface-indext' },
+    { icon: 'mdi:package-variant', name: 'Material', path: '/material' },
+    { icon: 'mdi:cog-outline', name: 'Pengaturan Lainnya', path: '/index_lain' },
+    { icon: 'mdi:wave', name: 'Flute Settings', path: '/flute-settings' },
+    {
       icon: 'mdi:bell',
       name: 'Liminating Settings',
-       subItems: [
-        { name: 'Liminating', path: '/lamitasi' },
-        { name: 'Sablon', path: '/sablon' },
-        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
-        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
-      ]
-      
+      subItems: [
+        { name: 'Liminating', path: '/lamitasi/lamitasi' },
+        { name: 'Sablon', path: '/lamitasi/sablon' },
+      ],
     },
-    // { 
-    //   icon: 'mdi:wave',
-    //   name: 'Sabling Settings', 
-    //   path: '/sablon'
-    // },
-     { 
+    {
       icon: 'mdi:knife',
-      name: 'Pisau Setting', 
+      name: 'Pisau Setting',
       subItems: [
         { name: 'Pisau Config', path: '/pisau/pisau-config' },
         { name: 'Pisau Registri', path: '/pisau/pisau-registry' },
-        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
-        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
-      ]
+      ],
     },
-    // { 
-    //   icon: 'mdi:wave',
-    //   name: 'Pisau Config', 
-    //   path: '/pisau-config'
-    // },
-    // { 
-    //   icon: 'mdi:wave',
-    //   name: 'Pisau Registry', 
-    //   path: '/pisau-registry'
-    // },
-    { 
+    {
       icon: 'mdi:shopping',
       name: 'Paperbag',
       subItems: [
-        { name: 'Tali Paperbag',  path: '/paperbag/tali' },
-        { name: 'Size Paperbag',  path: '/paperbag/size' },
-        { name: 'Price  Paperbag',  path: '/paperbag/price' },
-        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
-        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
-      ] 
-     
+        { name: 'Tali Paperbag', path: '/paperbag/tali' },
+        { name: 'Size Paperbag', path: '/paperbag/size' },
+        { name: 'Price Paperbag', path: '/paperbag/price' },
+      ],
     },
-    { 
+    {
       icon: 'mdi:file-table',
-      name: 'Shet Settings', 
-      subItems: [
-        { name: 'Sheet', path: '/sheet-settings/sheet-index' },
-        // { name: 'Sheet Flute', path: '/sheet-settings/flute-settings' },
-        // { name: 'Sheet k200', path: '/sheet-settings/sheet-k200' }
-      ]
+      name: 'Shet Settings',
+      subItems: [{ name: 'Sheet', path: '/sheet-settings/sheet-index' }],
     },
-    // Settings dengan Duplex di dalamnya
-    { 
+    {
       icon: 'mdi:cog',
-      name: 'Duplex Settings', 
+      name: 'Duplex Settings',
       subItems: [
         { name: 'Rumus DK', path: '/Duplex/Rumus_dk' },
-        { name: 'Rumus DMD', path: '/Duplex/Rumus_dmd' }
-      ]
-    }
+        { name: 'Rumus DMD', path: '/Duplex/Rumus_dmd' },
+      ],
+    },
   ]
 
   const isActive = useCallback(
@@ -268,14 +157,17 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         const isItemActive = nav.path ? isActive(nav.path) : false
         const isSubmenuOpen = openSubmenu?.type === 'main' && openSubmenu.index === index
 
-        const iconWrap = isItemActive || isSubmenuOpen
-          ? 'flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-500/20 text-indigo-400 transition-all'
-          : 'flex items-center justify-center w-7 h-7 rounded-lg bg-white/5 text-slate-500 transition-all group-hover:bg-white/10 group-hover:text-slate-300'
+        // Amber accent untuk active, putih redup untuk default
+        const iconWrap =
+          isItemActive || isSubmenuOpen
+            ? 'flex items-center justify-center w-7 h-7 rounded-lg bg-amber-500/20 text-amber-400 transition-all'
+            : 'flex items-center justify-center w-7 h-7 rounded-lg bg-white/5 text-slate-500 transition-all group-hover:bg-white/10 group-hover:text-slate-300'
 
         const rowBase = `group w-full flex items-center px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
           isCollapsed ? 'justify-center' : ''
         }`
-        const rowActive = 'bg-indigo-500/15 text-indigo-300'
+        // Amber highlight untuk active row
+        const rowActive = 'bg-amber-500/10 text-amber-300'
         const rowDefault = 'text-slate-400 hover:bg-white/5 hover:text-slate-200'
 
         return (
@@ -297,7 +189,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 {!isCollapsed && (
                   <div className="flex items-center gap-2 flex-shrink-0">
                     {nav.badge && (
-                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-500/20 text-indigo-400">
+                      <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-amber-500/20 text-amber-400">
                         {nav.badge}
                       </span>
                     )}
@@ -315,8 +207,9 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   title={isCollapsed ? nav.name : ''}
                   className={`${rowBase} relative ${isItemActive ? rowActive : rowDefault}`}
                 >
+                  {/* Amber left bar indicator */}
                   {isItemActive && !isCollapsed && (
-                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-indigo-400 to-indigo-600" />
+                    <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-r-full bg-gradient-to-b from-amber-400 to-amber-600" />
                   )}
                   <div className="flex items-center gap-3">
                     <div className={iconWrap}>
@@ -325,7 +218,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     {!isCollapsed && <span className="truncate">{nav.name}</span>}
                   </div>
                   {!isCollapsed && nav.badge && (
-                    <span className="ml-auto px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-500/20 text-indigo-400">
+                    <span className="ml-auto px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-amber-500/20 text-amber-400">
                       {nav.badge}
                     </span>
                   )}
@@ -352,20 +245,20 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                           href={sub.path}
                           className={`flex items-center justify-between px-3 py-2 rounded-lg text-[13px] transition-all duration-150 ${
                             isSubActive
-                              ? 'bg-indigo-500/[0.12] text-indigo-300 font-medium'
+                              ? 'bg-amber-500/[0.12] text-amber-300 font-medium'
                               : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'
                           }`}
                         >
                           <div className="flex items-center gap-2">
                             <span
                               className={`block w-1.5 h-1.5 rounded-full ${
-                                isSubActive ? 'bg-indigo-400' : 'bg-slate-600'
+                                isSubActive ? 'bg-amber-400' : 'bg-slate-600'
                               }`}
                             />
                             <span>{sub.name}</span>
                           </div>
                           {sub.badge && (
-                            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-indigo-500/20 text-indigo-400">
+                            <span className="px-1.5 py-0.5 text-[10px] font-semibold rounded-full bg-amber-500/20 text-amber-400">
                               {sub.badge}
                             </span>
                           )}
@@ -386,12 +279,13 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     <aside
       className={`
         fixed inset-y-0 left-0 z-40 flex flex-col
-        bg-slate-900 border-r border-white/[0.06]
+        border-r border-white/[0.06]
         transition-all duration-300 ease-in-out
         ${isCollapsed ? 'w-[72px]' : 'w-64'}
       `}
+      style={{ background: 'linear-gradient(180deg, #1f2937 0%, #111827 100%)' }}
     >
-      {/* Header dengan logo di tengah */}
+      {/* Header */}
       <div
         className={`
           flex items-center justify-center h-16 flex-shrink-0
@@ -399,10 +293,14 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           ${isCollapsed ? 'px-2' : 'px-4'}
         `}
       >
+        {/* Amber decorative top line */}
+        <div className="absolute left-0 right-0 top-0 h-0.5"
+          style={{ background: 'linear-gradient(90deg, transparent, #f59e0b, transparent)' }}
+        />
         {isCollapsed ? (
           <div className="w-9 h-9 rounded-xl flex items-center justify-center">
-            <Image 
-              src="/material/logo.png" 
+            <Image
+              src="/material/logo.png"
               alt="Tokodus"
               width={130}
               height={30}
@@ -436,13 +334,17 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
       {/* Footer */}
       <div
-        className={`border-t border-white/[0.06] bg-black/15 flex-shrink-0 p-3 ${
+        className={`border-t border-white/[0.06] flex-shrink-0 p-3 ${
           isCollapsed ? 'px-2' : 'px-3'
         }`}
+        style={{ background: 'rgba(0,0,0,0.25)' }}
         title={isCollapsed ? `${displayName} · ${displayRole}` : ''}
       >
         <div className={`flex items-center gap-2.5 ${isCollapsed ? 'justify-center' : ''}`}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white bg-gradient-to-br from-indigo-500 to-indigo-700">
+          {/* Amber gradient avatar */}
+          <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white"
+            style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
+          >
             {avatarInitial}
           </div>
           {!isCollapsed && (
@@ -455,7 +357,7 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   {currentUser.email}
                 </p>
               </div>
-              <span className="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-500/15 text-indigo-400">
+              <span className="flex-shrink-0 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-500/15 text-amber-400">
                 {displayRole}
               </span>
             </>

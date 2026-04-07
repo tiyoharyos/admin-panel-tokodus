@@ -3,16 +3,16 @@
 
 import { useState, useMemo } from 'react'
 import { Icon } from '@iconify/react'
-import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Modal from '@/components/UI/Modal'
 import Input from '@/components/UI/Input'
 import LoadingState from '@/components/UI/LoadingState'
 import ErrorState from '@/components/UI/ErrorState'
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 
 import { useSablon } from './hooks/useSablon'
 import { useSablonActions } from './hooks/useSablonActions'
-import { BASE_FORM, DEFAULT_META, SABLON_META, type SablonForm } from './constants/constants'
+import { BASE_FORM, SABLON_META, DEFAULT_META, type SablonForm } from './constants/constants'
 import { formatCurrency, generateCode } from './lib/utils'
 import type { Sablon, SablonStats } from './types/types'
 
@@ -46,7 +46,7 @@ function ActionButton({ onClick, icon, hoverColor, title }: {
 }
 
 // ============================================================
-// STATS CARDS
+// STATS CARDS (gaya baru)
 // ============================================================
 
 function StatsCards({ stats, sablon }: { stats: SablonStats; sablon: Sablon[] }) {
@@ -54,43 +54,68 @@ function StatsCards({ stats, sablon }: { stats: SablonStats; sablon: Sablon[] })
   const maxGT100 = Math.max(...sablon.map(s => parseFloat(s.harga_jual_gt100)), 0)
 
   const items = [
-    { icon: 'mdi:sticker',          label: 'Total Sablon',       value: stats.totalSablon,              sub: 'Jenis sablon tersedia' },
-    { icon: 'mdi:package-variant',  label: 'Dengan Minimum Qty', value: stats.withMinimumQty,
+    {
+      icon: 'mdi:sticker',
+      label: 'Total Sablon',
+      value: stats.totalSablon,
+      sub: 'Jenis sablon tersedia',
+      accent: '#3b82f6'
+    },
+    {
+      icon: 'mdi:package-variant',
+      label: 'Dengan Minimum Qty',
+      value: stats.withMinimumQty,
       sub: `${stats.totalSablon - stats.withMinimumQty} tanpa minimum`,
-      bar: stats.totalSablon ? (stats.withMinimumQty / stats.totalSablon) * 100 : 0 },
-    { icon: 'mdi:currency-usd',     label: 'Rata-rata Harga >500', value: formatCurrency(stats.avgHargaGT500),
+      accent: '#f59e0b',
+      bar: stats.totalSablon ? (stats.withMinimumQty / stats.totalSablon) * 100 : 0
+    },
+    {
+      icon: 'mdi:currency-usd',
+      label: 'Rata-rata Harga >500',
+      value: formatCurrency(stats.avgHargaGT500),
       sub: 'Untuk quantity >500 pcs',
-      bar: maxGT500 > 0 ? (stats.avgHargaGT500 / maxGT500) * 100 : 0 },
-    { icon: 'mdi:currency-usd',     label: 'Rata-rata Harga >100', value: formatCurrency(stats.avgHargaGT100),
+      accent: '#10b981',
+      bar: maxGT500 > 0 ? (stats.avgHargaGT500 / maxGT500) * 100 : 0
+    },
+    {
+      icon: 'mdi:currency-usd',
+      label: 'Rata-rata Harga >100',
+      value: formatCurrency(stats.avgHargaGT100),
       sub: 'Untuk quantity 100-500 pcs',
-      bar: maxGT100 > 0 ? (stats.avgHargaGT100 / maxGT100) * 100 : 0 },
+      accent: '#8b5cf6',
+      bar: maxGT100 > 0 ? (stats.avgHargaGT100 / maxGT100) * 100 : 0
+    },
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {items.map((s, i) => (
-        <Card key={i} shadow="sm" padding="md" hoverable>
+        <div
+          key={i}
+          className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+        >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">{s.label}</p>
-            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
+              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
             </div>
           </div>
           <p className="text-3xl font-bold text-slate-800">{s.value}</p>
           {s.bar !== undefined && (
             <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-              <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${s.bar}%` }} />
+              <div className="h-1.5 rounded-full transition-all" style={{ width: `${s.bar}%`, background: s.accent }} />
             </div>
           )}
-          <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-        </Card>
+          <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+        </div>
       ))}
     </div>
   )
 }
 
 // ============================================================
-// FORM FIELDS — reused in Add & Edit modals
+// FORM FIELDS (Add/Edit)
 // ============================================================
 
 function SablonFormFields({ form, isPosting, onChange }: {
@@ -140,7 +165,7 @@ function AddModal({ isOpen, form, isPosting, onChange, onClose, onSubmit }: {
   onClose: () => void; onSubmit: () => void
 }) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="➕ Tambah Sablon Baru" size="md"
+    <Modal isOpen={isOpen} onClose={onClose} title="Tambah Sablon Baru" size="md"
       closeOnOverlayClick={!isPosting}
       footer={
         <>
@@ -151,10 +176,15 @@ function AddModal({ isOpen, form, isPosting, onChange, onClose, onSubmit }: {
         </>
       }
     >
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
-          <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
-          <p className="text-sm text-blue-700">Kode akan digenerate otomatis. Semua field wajib diisi.</p>
+      <div className="space-y-5">
+        <div className="flex items-center gap-3 p-4 rounded-xl border bg-blue-50 border-blue-100">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+            <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-blue-800">Sablon Baru</p>
+            <p className="text-xs text-blue-600 mt-1">Kode akan digenerate otomatis. Semua field wajib diisi.</p>
+          </div>
         </div>
         <SablonFormFields form={form} isPosting={isPosting} onChange={onChange} />
       </div>
@@ -168,8 +198,10 @@ function EditModal({ isOpen, editingItem, isPosting, onChange, onClose, onSubmit
   onClose: () => void; onSubmit: () => void
 }) {
   if (!editingItem) return null
+  const meta = SABLON_META[editingItem.code] || DEFAULT_META
   const form: SablonForm = {
-    code: editingItem.code, label: editingItem.label,
+    code: editingItem.code,
+    label: editingItem.label,
     harga_jual_gt500: editingItem.harga_jual_gt500,
     harga_jual_gt100: editingItem.harga_jual_gt100,
     qty_minimum: editingItem.qty_minimum,
@@ -187,10 +219,17 @@ function EditModal({ isOpen, editingItem, isPosting, onChange, onClose, onSubmit
         </>
       }
     >
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 px-3 py-3 bg-amber-50 border border-amber-100 rounded-lg">
-          <Icon icon="mdi:pencil" className="w-4 h-4 text-amber-500 flex-shrink-0" />
-          <p className="text-sm text-amber-700">Edit data sablon. Perubahan akan langsung diterapkan pada perhitungan harga.</p>
+      <div className="space-y-5">
+        <div className="flex items-center gap-3 p-4 rounded-xl border"
+          style={{ background: `${meta.accent}08`, borderColor: `${meta.accent}30` }}>
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: `${meta.accent}18` }}>
+            <Icon icon="mdi:pencil-outline" className="w-5 h-5" style={{ color: meta.accent }} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800">Mode Edit</p>
+            <p className="text-xs text-slate-500 mt-0.5">ID: <span className="font-mono">{editingItem.id_st}</span></p>
+          </div>
         </div>
 
         <SablonFormFields
@@ -198,23 +237,26 @@ function EditModal({ isOpen, editingItem, isPosting, onChange, onClose, onSubmit
           onChange={(f, v) => onChange(f as keyof Sablon, v)}
         />
 
-        {/* Live preview */}
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-2">Preview Perubahan</p>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
+            <Icon icon="mdi:eye-outline" className="w-3.5 h-3.5" />
+            Preview Perubahan
+          </p>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Icon icon="mdi:palette" className="w-5 h-5 text-blue-600" />
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center"
+              style={{ background: `${meta.accent}15` }}>
+              <Icon icon={meta.icon} className="w-5 h-5" style={{ color: meta.accent }} />
             </div>
             <div>
               <p className="font-medium text-slate-800">{editingItem.label}</p>
-              <div className="flex gap-3 mt-1 text-xs">
-                <span className="text-emerald-600">{formatCurrency(editingItem.harga_jual_gt500)} (&gt;500)</span>
-                <span className="text-blue-600">{formatCurrency(editingItem.harga_jual_gt100)} (100-500)</span>
-                <span className="text-amber-600">Min: {editingItem.qty_minimum} pcs</span>
+              <div className="flex flex-wrap gap-3 mt-1 text-xs">
+                <span className="text-emerald-600 font-medium">{formatCurrency(editingItem.harga_jual_gt500)} (&gt;500)</span>
+                <span className="text-blue-600 font-medium">{formatCurrency(editingItem.harga_jual_gt100)} (100-500)</span>
+                <span className="text-amber-600 font-medium">Min: {parseInt(editingItem.qty_minimum).toLocaleString()} pcs</span>
               </div>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
     </Modal>
   )
@@ -236,7 +278,6 @@ function ViewModal({ isOpen, item, onClose, onEdit }: {
       }
     >
       <div className="space-y-4">
-        {/* Identity */}
         <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: `${meta.accent}0d` }}>
           <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${meta.accent}20` }}>
             <Icon icon={meta.icon} className="w-7 h-7" style={{ color: meta.accent }} />
@@ -247,23 +288,22 @@ function ViewModal({ isOpen, item, onClose, onEdit }: {
           </div>
         </div>
 
-        {/* Prices */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Card shadow="none" padding="sm" bordered>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-gray-500 mb-1">Harga 500 pcs</p>
             <p className="text-lg font-bold text-emerald-600">{formatCurrency(item.harga_jual_gt500)}</p>
-          </Card>
-          <Card shadow="none" padding="sm" bordered>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-gray-500 mb-1">Harga 100-500 pcs</p>
             <p className="text-lg font-bold text-blue-600">{formatCurrency(item.harga_jual_gt100)}</p>
-          </Card>
-          <Card shadow="none" padding="sm" bordered>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs text-gray-500 mb-1">Minimum Quantity</p>
             <p className="text-lg font-bold text-amber-600">{parseInt(item.qty_minimum).toLocaleString()} pcs</p>
-          </Card>
+          </div>
         </div>
 
-        <Card shadow="none" padding="sm" bordered>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
           <div className="flex items-start gap-2">
             <Icon icon="mdi:information-outline" className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-gray-500">
@@ -271,7 +311,7 @@ function ViewModal({ isOpen, item, onClose, onEdit }: {
               menggunakan harga khusus atau menyesuaikan dengan kebijakan.
             </p>
           </div>
-        </Card>
+        </div>
       </div>
     </Modal>
   )
@@ -316,47 +356,59 @@ export default function SablonPage() {
 
   if (loading) return <LoadingState message="Memuat data Sablon..." submessage="Harap tunggu sebentar" icon="mdi:palette" />
   if (error)   return (
-    <div className="p-4 md:p-6">
-      <ErrorState title="Gagal Memuat Data" message={error} onRetry={refetch} icon="mdi:alert-circle-outline" />
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-slate-50">
+      <Icon icon="mdi:alert-circle-outline" className="w-16 h-16 text-red-400" />
+      <p className="text-red-500 font-medium">{error}</p>
+      <Button variant="primary" onClick={refetch} icon="mdi:refresh">Coba Lagi</Button>
     </div>
   )
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
 
-      {/* Header */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:palette" className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:palette" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Manajemen Sablon</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola jenis sablon dan harga berdasarkan quantity</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola jenis sablon dan harga berdasarkan quantity</p>
           </div>
         </div>
-        <Button onClick={openAdd} variant="primary" size="md" icon="mdi:plus">Tambah Sablon Baru</Button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <Button variant="outline" size="md" onClick={refetch} icon="mdi:refresh">Refresh Data</Button>
+          <Button variant="primary" size="md" onClick={openAdd} icon="mdi:plus">Tambah Sablon</Button>
+        </div>
       </div>
 
       <StatsCards stats={stats} sablon={sablon} />
 
-      {/* Table */}
-      <Card shadow="md" padding="none">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Jenis Sablon</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.totalSablon} jenis sablon ({stats.withMinimumQty} dengan minimum qty)
-            </p>
-          </div>
-          <div className="w-full sm:w-64 relative">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Cari label atau kode..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              leftIcon="mdi:magnify"
-            />
+      {/* TABLE CARD */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Jenis Sablon</h3>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Total {stats.totalSablon} jenis sablon ({stats.withMinimumQty} dengan minimum qty)
+              </p>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Cari label atau kode..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                leftIcon="mdi:magnify"
+              />
+            </div>
           </div>
         </div>
 
@@ -365,34 +417,27 @@ export default function SablonPage() {
             <div className="flex flex-col items-center gap-3 py-16">
               <Icon icon="mdi:sticker-off" className="w-16 h-16 text-gray-300" />
               <p className="text-gray-500 font-medium text-lg">Belum ada data sablon</p>
+              <Button variant="primary" size="sm" onClick={openAdd} icon="mdi:plus">Tambah Sablon Pertama</Button>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Kode', 'Label', 'Harga >500', 'Harga 100-500', 'Min. Qty', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <Icon icon="mdi:sticker-off" className="w-16 h-16 text-gray-300" />
-                        <p className="text-gray-500 font-medium">Tidak ada hasil</p>
-                        <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
-                        <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Pencarian</Button>
-                      </div>
-                    </td>
-                  </tr>
-                ) : filtered.map(item => {
+            <Table headers={['Kode', 'Label', 'Harga >500', 'Harga 100-500', 'Min. Qty', 'Aksi']}>
+              {filtered.length === 0 ? (
+                <TableRow hoverable={false}>
+                  <TableCell colSpan={6} className="text-center py-12">
+                    <div className="flex flex-col items-center gap-3">
+                      <Icon icon="mdi:sticker-off" className="w-16 h-16 text-gray-300" />
+                      <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
+                      <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+                      <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Pencarian</Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filtered.map(item => {
                   const meta = SABLON_META[item.code] || DEFAULT_META
                   return (
-                    <tr key={item.id_st} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Kode */}
-                      <td className="px-6 py-4 whitespace-nowrap">
+                    <TableRow key={item.id_st} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+                      <TableCell>
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
                             style={{ background: `${meta.accent}15` }}>
@@ -400,27 +445,22 @@ export default function SablonPage() {
                           </div>
                           <p className="font-mono text-sm font-medium text-slate-800">{item.code}</p>
                         </div>
-                      </td>
-
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell>
                         <Badge color={meta.accent}>{item.label}</Badge>
-                      </td>
-
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell>
                         <p className="text-sm font-medium text-emerald-600">{formatCurrency(item.harga_jual_gt500)}</p>
-                      </td>
-
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell>
                         <p className="text-sm font-medium text-blue-600">{formatCurrency(item.harga_jual_gt100)}</p>
-                      </td>
-
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell>
                         <span className="text-sm font-mono font-medium text-slate-700">
                           {parseInt(item.qty_minimum).toLocaleString()} pcs
                         </span>
-                      </td>
-
-                      <td className="px-6 py-4">
+                      </TableCell>
+                      <TableCell>
                         <div className="flex items-center gap-1">
                           <ActionButton onClick={() => { setSelectedItem(item); setShowViewModal(true) }}
                             icon="mdi:eye-outline" hoverColor="blue" title="Lihat Detail" />
@@ -429,26 +469,26 @@ export default function SablonPage() {
                           <ActionButton onClick={() => handleDelete(item.id_st, item.label)}
                             icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   )
-                })}
-              </tbody>
-            </table>
+                })
+              )}
+            </Table>
           )}
         </div>
 
         {filtered.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{filtered.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{sablon.length}</span> jenis sablon
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+            <p className="text-sm text-slate-400">
+              Menampilkan <span className="font-semibold text-slate-600">{filtered.length}</span> dari{' '}
+              <span className="font-semibold text-slate-600">{sablon.length}</span> jenis sablon
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* Modals */}
+      {/* MODALS */}
       <ViewModal
         isOpen={showViewModal} item={selectedItem}
         onClose={() => { setShowViewModal(false); setSelectedItem(null) }}

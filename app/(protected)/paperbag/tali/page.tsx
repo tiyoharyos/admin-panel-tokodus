@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import axios from '@/lib/axios'
-import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Modal from '@/components/UI/Modal'
 import Input from '@/components/UI/Input'
@@ -53,7 +52,6 @@ const getErrMsg = (err: unknown, fallback: string): string => {
   return fallback
 }
 
-// PHP empty("0") === true, so send "0.00" instead to bypass that quirk
 const normalizeHarga = (raw: string): string => (parseFloat(raw) || 0).toFixed(2)
 
 // ============ BADGE ============
@@ -65,6 +63,23 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
     >
       {children}
     </span>
+  )
+}
+
+// ============ ACTION BUTTON ============
+function ActionButton({ onClick, icon, hoverColor, title }: {
+  onClick: () => void; icon: string; hoverColor: string; title: string
+}) {
+  const cls: Record<string, string> = {
+    blue:  'hover:text-blue-600 hover:bg-blue-50',
+    amber: 'hover:text-amber-600 hover:bg-amber-50',
+    red:   'hover:text-red-600 hover:bg-red-50',
+  }
+  return (
+    <button onClick={onClick} title={title}
+      className={`p-2 text-gray-400 rounded-lg transition-colors ${cls[hoverColor]}`}>
+      <Icon icon={icon} className="w-5 h-5" />
+    </button>
   )
 }
 
@@ -137,7 +152,6 @@ export default function PaperbagTaliPage() {
       Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Semua field wajib diisi', confirmButtonColor: '#3b82f6' })
       return false
     }
-    // Cek terpisah: harga boleh 0, tapi tidak boleh kosong
     if (form.harga_per_pcs.trim() === '') {
       Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Harga harus diisi (boleh 0)', confirmButtonColor: '#3b82f6' })
       return false
@@ -154,13 +168,12 @@ export default function PaperbagTaliPage() {
     if (!validateForm(addForm)) return
     try {
       setIsPosting(true)
-
       const formData = new URLSearchParams()
       formData.append('kode', addForm.kode.trim())
       formData.append('nama', addForm.nama.trim())
       formData.append('deskripsi', addForm.deskripsi.trim())
-      formData.append('harga_per_pcs', normalizeHarga(addForm.harga_per_pcs)) // FIX: "0" → "0.00"
-      formData.append('status', '1') // FIX: backend wajib ada field status
+      formData.append('harga_per_pcs', normalizeHarga(addForm.harga_per_pcs))
+      formData.append('status', '1')
 
       const { data } = await axios.post<ApiResponse>(
         '/Admin/Paperbag/PaperbagTaliAdd',
@@ -196,13 +209,12 @@ export default function PaperbagTaliPage() {
 
     try {
       setIsPosting(true)
-
       const formData = new URLSearchParams()
       formData.append('kode', form.kode.trim())
       formData.append('nama', form.nama.trim())
       formData.append('deskripsi', form.deskripsi.trim())
-      formData.append('harga_per_pcs', normalizeHarga(form.harga_per_pcs)) // FIX: normalize harga
-      formData.append('status', editingItem.status) // preserve status asli
+      formData.append('harga_per_pcs', normalizeHarga(form.harga_per_pcs))
+      formData.append('status', editingItem.status)
 
       const { data } = await axios.put<ApiResponse>(
         `/Admin/Paperbag/PaperbagTaliEdit/${editingItem.id}`,
@@ -269,126 +281,147 @@ export default function PaperbagTaliPage() {
     setShowEditModal(true)
   }, [])
 
-  // ===== LOADING =====
-  if (loading) return (
-    <LoadingState message="Memuat data Paperbag Tali..." submessage="Harap tunggu sebentar" icon="mdi:rope" />
-  )
+  // ===== REFRESH =====
+  const handleRefresh = useCallback(async () => {
+    const result = await Swal.fire({
+      icon: 'question', title: 'Refresh Data?',
+      text: 'Data akan dimuat ulang dari server.',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, Refresh!', cancelButtonText: 'Batal',
+      confirmButtonColor: '#3b82f6', cancelButtonColor: '#6B7280'
+    })
+    if (result.isConfirmed) {
+      await refetch()
+      Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data berhasil di-refresh!', timer: 1500, showConfirmButton: false })
+    }
+  }, [refetch])
+
+  // ===== LOADING & ERROR =====
+  if (loading) return <LoadingState message="Memuat data Paperbag Tali..." submessage="Harap tunggu sebentar" icon="mdi:rope" />
+  if (error) return <ErrorState message={error} onRetry={refetch} />
 
   // ===== RENDER =====
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+    // HAPUS min-h-screen, ganti w-full
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 w-full">
 
-      {/* ===== HEADER ===== */}
+      {/* ===== HEADER dengan badge emas ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="ion:bag-handle-outline" className="w-6 h-6 text-amber-500" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-amber-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="ion:bag-handle-outline" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Paperbag Tali</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola jenis tali untuk paperbag</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola jenis tali untuk paperbag</p>
           </div>
         </div>
-        <Button
-          onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }}
-          variant="primary"
-          size="md"
-          icon="mdi:plus"
-        >
-          Tambah Tali Baru
-        </Button>
+        <div className="flex gap-2 w-full md:w-auto">
+          <Button onClick={handleRefresh} variant="outline" size="md" icon="mdi:refresh">Refresh Data</Button>
+          <Button
+            onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }}
+            variant="primary"
+            size="md"
+            icon="mdi:plus"
+          >
+            Tambah Tali Baru
+          </Button>
+        </div>
       </div>
 
-      {/* ===== ERROR STATE ===== */}
-      {error && <ErrorState message={error} onRetry={refetch} />}
-
-      {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {/* ===== STATS CARDS dengan gradient line ===== */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {[
           {
             icon: 'ion:bag-handle-outline',
             label: 'Total Tali',
             value: stats.total,
-            sub: `Total Tali : ${stats.total}`,
+            sub: `${stats.aktif} aktif · ${stats.nonaktif} nonaktif`,
+            accent: '#f59e0b',
           },
           {
             icon: 'mdi:cash',
             label: 'Rata-rata Harga',
             value: formatRupiah(stats.avgHarga),
             sub: `Maks: ${formatRupiah(stats.maxHarga)}`,
+            accent: '#10b981',
           },
           {
             icon: 'mdi:tag-off-outline',
             label: 'Tanpa Biaya',
             value: stats.gratis,
             sub: 'Tali dengan harga Rp 0',
-            bar: stats.total ? (stats.gratis / stats.total) * 100 : 0,
+            accent: '#ef4444',
           },
         ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
+          <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
             <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center">
-                <Icon icon={s.icon} className="w-4 h-4 text-amber-500" />
+              <p className="text-sm text-slate-500">{s.label}</p>
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
+                <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-800">{s.value}</p>
-            {s.bar !== undefined && (
-              <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                <div className="bg-amber-500 h-1.5 rounded-full transition-all" style={{ width: `${s.bar}%` }} />
-              </div>
-            )}
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
+            <p className="text-2xl font-bold text-slate-800 truncate">{s.value}</p>
+            <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
+            <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+          </div>
         ))}
       </div>
 
-      {/* ===== TABLE CARD ===== */}
-      <Card shadow="md" padding="none">
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Paperbag Tali</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.total} tali · {stats.aktif} aktif
-            </p>
-          </div>
-          <div className="relative w-full sm:w-64">
-            <Input
-              placeholder="Cari nama, kode, deskripsi..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              leftIcon="mdi:magnify"
-            />
+      {/* ===== FILTER BAR (search) dengan gradient header ===== */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #f59e0b, #fbbf24)' }} />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Paperbag Tali</h3>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Total {stats.total} tali · {stats.aktif} aktif
+              </p>
+            </div>
+            <div className="w-full sm:w-64">
+              <Input
+                placeholder="Cari nama, kode, deskripsi..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                leftIcon="mdi:magnify"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Table */}
+        {/* ===== TABLE ===== */}
         <div className="overflow-x-auto">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:rope" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data tali</p>
+            <div className="flex flex-col items-center gap-3 py-20">
+              <Icon icon="mdi:rope" className="w-16 h-16 text-slate-300" />
+              <p className="text-slate-500 font-medium text-lg">Belum ada data tali</p>
+              <Button variant="primary" size="sm" onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }} icon="mdi:plus">
+                Tambah Tali Baru
+              </Button>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50">
                 <tr>
                   {['Tali', 'Kode', 'Deskripsi', 'Harga / Pcs', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">
                       {h}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
+              <tbody className="bg-white divide-y divide-slate-100">
                 {filtered.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <Icon icon="mdi:rope" className="w-16 h-16 text-gray-300" />
-                        <p className="text-gray-500 font-medium">Tidak ada hasil</p>
-                        <p className="text-sm text-gray-400">
+                        <Icon icon="mdi:rope" className="w-14 h-14 text-slate-300" />
+                        <p className="text-slate-500 font-medium">Tidak ada hasil</p>
+                        <p className="text-sm text-slate-400">
                           Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;
                         </p>
                         <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
@@ -399,62 +432,33 @@ export default function PaperbagTaliPage() {
                   </tr>
                 ) : (
                   filtered.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Tali */}
+                    <tr key={item.id} className="hover:bg-amber-50/40 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-amber-50">
+                          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-50">
                             <Icon icon="ion:bag-handle-outline" className="w-5 h-5 text-amber-500" />
                           </div>
                           <p className="text-sm font-medium text-slate-800">{item.nama}</p>
                         </div>
                       </td>
-
-                      {/* Kode */}
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="font-mono text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                          {item.kode}
-                        </span>
+                        <Badge color="#6b7280">{item.kode}</Badge>
                       </td>
-
-                      {/* Deskripsi */}
                       <td className="px-6 py-4 max-w-xs">
-                        <p className="text-sm text-gray-500 truncate" title={item.deskripsi}>
+                        <p className="text-sm text-slate-500 truncate" title={item.deskripsi}>
                           {item.deskripsi}
                         </p>
                       </td>
-
-                      {/* Harga */}
                       <td className="px-6 py-4 whitespace-nowrap">
                         <span className="text-sm font-semibold text-green-600">
                           {formatRupiah(item.harga_per_pcs)}
                         </span>
                       </td>
-
-                      {/* Aksi */}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleViewClick(item)}
-                            title="Lihat Detail"
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:eye-outline" className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleEditClick(item)}
-                            title="Edit"
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item)}
-                            title="Hapus"
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:delete-outline" className="w-5 h-5" />
-                          </button>
+                          <ActionButton onClick={() => handleViewClick(item)} icon="mdi:eye-outline" hoverColor="blue" title="Lihat Detail" />
+                          <ActionButton onClick={() => handleEditClick(item)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
+                          <ActionButton onClick={() => handleDelete(item)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
                         </div>
                       </td>
                     </tr>
@@ -465,83 +469,88 @@ export default function PaperbagTaliPage() {
           )}
         </div>
 
-        {/* Footer */}
         {filtered.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{filtered.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{items.length}</span> tali
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+            <p className="text-sm text-slate-400">
+              Menampilkan <span className="font-semibold text-slate-600">{filtered.length}</span> dari{' '}
+              <span className="font-semibold text-slate-600">{items.length}</span> tali
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* ===== ADD MODAL ===== */}
+      {/* ===== ADD MODAL (gaya konsisten) ===== */}
       <Modal
         isOpen={showAddModal}
         onClose={() => !isPosting && setShowAddModal(false)}
-        title="➕ Tambah Paperbag Tali Baru"
-        size="md"
+        title="Tambah Paperbag Tali Baru"
+        size="lg"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" size="md" onClick={() => !isPosting && setShowAddModal(false)} disabled={isPosting}>
-              Batal
-            </Button>
-            <Button variant="primary" size="md" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">
-              Simpan Tali
+            <Button variant="outline" onClick={() => !isPosting && setShowAddModal(false)} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">
+              {isPosting ? 'Menyimpan...' : 'Simpan Tali'}
             </Button>
           </>
         }
       >
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 px-3 py-3 bg-amber-50 border border-amber-100 rounded-lg">
-            <Icon icon="mdi:information-outline" className="w-4 h-4 text-amber-500 flex-shrink-0" />
-            <p className="text-sm text-amber-700">Isi semua field yang diperlukan. Harga boleh diisi 0.</p>
+        <div className="space-y-5">
+          <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Tambah Data Baru</p>
+              <p className="text-xs text-blue-600 mt-0.5">Isi semua field yang diperlukan. Harga boleh diisi 0.</p>
+            </div>
           </div>
 
-          <Input
-            label="Kode Tali"
-            value={addForm.kode}
-            onChange={(e) => setAddForm({ ...addForm, kode: e.target.value })}
-            placeholder="contoh: tali_kertas_natural"
-            required
-            disabled={isPosting}
-            leftIcon="mdi:tag"
-          />
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input
+                label="Kode Tali"
+                value={addForm.kode}
+                onChange={(e) => setAddForm({ ...addForm, kode: e.target.value })}
+                placeholder="contoh: tali_kertas_natural"
+                required
+                disabled={isPosting}
+                leftIcon="mdi:tag"
+              />
+              <Input
+                label="Nama Tali"
+                value={addForm.nama}
+                onChange={(e) => setAddForm({ ...addForm, nama: e.target.value })}
+                placeholder="contoh: Tali Kertas Natural"
+                required
+                disabled={isPosting}
+                leftIcon="mdi:format-title"
+              />
+            </div>
 
-          <Input
-            label="Nama Tali"
-            value={addForm.nama}
-            onChange={(e) => setAddForm({ ...addForm, nama: e.target.value })}
-            placeholder="contoh: Tali Kertas Natural"
-            required
-            disabled={isPosting}
-            leftIcon="mdi:format-title"
-          />
+            <TextArea
+              label="Deskripsi"
+              value={addForm.deskripsi}
+              onChange={(e) => setAddForm({ ...addForm, deskripsi: e.target.value })}
+              rows={3}
+              placeholder="Deskripsikan tali ini..."
+              required
+              disabled={isPosting}
+            />
 
-          <TextArea
-            label="Deskripsi"
-            value={addForm.deskripsi}
-            onChange={(e) => setAddForm({ ...addForm, deskripsi: e.target.value })}
-            rows={3}
-            placeholder="Deskripsikan tali ini..."
-            required
-            disabled={isPosting}
-          />
-
-          <Input
-            label="Harga per Pcs (Rp)"
-            type="number"
-            value={addForm.harga_per_pcs}
-            onChange={(e) => setAddForm({ ...addForm, harga_per_pcs: e.target.value })}
-            placeholder="0"
-            required
-            disabled={isPosting}
-            leftIcon="mdi:cash"
-            min="0"
-            helperText="Boleh diisi 0 jika tidak ada biaya"
-          />
+            <Input
+              label="Harga per Pcs (Rp)"
+              type="number"
+              value={addForm.harga_per_pcs}
+              onChange={(e) => setAddForm({ ...addForm, harga_per_pcs: e.target.value })}
+              placeholder="0"
+              required
+              disabled={isPosting}
+              leftIcon="mdi:cash"
+              min="0"
+              helperText="Boleh diisi 0 jika tidak ada biaya"
+            />
+          </div>
         </div>
       </Modal>
 
@@ -553,43 +562,45 @@ export default function PaperbagTaliPage() {
         size="md"
         footer={
           <>
-            <Button variant="outline" size="md" onClick={() => setShowViewModal(false)}>
-              Tutup
-            </Button>
-            <Button
-              variant="primary"
-              size="md"
-              icon="mdi:pencil-outline"
-              onClick={() => selectedItem && handleEditClick(selectedItem)}
-            >
+            <Button variant="outline" onClick={() => setShowViewModal(false)}>Tutup</Button>
+            <Button variant="primary" icon="mdi:pencil-outline" onClick={() => selectedItem && handleEditClick(selectedItem)}>
               Edit Tali
             </Button>
           </>
         }
       >
         {selectedItem && (
-          <div className="space-y-4">
-            {/* Identity */}
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-amber-50">
+          <div className="space-y-5">
+            <div className="flex items-center gap-4 p-4 rounded-xl border border-amber-100 bg-amber-50/60">
               <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-amber-100">
-                <Icon icon="mdi:rope" className="w-7 h-7 text-amber-500" />
+                <Icon icon="ion:bag-handle-outline" className="w-7 h-7 text-amber-500" />
               </div>
               <div>
                 <p className="text-base font-semibold text-slate-800">{selectedItem.nama}</p>
+                <p className="text-xs text-slate-400 mt-0.5">ID: {selectedItem.id}</p>
               </div>
             </div>
 
-            {/* Description */}
-            <Card shadow="none" padding="sm" bordered>
-              <p className="text-xs text-gray-500 mb-1">Deskripsi</p>
-              <p className="text-sm text-slate-700">{selectedItem.deskripsi || '—'}</p>
-            </Card>
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <Icon icon="mdi:barcode" className="w-3.5 h-3.5" /> Kode
+              </p>
+              <Badge color="#6b7280">{selectedItem.kode}</Badge>
+            </div>
 
-            {/* Price */}
-            <Card shadow="none" padding="sm" bordered>
-              <p className="text-xs text-gray-500 mb-1">Harga per Pcs</p>
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <Icon icon="mdi:format-text" className="w-3.5 h-3.5" /> Deskripsi
+              </p>
+              <p className="text-sm text-slate-700 leading-relaxed">{selectedItem.deskripsi || '-'}</p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                <Icon icon="mdi:cash" className="w-3.5 h-3.5" /> Harga per Pcs
+              </p>
               <p className="text-xl font-bold text-green-600">{formatRupiah(selectedItem.harga_per_pcs)}</p>
-            </Card>
+            </div>
           </div>
         )}
       </Modal>
@@ -599,26 +610,31 @@ export default function PaperbagTaliPage() {
         isOpen={showEditModal}
         onClose={() => !isPosting && setShowEditModal(false)}
         title={`Edit Paperbag Tali — ${editingItem?.nama}`}
-        size="md"
+        size="lg"
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button variant="outline" size="md" onClick={() => !isPosting && setShowEditModal(false)} disabled={isPosting}>
-              Batal
-            </Button>
-            <Button variant="primary" size="md" onClick={handleEdit} loading={isPosting} disabled={isPosting} icon="mdi:check">
-              Simpan Perubahan
+            <Button variant="outline" onClick={() => !isPosting && setShowEditModal(false)} disabled={isPosting}>Batal</Button>
+            <Button variant="primary" onClick={handleEdit} loading={isPosting} disabled={isPosting} icon="mdi:check">
+              {isPosting ? 'Menyimpan...' : 'Simpan Perubahan'}
             </Button>
           </>
         }
       >
         {editingItem && (
-          <div className="space-y-4">
-            <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
-              <h4 className="text-sm font-semibold text-slate-700 mb-3">Informasi Tali</h4>
+          <div className="space-y-5">
+            <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+              <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center">
+                <Icon icon="mdi:pencil-outline" className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-amber-800">Mode Edit</p>
+                <p className="text-xs text-amber-600 mt-0.5">ID: {editingItem.id}</p>
+              </div>
+            </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-1 gap-1">
-               
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Kode Tali"
                   value={editingItem.kode}
@@ -627,9 +643,6 @@ export default function PaperbagTaliPage() {
                   disabled={isPosting}
                   leftIcon="mdi:tag"
                 />
-              </div>
-
-              <div className="mt-4">
                 <Input
                   label="Nama Tali"
                   value={editingItem.nama}
@@ -640,31 +653,26 @@ export default function PaperbagTaliPage() {
                 />
               </div>
 
-              <div className="mt-4">
-                <TextArea
-                  label="Deskripsi"
-                  value={editingItem.deskripsi}
-                  onChange={(e) => setEditingItem({ ...editingItem, deskripsi: e.target.value })}
-                  rows={3}
-                  fullWidth
-                  required
-                  disabled={isPosting}
-                />
-              </div>
+              <TextArea
+                label="Deskripsi"
+                value={editingItem.deskripsi}
+                onChange={(e) => setEditingItem({ ...editingItem, deskripsi: e.target.value })}
+                rows={3}
+                required
+                disabled={isPosting}
+              />
 
-              <div className="mt-4">
-                <Input
-                  label="Harga per Pcs (Rp)"
-                  type="number"
-                  value={editingItem.harga_per_pcs}
-                  onChange={(e) => setEditingItem({ ...editingItem, harga_per_pcs: e.target.value })}
-                  required
-                  disabled={isPosting}
-                  leftIcon="mdi:cash"
-                  min="0"
-                  helperText="Boleh diisi 0 jika tidak ada biaya"
-                />
-              </div>
+              <Input
+                label="Harga per Pcs (Rp)"
+                type="number"
+                value={editingItem.harga_per_pcs}
+                onChange={(e) => setEditingItem({ ...editingItem, harga_per_pcs: e.target.value })}
+                required
+                disabled={isPosting}
+                leftIcon="mdi:cash"
+                min="0"
+                helperText="Boleh diisi 0 jika tidak ada biaya"
+              />
             </div>
           </div>
         )}

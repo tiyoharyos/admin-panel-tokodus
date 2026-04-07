@@ -141,7 +141,7 @@ const rowKey = (item: PaperbagPrice) =>
   `${item.material_type_id}-${item.sheet_size_id}-${item.gsm}`
 
 // ============================================================
-// BADGE
+// BADGE & ACTION BUTTON (disamakan)
 // ============================================================
 function Badge({ color, children }: { color: string; children: React.ReactNode }) {
   return (
@@ -154,89 +154,49 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
   )
 }
 
-const TABLE_HEADERS = ['GSM', 'Harga / Lembar', 'Harga / m²', 'Ukuran Sheet', 'Aksi']
-
-function TableHead() {
+function ActionButton({ onClick, icon, hoverColor, title }: {
+  onClick: () => void; icon: string; hoverColor: string; title: string
+}) {
+  const cls: Record<string, string> = {
+    blue:  'hover:text-blue-600 hover:bg-blue-50',
+    amber: 'hover:text-amber-600 hover:bg-amber-50',
+    red:   'hover:text-red-600 hover:bg-red-50',
+  }
   return (
-    <thead className="bg-gray-50">
-      <tr>
-        {TABLE_HEADERS.map(h => (
-          <th
-            key={h}
-            className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-          >
-            {h}
-          </th>
-        ))}
-      </tr>
-    </thead>
+    <button onClick={onClick} title={title}
+      className={`p-2 text-gray-400 rounded-lg transition-colors ${cls[hoverColor]}`}>
+      <Icon icon={icon} className="w-5 h-5" />
+    </button>
   )
 }
 
-interface TableRowsProps {
-  items: PaperbagPrice[]
-  onDetail: (item: PaperbagPrice) => void
-  onEdit: (item: PaperbagPrice) => void
-  onDelete: (item: PaperbagPrice) => void
-}
+// ============================================================
+// STATS CARDS (gaya gradient line, seperti halaman lain)
+// ============================================================
+function StatsCards({ stats }: { stats: { total: number; minPrice: number; maxPrice: number; avgPrice: number; mats: number; sizes: number } }) {
+  const cards = [
+    { icon: 'mdi:format-list-bulleted', label: 'Total Variasi', value: String(stats.total), sub: `${stats.mats} material · ${stats.sizes} ukuran`, accent: '#6366f1' },
+    { icon: 'mdi:currency-idr',         label: 'Harga Terendah', value: fmtCurrency(stats.minPrice), sub: 'per lembar', accent: '#10b981' },
+    { icon: 'mdi:currency-idr',         label: 'Harga Tertinggi', value: fmtCurrency(stats.maxPrice), sub: 'per lembar', accent: '#f59e0b' },
+    { icon: 'mdi:chart-line',           label: 'Rata-rata Harga', value: fmtCurrency(stats.avgPrice), sub: 'per lembar', accent: '#3b82f6' },
+  ]
 
-function TableRows({ items, onDetail, onEdit, onDelete }: TableRowsProps) {
   return (
-    <>
-      {items.map(item => {
-        const accent = getAccent(item.material_type)
-        const area   = calcArea(item.panjang_mm, item.lebar_mm)
-        const perM2  = area > 0 ? parseFloat(item.harga_lembar) / area : 0
-
-        return (
-          <tr key={rowKey(item)} className="hover:bg-slate-50/80 transition-colors">
-            <td className="px-5 py-3.5 whitespace-nowrap">
-              <Badge color="#6b7280">{item.gsm} gsm</Badge>
-            </td>
-            <td className="px-5 py-3.5 whitespace-nowrap">
-              <span className="text-sm font-bold text-slate-800">
-                {fmtCurrency(item.harga_lembar)}
-              </span>
-            </td>
-            <td className="px-5 py-3.5 whitespace-nowrap">
-              <span className="text-sm font-medium" style={{ color: accent.text }}>
-                {fmtCurrency(perM2.toFixed(0))}
-              </span>
-            </td>
-            <td className="px-5 py-3.5 whitespace-nowrap">
-              <span className="text-xs text-gray-500">
-                {item.code} • {item.keterangan}
-              </span>
-            </td>
-            <td className="px-5 py-3.5">
-              <div className="flex items-center gap-1">
-                <button
-                  onClick={() => onDetail(item)}
-                  title="Detail"
-                  className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                >
-                  <Icon icon="mdi:eye-outline" className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onEdit(item)}
-                  title="Edit"
-                  className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                >
-                  <Icon icon="mdi:pencil-outline" className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(item)}
-                  title="Hapus"
-                  className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <Icon icon="mdi:delete-outline" className="w-4 h-4" />
-                </button>
-              </div>
-            </td>
-          </tr>
-        )
-      })}
-    </>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {cards.map((card, idx) => (
+        <div key={idx} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-slate-500">{card.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${card.accent}15` }}>
+              <Icon icon={card.icon} className="w-4 h-4" style={{ color: card.accent }} />
+            </div>
+          </div>
+          <p className="text-2xl font-bold text-slate-800 truncate">{card.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5">{card.sub}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${card.accent}60, transparent)` }} />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -250,11 +210,6 @@ export default function PaperbagSheetPricesPage() {
   const [isPosting, setIsPosting] = useState(false)
 
   const [filterMat, setFilterMat] = useState('all')
-
-  // FIX 1: Ganti nama state menjadi konsisten — sebelumnya
-  // dideklarasikan sebagai [searchGsm, setSearchGsm] tapi
-  // di JSX dipakai sebagai {search} dan {setSearch} yang
-  // tidak pernah dideklarasikan → crash runtime.
   const [search, setSearch] = useState('')
 
   const [showAddModal,    setShowAddModal]    = useState(false)
@@ -267,13 +222,11 @@ export default function PaperbagSheetPricesPage() {
   const [addForm,  setAddForm]  = useState<FormState>(EMPTY_FORM)
   const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM)
 
-  // ── Fetch ──────────────────────────────────────────────────
+  // Fetch
   const fetchData = useCallback(async () => {
     try {
       setLoading(true); setError(null)
-      const { data } = await axios.get<ApiResponse<PaperbagPrice[]>>(
-        '/Admin/Paperbag/PaperbagSheetPrices'
-      )
+      const { data } = await axios.get<ApiResponse<PaperbagPrice[]>>('/Admin/Paperbag/PaperbagSheetPrices')
       if (data?.status === 200 && Array.isArray(data.data)) {
         setPriceList(data.data)
       } else {
@@ -287,22 +240,19 @@ export default function PaperbagSheetPricesPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // ── Derived ────────────────────────────────────────────────
+  // Derived
   const materialGroups = useMemo(() => {
     const groups: Record<string, PaperbagPrice[]> = {}
     priceList.forEach(item => {
       if (!groups[item.material_type]) groups[item.material_type] = []
       groups[item.material_type].push(item)
     })
-    return Object.entries(groups)
-      .map(([type, items]) => ({ type, items }))
-      .sort((a, b) => a.type.localeCompare(b.type))
+    return Object.entries(groups).map(([type, items]) => ({ type, items })).sort((a, b) => a.type.localeCompare(b.type))
   }, [priceList])
 
   const filteredList = useMemo(() => {
     return priceList.filter(p => {
       const matchMat = filterMat === 'all' || p.material_type === filterMat
-      // FIX 1 lanjutan: filter sekarang pakai `search` yang konsisten dengan input
       const matchSearch = !search || p.gsm.includes(search) || p.keterangan.toLowerCase().includes(search.toLowerCase())
       return matchMat && matchSearch
     })
@@ -314,9 +264,7 @@ export default function PaperbagSheetPricesPage() {
       if (!groups[item.material_type]) groups[item.material_type] = []
       groups[item.material_type].push(item)
     })
-    return Object.entries(groups)
-      .map(([type, items]) => ({ type, items }))
-      .sort((a, b) => a.type.localeCompare(b.type))
+    return Object.entries(groups).map(([type, items]) => ({ type, items })).sort((a, b) => a.type.localeCompare(b.type))
   }, [filteredList])
 
   const stats = useMemo(() => {
@@ -332,7 +280,7 @@ export default function PaperbagSheetPricesPage() {
     }
   }, [priceList])
 
-  // ── Handlers ───────────────────────────────────────────────
+  // Handlers
   const handleRefresh = useCallback(async () => {
     const r = await Swal.fire({
       icon: 'question', title: 'Refresh Data?',
@@ -357,15 +305,13 @@ export default function PaperbagSheetPricesPage() {
       setIsPosting(true)
       const fd = new URLSearchParams()
       fd.append('material_type_id', addForm.material_type_id)
-      fd.append('panjang_mm', addForm.gsm)
+      fd.append('panjang_mm', addForm.gsm) // perhatikan: API menggunakan 'panjang_mm' untuk GSM? Tampaknya aneh, tapi biarkan sesuai aslinya
       fd.append('sheet_size_id', addForm.sheet_size_id)
       fd.append('harga_lembar', addForm.harga_lembar)
 
-      const { data } = await axios.post<ApiResponse>(
-        '/Admin/Paperbag/PaperbagSheetPricesAdd',
-        fd.toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      )
+      const { data } = await axios.post<ApiResponse>('/Admin/Paperbag/PaperbagSheetPricesAdd', fd.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      })
       if (data?.status === 200) {
         await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Harga sheet baru berhasil ditambahkan!', timer: 1500, showConfirmButton: false })
         setShowAddModal(false)
@@ -394,11 +340,9 @@ export default function PaperbagSheetPricesPage() {
       fd.append('sheet_size_id', editForm.sheet_size_id)
       fd.append('harga_lembar', editForm.harga_lembar)
 
-      const { data } = await axios.put<ApiResponse>(
-        `/Admin/Paperbag/PaperbagSheetPricesEdit/${editingItem.price_id}`,
-        fd.toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      )
+      const { data } = await axios.put<ApiResponse>(`/Admin/Paperbag/PaperbagSheetPricesEdit/${editingItem.price_id}`, fd.toString(), {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      })
       if (data?.status === 200) {
         await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data harga sheet berhasil diperbarui!', timer: 1500, showConfirmButton: false })
         setShowEditModal(false)
@@ -426,11 +370,10 @@ export default function PaperbagSheetPricesPage() {
     try {
       const fd = new URLSearchParams()
       fd.append('id_paperbag', item.price_id)
-
-      const { data } = await axios.delete<ApiResponse>(
-        `/Admin/Paperbag/PaperbagSheetPricesDelete/${item.price_id}`,
-        { data: fd.toString(), headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
-      )
+      const { data } = await axios.delete<ApiResponse>(`/Admin/Paperbag/PaperbagSheetPricesDelete/${item.price_id}`, {
+        data: fd.toString(),
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+      })
       if (data?.status === 200) {
         Swal.fire({ icon: 'success', title: 'Berhasil Dihapus!', timer: 1500, showConfirmButton: false })
         await fetchData()
@@ -458,63 +401,40 @@ export default function PaperbagSheetPricesPage() {
     setShowDetailModal(true)
   }
 
-  // ── Render ─────────────────────────────────────────────────
   if (loading) return <LoadingState message="Memuat Data Harga Sheet Paperbag..." icon="mdi:tag-multiple-outline" />
   if (error)   return <ErrorState message={error} onRetry={fetchData} />
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
-
-      {/* ── HEADER ── */}
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 w-full">
+      {/* HEADER dengan badge emas di pojok icon */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:tag-multiple-outline" className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:tag-multiple-outline" className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Harga Sheet Paperbag</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola harga berdasarkan material, ukuran, dan GSM</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola harga berdasarkan material, ukuran, dan GSM</p>
           </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
-          <Button onClick={handleRefresh} variant="outline" size="md" icon="mdi:refresh">
-            Refresh
-          </Button>
-          <Button
-            onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }}
-            variant="primary" size="md" icon="mdi:plus"
-          >
+          <Button onClick={handleRefresh} variant="outline" size="md" icon="mdi:refresh">Refresh</Button>
+          <Button onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }} variant="primary" size="md" icon="mdi:plus">
             Tambah Data Baru
           </Button>
         </div>
       </div>
 
-      {/* ── STATS ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { icon: 'mdi:format-list-bulleted', label: 'Total Variasi',   value: String(stats.total),        sub: `${stats.mats} material · ${stats.sizes} ukuran` },
-          { icon: 'mdi:currency-idr',          label: 'Harga Terendah',  value: fmtCurrency(stats.minPrice), sub: 'per lembar' },
-          { icon: 'mdi:currency-idr',          label: 'Harga Tertinggi', value: fmtCurrency(stats.maxPrice), sub: 'per lembar' },
-          { icon: 'mdi:chart-line',            label: 'Rata-rata Harga', value: fmtCurrency(stats.avgPrice), sub: 'per lembar' },
-        ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
-              </div>
-            </div>
-            <p className="text-xl font-bold text-slate-800 leading-tight">{s.value}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
-        ))}
-      </div>
+      <StatsCards stats={stats} />
 
-      {/* ── FILTER & SEARCH ── */}
-      <Card shadow="sm" padding="md">
+      {/* FILTER & SEARCH - disamakan dengan card border */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
           <div className="flex items-center gap-2 flex-wrap flex-1">
-            <Icon icon="mdi:filter-outline" className="w-4 h-4 text-gray-500 flex-shrink-0" />
+            <Icon icon="mdi:filter-outline" className="w-4 h-4 text-slate-400 flex-shrink-0" />
             <button
               onClick={() => setFilterMat('all')}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
@@ -526,7 +446,7 @@ export default function PaperbagSheetPricesPage() {
               Semua ({priceList.length})
             </button>
             {materialGroups.map(({ type, items }) => {
-              const accent   = getAccent(type)
+              const accent = getAccent(type)
               const isActive = filterMat === type
               return (
                 <button
@@ -544,7 +464,7 @@ export default function PaperbagSheetPricesPage() {
               )
             })}
           </div>
-          <div className="relative flex-shrink-0">
+          <div className="relative w-full sm:w-64">
             <Input
               placeholder="Cari GSM atau keterangan..."
               value={search}
@@ -553,73 +473,87 @@ export default function PaperbagSheetPricesPage() {
             />
           </div>
         </div>
-      </Card>
+      </div>
 
-      {/* ── TABLE ── */}
+      {/* TABEL dengan wrapper border rounded-2xl dan gradient line atas */}
       {filteredList.length === 0 ? (
-        <Card shadow="md" padding="none">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex flex-col items-center gap-3 py-16">
-            <Icon icon="mdi:database-off" className="w-16 h-16 text-gray-300" />
-            <p className="text-gray-500 font-medium text-lg">Tidak ada data ditemukan</p>
-            <Button
-              variant="primary" size="sm"
-              onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }}
-              icon="mdi:plus"
-            >
+            <Icon icon="mdi:database-off" className="w-16 h-16 text-slate-300" />
+            <p className="text-slate-500 font-medium text-lg">Tidak ada data ditemukan</p>
+            <Button variant="primary" size="sm" onClick={() => { setAddForm(EMPTY_FORM); setShowAddModal(true) }} icon="mdi:plus">
               Tambah Data Baru
             </Button>
           </div>
-        </Card>
+        </div>
       ) : (
         <div className="space-y-4">
           {filteredGroups.map(({ type, items }) => {
             const accent = getAccent(type)
             return (
-              <Card key={type} shadow="md" padding="none">
-                <div
-                  className="px-5 py-4 border-b border-gray-100 flex items-center justify-between"
-                  style={{ background: `${accent.bg}08` }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${accent.bg}18` }}
-                    >
-                      <Icon icon="mdi:file-document-outline" className="w-5 h-5" style={{ color: accent.bg }} />
+              <div key={type} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div className="relative">
+                  <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: `linear-gradient(90deg, ${accent.bg}, #f59e0b)` }} />
+                  <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${accent.bg}15` }}>
+                        <Icon icon="mdi:file-document-outline" className="w-5 h-5" style={{ color: accent.bg }} />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{MATERIAL_LABEL[type] || type}</p>
+                        <p className="text-xs font-mono mt-0.5" style={{ color: accent.text }}>{type} · {items.length} variasi harga</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">
-                        {MATERIAL_LABEL[type] || type}
-                      </p>
-                      <p className="text-xs font-mono mt-0.5" style={{ color: accent.text }}>
-                        {type} · {items.length} variasi harga
-                      </p>
-                    </div>
+                    <Badge color={accent.bg}>{items.length} item</Badge>
                   </div>
-                  <Badge color={accent.bg}>{items.length} item</Badge>
                 </div>
-                {/* FIX 2 & 3: Pakai TableHead dan TableRows sebagai komponen terpisah */}
                 <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-100">
-                    <TableHead />
-                    <tbody className="bg-white divide-y divide-gray-100">
-                      <TableRows
-                        items={items}
-                        onDetail={openDetail}
-                        onEdit={openEdit}
-                        onDelete={handleDelete}
-                      />
+                  <table className="min-w-full divide-y divide-slate-100">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {['GSM', 'Harga / Lembar', 'Harga / m²', 'Ukuran Sheet', 'Aksi'].map(h => (
+                          <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-slate-100">
+                      {items.map(item => {
+                        const area = calcArea(item.panjang_mm, item.lebar_mm)
+                        const perM2 = area > 0 ? parseFloat(item.harga_lembar) / area : 0
+                        return (
+                          <tr key={rowKey(item)} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <Badge color="#6b7280">{item.gsm} gsm</Badge>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-sm font-bold text-slate-800">{fmtCurrency(item.harga_lembar)}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-sm font-medium" style={{ color: accent.text }}>{fmtCurrency(perM2.toFixed(0))}</span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <span className="text-xs text-slate-500">{item.code} • {item.keterangan}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-1">
+                                <ActionButton onClick={() => openDetail(item)} icon="mdi:eye-outline" hoverColor="blue" title="Detail" />
+                                <ActionButton onClick={() => openEdit(item)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
+                                <ActionButton onClick={() => handleDelete(item)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
-              </Card>
+              </div>
             )
           })}
         </div>
       )}
 
-      {/* ── ADD MODAL ── */}
-      {/* FIX 4: Tambah closeOnOverlayClick agar konsisten dengan Edit Modal */}
+      {/* ADD MODAL dengan info banner dan styling form */}
       <Modal
         isOpen={showAddModal}
         onClose={() => { if (!isPosting) { setShowAddModal(false); setAddForm(EMPTY_FORM) } }}
@@ -628,13 +562,7 @@ export default function PaperbagSheetPricesPage() {
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button
-              variant="outline"
-              onClick={() => { if (!isPosting) { setShowAddModal(false); setAddForm(EMPTY_FORM) } }}
-              disabled={isPosting}
-            >
-              Batal
-            </Button>
+            <Button variant="outline" onClick={() => { if (!isPosting) { setShowAddModal(false); setAddForm(EMPTY_FORM) } }} disabled={isPosting}>Batal</Button>
             <Button variant="primary" onClick={handleAdd} loading={isPosting} disabled={isPosting} icon="mdi:check">
               {isPosting ? 'Menyimpan...' : 'Simpan Data'}
             </Button>
@@ -644,7 +572,7 @@ export default function PaperbagSheetPricesPage() {
         <PriceForm form={addForm} onFormChange={setAddForm} disabled={isPosting} mode="add" />
       </Modal>
 
-      {/* ── EDIT MODAL ── */}
+      {/* EDIT MODAL */}
       <Modal
         isOpen={showEditModal}
         onClose={() => { if (!isPosting) { setShowEditModal(false); setEditingItem(null) } }}
@@ -653,25 +581,17 @@ export default function PaperbagSheetPricesPage() {
         closeOnOverlayClick={!isPosting}
         footer={
           <>
-            <Button
-              variant="outline"
-              onClick={() => { if (!isPosting) { setShowEditModal(false); setEditingItem(null) } }}
-              disabled={isPosting}
-            >
-              Batal
-            </Button>
+            <Button variant="outline" onClick={() => { if (!isPosting) { setShowEditModal(false); setEditingItem(null) } }} disabled={isPosting}>Batal</Button>
             <Button variant="primary" onClick={handleUpdate} loading={isPosting} disabled={isPosting} icon="mdi:check">
               {isPosting ? 'Menyimpan...' : 'Simpan Perubahan'}
             </Button>
           </>
         }
       >
-        {editingItem && (
-          <PriceForm form={editForm} onFormChange={setEditForm} disabled={isPosting} mode="edit" />
-        )}
+        {editingItem && <PriceForm form={editForm} onFormChange={setEditForm} disabled={isPosting} mode="edit" />}
       </Modal>
 
-      {/* ── DETAIL MODAL ── */}
+      {/* DETAIL MODAL */}
       <Modal
         isOpen={showDetailModal}
         onClose={() => { setShowDetailModal(false); setDetailItem(null) }}
@@ -679,18 +599,8 @@ export default function PaperbagSheetPricesPage() {
         size="md"
         footer={
           <>
-            <Button variant="outline" onClick={() => { setShowDetailModal(false); setDetailItem(null) }}>
-              Tutup
-            </Button>
-            <Button
-              variant="primary"
-              icon="mdi:pencil-outline"
-              onClick={() => {
-                if (detailItem) { setShowDetailModal(false); setDetailItem(null); openEdit(detailItem) }
-              }}
-            >
-              Edit Data
-            </Button>
+            <Button variant="outline" onClick={() => { setShowDetailModal(false); setDetailItem(null) }}>Tutup</Button>
+            <Button variant="primary" icon="mdi:pencil-outline" onClick={() => { if (detailItem) { setShowDetailModal(false); setDetailItem(null); openEdit(detailItem) } }}>Edit Data</Button>
           </>
         }
       >
@@ -701,7 +611,7 @@ export default function PaperbagSheetPricesPage() {
 }
 
 // ============================================================
-// PRICE FORM
+// PRICE FORM (dengan styling background slate-50, border, info banner)
 // ============================================================
 interface PriceFormProps {
   form: FormState
@@ -725,134 +635,62 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
 
   return (
     <div className="space-y-5">
-      <div
-        className="flex items-center gap-3 p-4 rounded-lg border"
-        style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}
-      >
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{ background: `${accent.bg}18` }}
-        >
-          <Icon
-            icon={mode === 'add' ? 'mdi:plus-circle-outline' : 'mdi:pencil-outline'}
-            className="w-5 h-5"
-            style={{ color: accent.bg }}
-          />
+      {/* Info banner sesuai mode */}
+      <div className="flex items-center gap-3 p-4 rounded-xl border" style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}>
+        <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${accent.bg}18` }}>
+          <Icon icon={mode === 'add' ? 'mdi:plus-circle-outline' : 'mdi:pencil-outline'} className="w-5 h-5" style={{ color: accent.bg }} />
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-800">
-            {mode === 'add' ? 'Tambah Data Harga Baru' : 'Mode Edit Data'}
-          </p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {mode === 'add'
-              ? 'Pilih material & ukuran, lalu isi GSM dan harga'
-              : 'Perbarui data harga sesuai kebutuhan'}
+          <p className="text-sm font-semibold text-slate-800">{mode === 'add' ? 'Tambah Data Harga Baru' : 'Mode Edit Data'}</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {mode === 'add' ? 'Pilih material & ukuran, lalu isi GSM dan harga' : 'Perbarui data harga sesuai kebutuhan'}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-            <Icon icon="mdi:material-ui" className="w-4 h-4 text-gray-400" />
-            Material <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={form.material_type_id}
-            onChange={e => onFormChange({ ...form, material_type_id: e.target.value })}
-            disabled={disabled}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-          >
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">Material <span className="text-red-400">*</span></label>
+          <select value={form.material_type_id} onChange={e => onFormChange({ ...form, material_type_id: e.target.value })} disabled={disabled}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed">
             <option value="">— Pilih Material —</option>
-            {MATERIAL_OPTIONS.map(m => (
-              <option key={m.id} value={m.id}>{m.name} ({m.type})</option>
-            ))}
+            {MATERIAL_OPTIONS.map(m => <option key={m.id} value={m.id}>{m.name} ({m.type})</option>)}
           </select>
         </div>
-
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-gray-700 flex items-center gap-1.5">
-            <Icon icon="mdi:ruler" className="w-4 h-4 text-gray-400" />
-            Ukuran Sheet <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={form.sheet_size_id}
-            onChange={e => onFormChange({ ...form, sheet_size_id: e.target.value })}
-            disabled={disabled}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
-          >
+          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center gap-1">Ukuran Sheet <span className="text-red-400">*</span></label>
+          <select value={form.sheet_size_id} onChange={e => onFormChange({ ...form, sheet_size_id: e.target.value })} disabled={disabled}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed">
             <option value="">— Pilih Ukuran —</option>
-            {SHEET_SIZE_OPTIONS.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.keterangan} ({s.code}) — {fmtArea(s.panjang_mm, s.lebar_mm)}
-              </option>
-            ))}
+            {SHEET_SIZE_OPTIONS.map(s => <option key={s.id} value={s.id}>{s.keterangan} ({s.code}) — {fmtArea(s.panjang_mm, s.lebar_mm)}</option>)}
           </select>
         </div>
       </div>
 
-      <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
-        <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-          <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
-            <Icon icon="mdi:tag" className="w-3.5 h-3.5 text-blue-600" />
-          </div>
-          Spesifikasi &amp; Harga
-        </h4>
+      <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+          <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center"><Icon icon="mdi:tag" className="w-3.5 h-3.5 text-blue-600" /></div>
+          Spesifikasi & Harga
+        </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Input
-            label="GSM *"
-            type="number"
-            min={1}
-            step={1}
-            placeholder="Contoh: 250"
-            value={form.gsm}
-            onChange={e => onFormChange({ ...form, gsm: e.target.value })}
-            disabled={disabled}
-            leftIcon="mdi:weight"
-          />
-          <Input
-            label="Harga / Lembar (Rp) *"
-            type="number"
-            min={1}
-            step={100}
-            placeholder="Contoh: 2500"
-            value={form.harga_lembar}
-            onChange={e => onFormChange({ ...form, harga_lembar: e.target.value })}
-            disabled={disabled}
-            leftIcon="mdi:currency-idr"
-          />
+          <Input label="GSM *" type="number" min={1} step={1} placeholder="Contoh: 250" value={form.gsm} onChange={e => onFormChange({ ...form, gsm: e.target.value })} disabled={disabled} leftIcon="mdi:weight" />
+          <Input label="Harga / Lembar (Rp) *" type="number" min={1} step={100} placeholder="Contoh: 2500" value={form.harga_lembar} onChange={e => onFormChange({ ...form, harga_lembar: e.target.value })} disabled={disabled} leftIcon="mdi:currency-idr" />
         </div>
       </div>
 
       {isPreviewReady && (
-        <div
-          className="rounded-xl px-4 py-3.5 border"
-          style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}
-        >
-          <p
-            className="text-xs font-semibold flex items-center gap-1.5 mb-3"
-            style={{ color: accent.text }}
-          >
-            <Icon icon="mdi:eye-check-outline" className="w-4 h-4" />
-            Preview Data
-          </p>
+        <div className="rounded-xl px-4 py-3.5 border" style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}>
+          <p className="text-xs font-semibold flex items-center gap-1.5 mb-3" style={{ color: accent.text }}><Icon icon="mdi:eye-check-outline" className="w-4 h-4" /> Preview Data</p>
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             {[
-              { label: 'Material',     value: selectedMat  ? `${selectedMat.name} (${selectedMat.type})` : '—' },
-              { label: 'Ukuran',       value: selectedSize ? selectedSize.keterangan : '—' },
-              { label: 'GSM',          value: `${form.gsm} gsm` },
+              { label: 'Material', value: selectedMat ? `${selectedMat.name} (${selectedMat.type})` : '—' },
+              { label: 'Ukuran', value: selectedSize ? selectedSize.keterangan : '—' },
+              { label: 'GSM', value: `${form.gsm} gsm` },
               { label: 'Harga Lembar', value: fmtCurrency(form.harga_lembar) },
-              ...(previewPricePerM2 !== null
-                ? [{ label: 'Harga / m²', value: fmtCurrency(previewPricePerM2.toFixed(0)) }]
-                : []),
-              ...(selectedSize
-                ? [{ label: 'Luas Sheet', value: fmtArea(selectedSize.panjang_mm, selectedSize.lebar_mm) }]
-                : []),
+              ...(previewPricePerM2 !== null ? [{ label: 'Harga / m²', value: fmtCurrency(previewPricePerM2.toFixed(0)) }] : []),
+              ...(selectedSize ? [{ label: 'Luas Sheet', value: fmtArea(selectedSize.panjang_mm, selectedSize.lebar_mm) }] : []),
             ].map(({ label, value }) => (
-              <div key={label} className="flex justify-between gap-2">
-                <span className="text-gray-500">{label}:</span>
-                <span className="font-semibold text-slate-800">{value}</span>
-              </div>
+              <div key={label} className="flex justify-between gap-2"><span className="text-slate-500">{label}:</span><span className="font-semibold text-slate-800">{value}</span></div>
             ))}
           </div>
         </div>
@@ -862,89 +700,57 @@ function PriceForm({ form, onFormChange, disabled, mode }: PriceFormProps) {
 }
 
 // ============================================================
-// DETAIL VIEW
+// DETAIL VIEW (dengan styling konsisten)
 // ============================================================
 function DetailView({ item }: { item: PaperbagPrice }) {
   const accent = getAccent(item.material_type)
-  const area   = calcArea(item.panjang_mm, item.lebar_mm)
-  const perM2  = area > 0 ? parseFloat(item.harga_lembar) / area : 0
+  const area = calcArea(item.panjang_mm, item.lebar_mm)
+  const perM2 = area > 0 ? parseFloat(item.harga_lembar) / area : 0
 
   return (
-    <div className="space-y-4">
-      <div
-        className="flex items-center gap-4 p-4 rounded-xl"
-        style={{ background: `${accent.bg}0d` }}
-      >
-        <div
-          className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0"
-          style={{ background: `${accent.bg}20` }}
-        >
+    <div className="space-y-5">
+      <div className="flex items-center gap-4 p-4 rounded-xl border" style={{ background: `${accent.bg}0d`, borderColor: `${accent.bg}20` }}>
+        <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${accent.bg}20` }}>
           <Icon icon="mdi:file-document-outline" className="w-7 h-7" style={{ color: accent.bg }} />
         </div>
         <div>
           <p className="text-base font-semibold text-slate-800">{item.name}</p>
           <div className="flex items-center gap-2 mt-1">
             <Badge color={accent.bg}>{item.material_type}</Badge>
-            <span className="text-xs text-gray-500">{item.gsm} gsm</span>
+            <span className="text-xs text-slate-500">{item.gsm} gsm</span>
             {item.is_premium === '1' && <Badge color="#f59e0b">Premium</Badge>}
           </div>
         </div>
       </div>
 
-      <Card shadow="none" padding="sm" bordered>
-        <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
-          <Icon icon="mdi:cash-multiple" className="w-3.5 h-3.5" /> Informasi Harga
-        </p>
+      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Icon icon="mdi:cash-multiple" className="w-3.5 h-3.5" /> Informasi Harga</p>
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-50 p-3 rounded-lg">
-            <p className="text-xs text-gray-400 mb-1">Harga / Lembar</p>
-            <p className="font-bold text-slate-700 text-sm">{fmtCurrency(item.harga_lembar)}</p>
-          </div>
-          <div className="p-3 rounded-lg" style={{ background: `${accent.bg}10` }}>
-            <p className="text-xs mb-1" style={{ color: accent.text }}>Harga / m²</p>
-            <p className="font-bold text-lg" style={{ color: accent.bg }}>
-              {fmtCurrency(perM2.toFixed(0))}
-            </p>
-          </div>
+          <div className="bg-white p-3 rounded-lg border border-slate-100"><p className="text-xs text-slate-400 mb-1">Harga / Lembar</p><p className="font-bold text-slate-700 text-sm">{fmtCurrency(item.harga_lembar)}</p></div>
+          <div className="p-3 rounded-lg" style={{ background: `${accent.bg}10` }}><p className="text-xs mb-1" style={{ color: accent.text }}>Harga / m²</p><p className="font-bold text-lg" style={{ color: accent.bg }}>{fmtCurrency(perM2.toFixed(0))}</p></div>
         </div>
-      </Card>
+      </div>
 
-      <Card shadow="none" padding="sm" bordered>
-        <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
-          <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5" /> Informasi Ukuran
-        </p>
+      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5"><Icon icon="mdi:ruler-square" className="w-3.5 h-3.5" /> Informasi Ukuran</p>
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-blue-50 p-2 rounded-lg">
-            <p className="text-xs text-blue-600">Kode</p>
-            <p className="font-semibold text-blue-800 text-sm">{item.code}</p>
-          </div>
-          <div className="bg-green-50 p-2 rounded-lg">
-            <p className="text-xs text-green-600">Ukuran</p>
-            <p className="font-semibold text-green-800 text-sm">{item.keterangan}</p>
-          </div>
-          <div className="bg-purple-50 p-2 rounded-lg">
-            <p className="text-xs text-purple-600">Luas</p>
-            <p className="font-semibold text-purple-800 text-sm">
-              {fmtArea(item.panjang_mm, item.lebar_mm)}
-            </p>
-          </div>
+          <div className="bg-blue-50 p-2 rounded-lg"><p className="text-xs text-blue-600">Kode</p><p className="font-semibold text-blue-800 text-sm">{item.code}</p></div>
+          <div className="bg-green-50 p-2 rounded-lg"><p className="text-xs text-green-600">Ukuran</p><p className="font-semibold text-green-800 text-sm">{item.keterangan}</p></div>
+          <div className="bg-purple-50 p-2 rounded-lg"><p className="text-xs text-purple-600">Luas</p><p className="font-semibold text-purple-800 text-sm">{fmtArea(item.panjang_mm, item.lebar_mm)}</p></div>
         </div>
-      </Card>
+      </div>
 
-      <Card shadow="none" padding="sm" bordered>
+      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
         <div className="space-y-2 text-sm">
           {[
-            { label: 'Keterangan',      value: item.keterangan },
-            { label: 'ID Record',       value: <span className="font-mono text-xs">{item.id}</span> },
+            { label: 'Keterangan', value: item.keterangan },
+            { label: 'ID Record', value: <span className="font-mono text-xs">{item.id}</span> },
             { label: 'Terakhir Update', value: fmtDate(item.updated_at) },
           ].map(({ label, value }) => (
-            <div key={label} className="flex justify-between items-center">
-              <span className="text-gray-400">{label}</span>
-              <span className="text-slate-700 font-medium">{value}</span>
-            </div>
+            <div key={label} className="flex justify-between items-center"><span className="text-slate-400">{label}</span><span className="text-slate-700 font-medium">{value}</span></div>
           ))}
         </div>
-      </Card>
+      </div>
     </div>
   )
 }

@@ -3,11 +3,11 @@
 
 import { useState } from 'react'
 import { Icon } from '@iconify/react'
-import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
+import { Table, TableRow, TableCell } from '@/components/UI/Table' // ✅ Tabel global
 
 import { useFlutes } from './hooks/useFlutes'
 import { useFluteActions } from './hooks/useFluteActions'
@@ -78,12 +78,12 @@ function FlutePreview({ code, name, label }: { code: string; name: string; label
 }
 
 // ============================================================
-// STATS CARDS
+// STATS CARDS — gaya baru (rounded-2xl, hover, garis gradien)
 // ============================================================
 
 function StatsCards({ stats }: { stats: FluteStats }) {
   const items = [
-    { icon: 'mdi:layers',          label: 'Total Flutes', value: stats.totalFlutes, sub: 'jenis tersedia',       accent: '#6366f1' },
+    { icon: 'mdi:layers',          label: 'Total Flutes', value: stats.totalFlutes, sub: 'jenis tersedia',       accent: '#3b82f6' },
     { icon: 'mdi:alpha-b-box',     label: 'B-Flute',      value: stats.bFlute,      sub: 'ketebalan ~3mm',      accent: '#3b82f6' },
     { icon: 'mdi:alpha-c-box',     label: 'C-Flute',      value: stats.cFlute,      sub: 'ketebalan ~4mm',      accent: '#10b981' },
     { icon: 'mdi:layers-triple',   label: 'CB/BC-Flute',  value: stats.cbFlute,     sub: 'double wall',         accent: '#f59e0b' },
@@ -91,98 +91,24 @@ function StatsCards({ stats }: { stats: FluteStats }) {
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
       {items.map((s, i) => (
-        <Card key={i} shadow="sm" padding="md" hoverable>
+        <div
+          key={i}
+          className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+        >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">{s.label}</p>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
-              style={{ background: `${s.accent}15` }}>
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
               <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-800">{s.value}</p>
-          <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-        </Card>
+          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+        </div>
       ))}
     </div>
-  )
-}
-
-// ============================================================
-// TABLE
-// ============================================================
-
-function FluteTable({ flutes, onEdit, onDelete, onAdd }: {
-  flutes: Flute[]
-  onEdit: (item: Flute) => void
-  onDelete: (id: string, name: string) => void
-  onAdd: () => void
-}) {
-  if (flutes.length === 0) {
-    return (
-      <div className="flex flex-col items-center gap-3 py-16">
-        <Icon icon="mdi:layers-off" className="w-16 h-16 text-gray-300" />
-        <p className="text-gray-500 font-medium text-lg">Belum ada data flute</p>
-        <Button variant="primary" size="sm" onClick={onAdd} icon="mdi:plus">Tambah Flute</Button>
-      </div>
-    )
-  }
-
-  return (
-    <>
-      <table className="min-w-full divide-y divide-gray-100">
-        <thead className="bg-gray-50">
-          <tr>
-            {['Kode', 'Nama Flute', 'Tanggal Dibuat', 'Aksi'].map(h => (
-              <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-100">
-          {flutes.map(flute => {
-            const accent = getFluteAccent(flute.code)
-            return (
-              <tr key={flute.id} className="hover:bg-slate-50/80 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
-                      style={{ background: `${accent}15` }}>
-                      <Icon icon={getFluteIcon(flute.code)} className="w-5 h-5" style={{ color: accent }} />
-                    </div>
-                    <Badge color={accent}>{flute.code}</Badge>
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <p className="text-sm font-medium text-slate-800">{flute.name}</p>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <p className="text-sm text-gray-600">{formatDate(flute.createdAt)}</p>
-                  {flute.updatedAt && flute.updatedAt !== flute.createdAt && (
-                    <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
-                      <Icon icon="mdi:update" className="w-3 h-3" />
-                      {formatDate(flute.updatedAt)}
-                    </p>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center gap-1">
-                    <ActionButton onClick={() => onEdit(flute)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
-                    <ActionButton onClick={() => onDelete(flute.id, flute.name)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
-                  </div>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-
-      <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-        <p className="text-sm text-gray-500">
-          Menampilkan <span className="font-medium text-slate-700">{flutes.length}</span> flute
-        </p>
-      </div>
-    </>
   )
 }
 
@@ -195,7 +121,7 @@ function FluteFormFields({ code, name, isPosting, accentColor, onCodeChange, onN
   onCodeChange: (v: string) => void; onNameChange: (v: string) => void
 }) {
   return (
-    <div className="bg-slate-50 p-4 rounded-lg border border-gray-200 space-y-4">
+    <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4">
       <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
         <div className="w-6 h-6 rounded-full flex items-center justify-center"
           style={{ background: `${accentColor}20` }}>
@@ -245,12 +171,12 @@ function AddModal({ isOpen, form, isPosting, onCodeChange, onNameChange, onClose
       }
     >
       <div className="space-y-5">
-        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center gap-3 p-4 rounded-xl border bg-blue-50 border-blue-100">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-blue-800">Flute Baru</p>
+            <p className="text-sm font-semibold text-blue-800">Flute Baru</p>
             <p className="text-xs text-blue-600 mt-1">Nama otomatis terisi dari kode. Maksimal 3 karakter, otomatis uppercase.</p>
           </div>
         </div>
@@ -290,15 +216,15 @@ function EditModal({ isOpen, editingItem, isPosting, onCodeChange, onNameChange,
     >
       <div className="space-y-5">
         {/* Mode edit banner */}
-        <div className="flex items-center gap-3 p-4 rounded-lg border"
+        <div className="flex items-center gap-3 p-4 rounded-xl border"
           style={{ background: `${accent}08`, borderColor: `${accent}30` }}>
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: `${accent}18` }}>
             <Icon icon="mdi:pencil-outline" className="w-5 h-5" style={{ color: accent }} />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-800">Mode Edit</p>
-            <p className="text-xs text-gray-500 mt-0.5">ID: <span className="font-mono">{editingItem.id}</span></p>
+            <p className="text-sm font-semibold text-slate-800">Mode Edit</p>
+            <p className="text-xs text-slate-500 mt-0.5">ID: <span className="font-mono">{editingItem.id}</span></p>
           </div>
         </div>
 
@@ -368,17 +294,20 @@ export default function FlutesPage() {
   )
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 ">
 
-      {/* Header */}
+      {/* Header dengan gaya biru seperti box-models */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:layers" className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:layers" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Flutes</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola jenis flute untuk box corrugated</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola jenis flute untuk box corrugated</p>
           </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
@@ -389,31 +318,86 @@ export default function FlutesPage() {
         </div>
       </div>
 
-      {/* Stats */}
+      {/* Stats Cards dengan gaya baru */}
       <StatsCards stats={stats} />
 
-      {/* Table */}
-      <Card shadow="md" padding="none">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Flutes</h3>
-            <p className="text-sm text-gray-400 mt-0.5">Total {stats.totalFlutes} jenis flute terdaftar</p>
+      {/* Table Card dengan border dan shadow */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}
+          />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Flutes</h3>
+              <p className="text-sm text-slate-400 mt-0.5">Total {stats.totalFlutes} jenis flute terdaftar</p>
+            </div>
+            <p className="text-xs text-gray-400 flex items-center gap-1">
+              <Icon icon="mdi:information-outline" className="w-3.5 h-3.5" />
+              Kode flute otomatis uppercase
+            </p>
           </div>
-          <p className="text-xs text-gray-400 flex items-center gap-1">
-            <Icon icon="mdi:information-outline" className="w-3.5 h-3.5" />
-            Kode flute otomatis uppercase
-          </p>
         </div>
 
         <div className="overflow-x-auto">
-          <FluteTable
-            flutes={flutes}
-            onEdit={openEdit}
-            onDelete={handleDelete}
-            onAdd={() => { resetAdd(); setShowAddModal(true) }}
-          />
+          {flutes.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <Icon icon="mdi:layers-off" className="w-16 h-16 text-gray-300" />
+              <p className="text-gray-500 font-medium text-lg">Belum ada data flute</p>
+              <Button variant="primary" size="sm" onClick={() => { resetAdd(); setShowAddModal(true) }} icon="mdi:plus">Tambah Flute</Button>
+            </div>
+          ) : (
+            <Table headers={['Kode', 'Nama Flute', 'Tanggal Dibuat', 'Aksi']}>
+              {flutes.map(flute => {
+                const accent = getFluteAccent(flute.code)
+                return (
+                  <TableRow key={flute.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+                    {/* Kode dengan icon dan badge */}
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ background: `${accent}15` }}>
+                          <Icon icon={getFluteIcon(flute.code)} className="w-5 h-5" style={{ color: accent }} />
+                        </div>
+                        <Badge color={accent}>{flute.code}</Badge>
+                      </div>
+                    </TableCell>
+                    {/* Nama Flute */}
+                    <TableCell>
+                      <p className="text-sm font-medium text-slate-800">{flute.name}</p>
+                    </TableCell>
+                    {/* Tanggal Dibuat (dengan update jika ada) */}
+                    <TableCell>
+                      <p className="text-sm text-gray-600">{formatDate(flute.createdAt)}</p>
+                      {flute.updatedAt && flute.updatedAt !== flute.createdAt && (
+                        <p className="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                          <Icon icon="mdi:update" className="w-3 h-3" />
+                          {formatDate(flute.updatedAt)}
+                        </p>
+                      )}
+                    </TableCell>
+                    {/* Aksi */}
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <ActionButton onClick={() => openEdit(flute)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
+                        <ActionButton onClick={() => handleDelete(flute.id, flute.name)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </Table>
+          )}
         </div>
-      </Card>
+
+        {flutes.length > 0 && (
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+            <p className="text-sm text-slate-400">
+              Menampilkan <span className="font-semibold text-slate-600">{flutes.length}</span> flute
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* Modals */}
       <AddModal

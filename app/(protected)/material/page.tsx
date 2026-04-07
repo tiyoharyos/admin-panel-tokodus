@@ -4,13 +4,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { isAxiosError } from 'axios';
 import axios from '@/lib/axios';
-import Card from '@/components/UI/Card';
 import Button from '@/components/UI/Button';
 import Modal from '@/components/UI/Modal';
+import Input from '@/components/UI/Input';
 import { Icon } from '@iconify/react';
 import Swal from 'sweetalert2';
-import Input from '@/components/UI/Input';
-// ===== GLOBAL COMPONENTS =====
 import LoadingState from '@/components/UI/LoadingState';
 import ErrorState from '@/components/UI/ErrorState';
 
@@ -36,7 +34,7 @@ interface FormData {
 
 // ===== CONSTANTS =====
 const PREMIUM_OPTIONS = [
-  { value: '0', label: 'Regular', color: '#64748b', icon: 'mdi:package' },
+  { value: '0', label: 'Regular', color: '#3b82f6', icon: 'mdi:package' },
   { value: '1', label: 'Premium', color: '#f59e0b', icon: 'mdi:crown' },
 ];
 
@@ -75,7 +73,7 @@ const showError = async (title: string, message: string) => {
     icon: 'error',
     title,
     text: message,
-    confirmButtonColor: '#6366f1',
+    confirmButtonColor: '#3b82f6',
     background: '#ffffff',
   });
 };
@@ -85,7 +83,7 @@ const showWarning = async (title: string, message: string) => {
     icon: 'warning',
     title,
     text: message,
-    confirmButtonColor: '#6366f1',
+    confirmButtonColor: '#3b82f6',
     background: '#ffffff',
   });
 };
@@ -114,6 +112,52 @@ const useMaterialStats = (materials: MaterialType[]) => {
   }, [materials]);
 };
 
+// ===== STATS CARDS =====
+function StatsCards({ stats }: { stats: { total: number; premiumCount: number; regularCount: number } }) {
+  const items = [
+    { icon: 'mdi:package-variant-closed', label: 'Total Material', value: stats.total, sub: 'Semua tipe terdaftar', accent: '#3b82f6' },
+    { icon: 'mdi:crown', label: 'Premium', value: stats.premiumCount, sub: 'Material premium', accent: '#f59e0b' },
+    { icon: 'mdi:package', label: 'Regular', value: stats.regularCount, sub: 'Material reguler', accent: '#3b82f6' },
+  ];
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {items.map((s, i) => (
+        <div
+          key={i}
+          className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: `${s.accent}15` }}
+            >
+              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+          {s.sub && <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>}
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ===== ACTION BUTTON =====
+function ActionButton({ onClick, icon, hoverClass, title }: { onClick: () => void; icon: string; hoverClass: string; title: string }) {
+  return (
+    <button
+      onClick={onClick}
+      title={title}
+      className={`p-2 text-slate-400 rounded-lg transition-colors ${hoverClass}`}
+    >
+      <Icon icon={icon} className="w-5 h-5" />
+    </button>
+  );
+}
+
 // ===== MAIN COMPONENT =====
 export default function MaterialTypePage() {
   const router = useRouter();
@@ -124,8 +168,6 @@ export default function MaterialTypePage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
-
-  // Validation state
   const [codeError, setCodeError] = useState<string>('');
 
   // Modal state
@@ -263,7 +305,6 @@ export default function MaterialTypePage() {
 
   // ===== SUBMIT =====
   const handleSubmit = async () => {
-    // Validasi
     if (!form.name.trim()) {
       await showWarning('Validasi Gagal', 'Nama Material harus diisi.');
       return;
@@ -284,7 +325,7 @@ export default function MaterialTypePage() {
     try {
       setSubmitting(true);
 
-      const isPremiumValue = form.is_premium === '0' ? '2' : '1'; 
+      const isPremiumValue = form.is_premium === '0' ? '2' : '1';
 
       const params = new URLSearchParams();
       params.append('name', form.name.trim());
@@ -308,7 +349,6 @@ export default function MaterialTypePage() {
       } else {
         throw new Error(response.data?.message || 'Gagal menyimpan data');
       }
-
     } catch (err: unknown) {
       let errorMessage = 'Terjadi kesalahan saat menyimpan data.';
 
@@ -349,16 +389,18 @@ export default function MaterialTypePage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
-
-      {/* ===== HEADER ===== */}
+      {/* ===== HEADER (mirip Box Models) ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:package-variant" className="w-6 h-6 text-indigo-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:package-variant" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Material Type</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola jenis dan kode material produksi</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola jenis dan kode material produksi</p>
           </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
@@ -371,62 +413,29 @@ export default function MaterialTypePage() {
         </div>
       </div>
 
-      {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {[
-          {
-            icon: 'mdi:package-variant-closed',
-            label: 'Total Material',
-            value: String(stats.total),
-            sub: 'Semua tipe terdaftar',
-            accent: '#6366f1',
-          },
-          {
-            icon: 'mdi:crown',
-            label: 'Premium',
-            value: String(stats.premiumCount),
-            sub: 'Material premium',
-            accent: '#f59e0b',
-          },
-          {
-            icon: 'mdi:package',
-            label: 'Regular',
-            value: String(stats.regularCount),
-            sub: 'Material reguler',
-            accent: '#64748b',
-          },
-        ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${s.accent}15` }}>
-                <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-slate-800">{s.value}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
-        ))}
-      </div>
+      {/* ===== STATS CARDS (gaya baru) ===== */}
+      <StatsCards stats={stats} />
 
-      {/* ===== TABLE CARD ===== */}
-      <Card shadow="md" padding="none">
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Material Type</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.total} material · {stats.premiumCount} premium · {stats.regularCount} regular
-            </p>
-          </div>
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+      {/* ===== TABLE CARD (dengan gradien bar atas) ===== */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div
+            className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}
+          />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Material Type</h3>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Total {stats.total} material · {stats.premiumCount} premium · {stats.regularCount} regular
+              </p>
+            </div>
             <Input
               placeholder="Cari nama, kode, atau ID..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={(e) => setSearch(e.target.value)}
               leftIcon="mdi:magnify"
+              className="w-full sm:w-64"
             />
           </div>
         </div>
@@ -435,8 +444,8 @@ export default function MaterialTypePage() {
         <div className="overflow-x-auto">
           {materials.length === 0 ? (
             <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data material</p>
+              <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-slate-300" />
+              <p className="text-slate-500 font-medium text-lg">Belum ada data material</p>
               <Button variant="primary" size="sm" onClick={handleAdd} icon="mdi:plus">
                 Tambah Material
               </Button>
@@ -445,19 +454,24 @@ export default function MaterialTypePage() {
             <table className="min-w-full divide-y divide-gray-100">
               <thead className="bg-gray-50">
                 <tr>
-                  {['Nama Material', 'Kode Type', 'Status', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                  {['Nama Material', 'Kode Type', 'Status', 'Aksi'].map((h) => (
+                    <th
+                      key={h}
+                      className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {filteredMaterials.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="px-6 py-16 text-center">
+                    <td colSpan={4} className="px-6 py-16 text-center whitespace-normal">
                       <div className="flex flex-col items-center gap-3">
-                        <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
-                        <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
-                        <p className="text-sm text-gray-400">
+                        <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-slate-300" />
+                        <p className="text-slate-500 font-medium text-lg">Tidak ada hasil</p>
+                        <p className="text-sm text-slate-400">
                           Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;
                         </p>
                         <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
@@ -469,20 +483,20 @@ export default function MaterialTypePage() {
                 ) : (
                   filteredMaterials.map((item) => {
                     const isPremium = item.is_premium === '1';
-                    const accentColor = isPremium ? '#f59e0b' : '#6366f1';
+                    const accentColor = isPremium ? '#f59e0b' : '#3b82f6';
 
                     return (
-                      <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
+                      <tr key={item.id} className="hover:bg-blue-50/40 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-3">
                             <div
-                              className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
                               style={{ background: `${accentColor}15` }}
                             >
                               <Icon icon="mdi:package" className="w-5 h-5" style={{ color: accentColor }} />
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-slate-800">{item.name}</p>
+                              <p className="text-sm font-semibold text-slate-700">{item.name}</p>
                             </div>
                           </div>
                         </td>
@@ -490,26 +504,24 @@ export default function MaterialTypePage() {
                           <Badge color={accentColor}>{item.material_type}</Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <Badge color={isPremium ? '#f59e0b' : '#64748b'}>
+                          <Badge color={isPremium ? '#f59e0b' : '#3b82f6'}>
                             {isPremium ? 'Premium' : 'Regular'}
                           </Badge>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="flex items-center gap-1">
-                            <button
+                            <ActionButton
                               onClick={() => handleEdit(item)}
+                              icon="mdi:pencil-outline"
+                              hoverClass="hover:text-amber-600 hover:bg-amber-50"
                               title="Edit"
-                              className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                            >
-                              <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
-                            </button>
-                            <button
+                            />
+                            <ActionButton
                               onClick={() => handleDelete(item)}
+                              icon="mdi:delete-outline"
+                              hoverClass="hover:text-red-500 hover:bg-red-50"
                               title="Hapus"
-                              className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Icon icon="mdi:delete-outline" className="w-5 h-5" />
-                            </button>
+                            />
                           </div>
                         </td>
                       </tr>
@@ -521,19 +533,18 @@ export default function MaterialTypePage() {
           )}
         </div>
 
-        {/* Footer */}
+        {/* Footer info */}
         {filteredMaterials.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan{' '}
-              <span className="font-medium text-slate-700">{filteredMaterials.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{materials.length}</span> material
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+            <p className="text-sm text-slate-400">
+              Menampilkan <span className="font-semibold text-slate-600">{filteredMaterials.length}</span> dari{' '}
+              <span className="font-semibold text-slate-600">{materials.length}</span> material
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
-      {/* ===== MODAL TAMBAH/EDIT ===== */}
+      {/* ===== MODAL TAMBAH/EDIT (gaya Box Models) ===== */}
       <Modal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
@@ -558,29 +569,28 @@ export default function MaterialTypePage() {
           </>
         }
       >
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleSubmit(); }}
-          className="space-y-5"
-        >
-          {/* Info box */}
-          <div className={`flex items-center gap-3 p-4 rounded-lg border ${
-            editingItem
-              ? 'bg-amber-50 border-amber-200'
-              : 'bg-indigo-50 border-indigo-200'
-          }`}>
-            <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
-              editingItem ? 'bg-amber-100' : 'bg-indigo-100'
-            }`}>
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="space-y-5">
+          {/* Info box (sesuai mode) */}
+          <div
+            className={`flex items-center gap-3 p-4 rounded-xl border ${
+              editingItem ? 'bg-amber-50 border-amber-100' : 'bg-blue-50 border-blue-100'
+            }`}
+          >
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                editingItem ? 'bg-amber-100' : 'bg-blue-100'
+              }`}
+            >
               <Icon
                 icon={editingItem ? 'mdi:pencil-outline' : 'mdi:information-outline'}
-                className={`w-5 h-5 ${editingItem ? 'text-amber-600' : 'text-indigo-600'}`}
+                className={`w-5 h-5 ${editingItem ? 'text-amber-600' : 'text-blue-600'}`}
               />
             </div>
             <div>
-              <p className={`text-sm font-medium ${editingItem ? 'text-amber-800' : 'text-indigo-800'}`}>
+              <p className={`text-sm font-semibold ${editingItem ? 'text-amber-800' : 'text-blue-800'}`}>
                 {editingItem ? 'Mode Edit' : 'Material Baru'}
               </p>
-              <p className={`text-xs mt-1 ${editingItem ? 'text-amber-600' : 'text-indigo-600'}`}>
+              <p className={`text-xs mt-1 ${editingItem ? 'text-amber-600' : 'text-blue-600'}`}>
                 {editingItem
                   ? `ID: ${editingItem.id} · Kode: ${editingItem.material_type}`
                   : 'Semua field wajib diisi'}
@@ -588,11 +598,11 @@ export default function MaterialTypePage() {
             </div>
           </div>
 
-          {/* Form Fields */}
-          <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-4">
+          {/* Form fields */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4">
             <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                <Icon icon="mdi:package-variant" className="w-3.5 h-3.5 text-indigo-600" />
+              <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
+                <Icon icon="mdi:package-variant" className="w-3.5 h-3.5 text-blue-600" />
               </div>
               Informasi Material
             </h4>
@@ -608,7 +618,7 @@ export default function MaterialTypePage() {
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="Contoh: Brown Kraft"
                 disabled={submitting}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white disabled:bg-gray-100 disabled:opacity-60"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white disabled:bg-gray-100 disabled:opacity-60"
                 required
               />
             </div>
@@ -624,7 +634,7 @@ export default function MaterialTypePage() {
                 onChange={handleMaterialTypeChange}
                 placeholder="Contoh: K, W, D (hanya huruf)"
                 disabled={submitting}
-                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white disabled:bg-gray-100 disabled:opacity-60 font-mono uppercase ${
+                className={`w-full px-3 py-2 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white disabled:bg-gray-100 disabled:opacity-60 font-mono uppercase ${
                   codeError ? 'border-red-500' : 'border-gray-200'
                 }`}
                 style={{ textTransform: 'uppercase' }}
@@ -636,7 +646,7 @@ export default function MaterialTypePage() {
                   {codeError}
                 </p>
               )}
-              <p className="text-xs text-gray-400">
+              <p className="text-xs text-slate-400">
                 Kode unik singkat untuk material type. <span className="font-semibold text-amber-600">Hanya huruf (A-Z, a-z)</span>
               </p>
             </div>
@@ -646,7 +656,6 @@ export default function MaterialTypePage() {
               <label className="block text-sm font-medium text-gray-700">
                 Status Material <span className="text-red-500">*</span>
               </label>
-
               <div className="flex gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
                 {PREMIUM_OPTIONS.map((option) => (
                   <label key={option.value} className="flex items-center gap-2 cursor-pointer">
@@ -657,21 +666,17 @@ export default function MaterialTypePage() {
                       checked={form.is_premium === option.value}
                       onChange={(e) => setForm({ ...form, is_premium: e.target.value })}
                       disabled={submitting}
-                      className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                      className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
                     />
-                    <span className={`text-sm font-medium ${
-                      option.value === '1' ? 'text-amber-600' : 'text-gray-700'
-                    }`}>
+                    <span className={`text-sm font-medium ${option.value === '1' ? 'text-amber-600' : 'text-gray-700'}`}>
                       {option.label}
                     </span>
                   </label>
                 ))}
               </div>
-
-              {/* Info status yang dipilih */}
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-xs text-gray-500">Status terpilih:</span>
-                <Badge color={form.is_premium === '1' ? '#f59e0b' : '#64748b'}>
+                <Badge color={form.is_premium === '1' ? '#f59e0b' : '#3b82f6'}>
                   {form.is_premium === '1' ? 'PREMIUM' : 'REGULAR'}
                 </Badge>
               </div>

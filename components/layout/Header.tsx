@@ -41,14 +41,10 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
   useEffect(() => {
     const findActiveItem = (path: string): { name: string; icon?: string } => {
       for (const item of navItems) {
-        if (item.path === path) {
-          return { name: item.name, icon: item.icon }
-        }
+        if (item.path === path) return { name: item.name, icon: item.icon }
         if (item.subItems) {
           for (const sub of item.subItems) {
-            if (sub.path === path) {
-              return { name: sub.name, icon: item.icon }
-            }
+            if (sub.path === path) return { name: sub.name, icon: item.icon }
           }
         }
       }
@@ -101,9 +97,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
     })
 
     if (result.isConfirmed) {
-      // Hapus token dari localStorage DAN cookie sekaligus
       removeToken()
-
       await Swal.fire({
         icon: 'success',
         title: 'Logged Out',
@@ -111,7 +105,6 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
         timer: 1200,
         showConfirmButton: false,
       })
-
       router.push('/login')
     }
   }
@@ -121,19 +114,25 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
       className={`
         fixed top-0 right-0 z-30 h-16
         bg-white/95 backdrop-blur-md
-        border-b border-slate-100 shadow-sm
+        border-b border-slate-200 shadow-sm
         transition-all duration-300
         ${isSidebarCollapsed ? 'left-[72px]' : 'left-64'}
       `}
     >
+      {/* Blue-to-gold gradient top line */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[3px]"
+        style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}
+      />
+
       <div className="flex items-center justify-between w-full h-full px-5">
-        {/* ── Left: toggle, divider, title dengan icon ── */}
+        {/* ── Left: toggle, divider, title ── */}
         <div className="flex items-center gap-3">
           <button
             onClick={onToggleSidebar}
             aria-label="Toggle Sidebar"
-            className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-400
-                       hover:bg-white/10 active:scale-95 transition-all duration-150"
+            className="flex items-center justify-center w-9 h-9 rounded-xl text-slate-500
+                       hover:bg-slate-100 active:scale-95 transition-all duration-150"
           >
             <Icon
               icon={isSidebarCollapsed ? 'mdi:menu-open' : 'mdi:menu'}
@@ -141,12 +140,12 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
             />
           </button>
 
-          <div className="hidden sm:block w-px h-5 bg-white/10" />
+          <div className="hidden sm:block w-px h-5 bg-slate-200" />
 
           <div className="hidden sm:flex items-center gap-2">
             {activeItemIcon && (
-              <div className="w-6 h-6 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-                <Icon icon={activeItemIcon} className="w-3.5 h-3.5 text-indigo-400" />
+              <div className="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center">
+                <Icon icon={activeItemIcon} className="w-4 h-4 text-blue-600" />
               </div>
             )}
             <span className="text-sm font-semibold text-slate-700 tracking-tight">
@@ -157,6 +156,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
 
         {/* ── Right: notifications, user ── */}
         <div className="flex items-center gap-1.5">
+
           {/* Notifications */}
           <div className="relative">
             <button
@@ -165,11 +165,11 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                 setShowDropdown(false)
               }}
               aria-label="Notifications"
-              className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-400 hover:bg-white/10 active:scale-95 transition-all duration-150"
+              className="relative flex items-center justify-center w-9 h-9 rounded-xl text-slate-500 hover:bg-slate-100 active:scale-95 transition-all duration-150"
             >
               <Icon icon="mdi:bell-outline" className="w-5 h-5" />
               {unreadCount > 0 && (
-                <span className="absolute top-[9px] right-[9px] w-2 h-2 rounded-full bg-red-500 border-2 border-slate-900 animate-pulse" />
+                <span className="absolute top-[9px] right-[9px] w-2 h-2 rounded-full bg-amber-400 border-2 border-white animate-pulse" />
               )}
             </button>
 
@@ -177,16 +177,19 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowNotifications(false)} />
                 <div className="absolute right-0 mt-2.5 w-80 z-50 overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Gold top line on dropdown */}
+                  <div className="h-[3px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+
                   <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-900">Notifikasi</span>
+                      <span className="text-sm font-semibold text-slate-800">Notifikasi</span>
                       {unreadCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-600">
+                        <span className="px-1.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-600 border border-amber-100">
                           {unreadCount} baru
                         </span>
                       )}
                     </div>
-                    <button className="text-xs font-medium text-indigo-600 hover:text-indigo-700 transition-colors">
+                    <button className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
                       Tandai dibaca
                     </button>
                   </div>
@@ -198,15 +201,12 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                         className="flex items-start gap-3 px-5 py-3.5 cursor-pointer hover:bg-slate-50 transition-colors duration-150"
                       >
                         <span
-                          className={`block mt-[7px] w-2 h-2 rounded-full flex-shrink-0
-                            ${n.unread ? 'bg-indigo-500' : 'bg-slate-300'}`}
+                          className={`block mt-[7px] w-2 h-2 rounded-full flex-shrink-0 ${
+                            n.unread ? 'bg-blue-500' : 'bg-slate-300'
+                          }`}
                         />
                         <div>
-                          <p
-                            className={`text-[13px] leading-snug ${
-                              n.unread ? 'font-medium text-slate-800' : 'font-normal text-slate-500'
-                            }`}
-                          >
+                          <p className={`text-[13px] leading-snug ${n.unread ? 'font-medium text-slate-800' : 'font-normal text-slate-500'}`}>
                             {n.title}
                           </p>
                           <p className="text-[11.5px] text-slate-400 mt-0.5">{n.time}</p>
@@ -215,10 +215,10 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                     ))}
                   </div>
 
-                  <div className="px-5 py-3 border-t border-slate-100">
+                  <div className="px-5 py-3 border-t border-slate-100 bg-slate-50">
                     <Link
                       href="/notifications"
-                      className="block text-center text-[13px] font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+                      className="block text-center text-[13px] font-medium text-blue-600 hover:text-blue-700 transition-colors"
                       onClick={() => setShowNotifications(false)}
                     >
                       Lihat semua notifikasi →
@@ -230,7 +230,7 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
           </div>
 
           {/* Divider */}
-          <div className="w-px h-6 mx-1 bg-white/10" />
+          <div className="w-px h-6 mx-1 bg-slate-200" />
 
           {/* User Profile */}
           <div className="relative">
@@ -239,23 +239,24 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                 setShowDropdown((v) => !v)
                 setShowNotifications(false)
               }}
-              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-white/10 transition-all duration-150 group"
+              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 transition-all duration-150 group"
             >
               <div className="hidden md:block text-right">
-                <p className="text-[13px] font-semibold text-slate-700 tracking-tight">
-                  {displayName}
-                </p>
-                <p className="text-[11px] text-slate-500 leading-tight">{displayRole}</p>
+                <p className="text-[13px] font-semibold text-slate-700 tracking-tight">{displayName}</p>
+                <p className="text-[11px] text-slate-400 leading-tight">{displayRole}</p>
               </div>
 
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white bg-gradient-to-br from-indigo-500 to-indigo-700 group-hover:ring-2 group-hover:ring-indigo-400 transition-all duration-200">
+              {/* Blue-to-gold avatar */}
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold text-white group-hover:ring-2 group-hover:ring-amber-400 group-hover:ring-offset-1 transition-all duration-200"
+                style={{ background: 'linear-gradient(135deg, #3b82f6, #f59e0b)' }}
+              >
                 {avatarInitial}
               </div>
 
               <Icon
                 icon="mdi:chevron-down"
-                className={`w-4 h-4 text-slate-500 transition-transform duration-200
-                  ${showDropdown ? 'rotate-180' : 'rotate-0'}`}
+                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showDropdown ? 'rotate-180' : 'rotate-0'}`}
               />
             </button>
 
@@ -263,16 +264,22 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
                 <div className="absolute right-0 mt-2.5 w-56 z-50 overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Blue-to-gold top line */}
+                  <div className="h-[3px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+
                   {/* User card */}
                   <div className="px-4 py-4 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white bg-gradient-to-br from-indigo-500 to-indigo-700">
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-bold text-white"
+                        style={{ background: 'linear-gradient(135deg, #3b82f6, #f59e0b)' }}
+                      >
                         {avatarInitial}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-[13px] font-semibold text-slate-900">{displayName}</p>
+                        <p className="text-[13px] font-semibold text-slate-800">{displayName}</p>
                         <p className="text-[11px] text-slate-400 truncate">{currentUser.email}</p>
-                        <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-indigo-50 text-indigo-600">
+                        <span className="inline-block mt-1 px-1.5 py-0.5 rounded-md text-[10px] font-semibold bg-amber-50 text-amber-600 border border-amber-100">
                           {displayRole}
                         </span>
                       </div>
@@ -283,11 +290,11 @@ export default function Header({ onToggleSidebar, isSidebarCollapsed }: HeaderPr
                   <div className="p-2">
                     <Link
                       href="/profile"
-                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-[13px] font-medium text-slate-700 hover:bg-slate-50 transition-colors duration-150"
+                      className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl w-full text-[13px] font-medium text-slate-600 hover:bg-blue-50 hover:text-blue-700 transition-colors duration-150"
                       onClick={() => setShowDropdown(false)}
                     >
-                      <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-indigo-50">
-                        <Icon icon="mdi:account-cog" className="w-3.5 h-3.5 text-indigo-600" />
+                      <div className="w-6 h-6 rounded-lg flex items-center justify-center bg-blue-50">
+                        <Icon icon="mdi:account-cog" className="w-3.5 h-3.5 text-blue-600" />
                       </div>
                       Profile Settings
                     </Link>

@@ -2,12 +2,10 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import axios from '@/lib/axios'
-import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Modal from '@/components/UI/Modal'
 import Input from '@/components/UI/Input'
 import LoadingState from '@/components/UI/LoadingState'
-import ErrorState from '@/components/UI/ErrorState'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
 
@@ -58,18 +56,6 @@ const DIMENSION_TYPES = [
 ] as const
 
 // ===== UTILS =====
-const formatDate = (dateString: string | null): string => {
-  if (!dateString) return '-'
-  try {
-    return new Intl.DateTimeFormat('id-ID', {
-      day: '2-digit', month: 'short', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    }).format(new Date(dateString))
-  } catch {
-    return dateString
-  }
-}
-
 const formatNumber = (value: string | number): string => {
   const num = typeof value === 'string' ? parseFloat(value) : value
   return new Intl.NumberFormat('id-ID', {
@@ -80,18 +66,6 @@ const formatNumber = (value: string | number): string => {
 
 const formatSize = (p: string, l: string, t: string) =>
   `${parseFloat(p).toFixed(1)} × ${parseFloat(l).toFixed(1)} × ${parseFloat(t).toFixed(1)} cm`
-
-// ===== BADGE (same as print-settings) =====
-function Badge({ color, children }: { color: string; children: React.ReactNode }) {
-  return (
-    <span
-      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
-      style={{ background: `${color}18`, color }}
-    >
-      {children}
-    </span>
-  )
-}
 
 // ===== CUSTOM HOOK =====
 const usePisauConfig = () => {
@@ -170,7 +144,6 @@ export default function PisauConfigPage() {
       item.keterangan.toLowerCase().includes(search.toLowerCase())
     ), [configs, search])
 
-  // ===== HELPERS =====
   const getErrMsg = (err: unknown, fallback: string): string => {
     if (err && typeof err === 'object' && 'response' in err) {
       return (err as { response?: { data?: { message?: string } } }).response?.data?.message || fallback
@@ -184,7 +157,7 @@ export default function PisauConfigPage() {
       text: 'Data akan dimuat ulang dari server.',
       showCancelButton: true,
       confirmButtonText: 'Ya, Refresh!', cancelButtonText: 'Batal',
-      confirmButtonColor: '#6366f1', cancelButtonColor: '#6B7280'
+      confirmButtonColor: '#3b82f6', cancelButtonColor: '#6B7280'
     })
     if (result.isConfirmed) {
       await refetch()
@@ -192,7 +165,6 @@ export default function PisauConfigPage() {
     }
   }, [refetch])
 
-  // ===== API HANDLERS =====
   const validateDimensions = (data: { min_panjang_cm: string; min_lebar_cm: string; min_tinggi_cm: string; config_key: string; keterangan: string }) => {
     if (!data.config_key.trim()) { Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Config key harus diisi' }); return false }
     if (!data.keterangan.trim()) { Swal.fire({ icon: 'error', title: 'Validasi Error', text: 'Keterangan harus diisi' }); return false }
@@ -248,13 +220,11 @@ export default function PisauConfigPage() {
       formData.append('min_lebar_cm', selectedItem.min_lebar_cm.trim())
       formData.append('min_tinggi_cm', selectedItem.min_tinggi_cm.trim())
       formData.append('keterangan', selectedItem.keterangan?.trim() || '')
-
       const { data } = await axios.put<ApiResponse>(
         `/Admin/Pisau/PisauConfigEdit/${selectedItem.id}`,
         formData.toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
       )
-
       if (data?.status === 200) {
         await Swal.fire({ icon: 'success', title: 'Berhasil!', text: 'Data berhasil diperbarui!', timer: 1500, showConfirmButton: false })
         await refetch()
@@ -295,199 +265,198 @@ export default function PisauConfigPage() {
     if (!isPosting) { setShowViewModal(false); setShowEditModal(false); setSelectedItem(null) }
   }
 
-  // ===== RENDER =====
   if (loading) return <LoadingState icon="mdi:knife" message="Memuat data konfigurasi pisau..." />
 
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 bg-slate-50">
+      <Icon icon="mdi:alert-circle-outline" className="w-16 h-16 text-red-400" />
+      <p className="text-red-500 font-medium">{error}</p>
+      <Button variant="primary" onClick={refetch} icon="mdi:refresh">Coba Lagi</Button>
+    </div>
+  )
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+    <div className="p-4 md:p-6 bg-slate-50 w-full">
+      {/* layout: flex column, gap between sections */}
+      <div className="flex flex-col gap-6">
 
-      {/* ===== HEADER ===== */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:knife" className="w-6 h-6 text-indigo-400" />
+        {/* ===== PAGE HEADER ===== */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+                <Icon icon="mdi:knife" className="w-6 h-6 text-white" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
+            </div>
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Konfigurasi Pisau Pond</h1>
+              <p className="text-slate-500 mt-0.5 text-sm">Kelola ukuran minimal pisau pond untuk shipping box</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Konfigurasi Pisau Pond</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola ukuran minimal pisau pond untuk shipping box</p>
+          <div className="flex gap-2 w-full md:w-auto">
+            <Button onClick={handleRefresh} variant="outline" size="md" icon="mdi:refresh">
+              Refresh
+            </Button>
+            <Button
+              onClick={() => { setAddFormData(BASE_ADD_FORM); setShowAddModal(true) }}
+              variant="primary" size="md" icon="mdi:plus"
+            >
+              Tambah Konfigurasi
+            </Button>
           </div>
         </div>
-        <div className="flex gap-2 w-full md:w-auto">
-          <Button onClick={handleRefresh} variant="outline" size="md" icon="mdi:refresh">
-            Refresh Data
-          </Button>
-          <Button
-            onClick={() => { setAddFormData(BASE_ADD_FORM); setShowAddModal(true) }}
-            variant="primary"
-            size="md"
-            icon="mdi:plus"
-          >
-            Tambah Konfigurasi
-          </Button>
-        </div>
-      </div>
 
-      {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          { icon: 'mdi:cog', label: 'Total Konfigurasi', value: String(stats.totalConfig), sub: `${stats.totalConfig} aktif` },
-          { icon: 'mdi:arrow-expand-horizontal', label: 'Rata-rata Panjang', value: `${formatNumber(stats.avgPanjang)} cm`, sub: `Min ${formatNumber(stats.minPanjang)} · Max ${formatNumber(stats.maxPanjang)} cm` },
-          { icon: 'mdi:arrow-expand-vertical', label: 'Rata-rata Lebar', value: `${formatNumber(stats.avgLebar)} cm`, sub: `Min ${formatNumber(stats.minLebar)} · Max ${formatNumber(stats.maxLebar)} cm` },
-          { icon: 'mdi:arrow-expand-up', label: 'Rata-rata Tinggi', value: `${formatNumber(stats.avgTinggi)} cm`, sub: `Min ${formatNumber(stats.minTinggi)} · Max ${formatNumber(stats.maxTinggi)} cm` },
-        ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
-                <Icon icon={s.icon} className="w-4 h-4 text-indigo-500" />
+        {/* ===== STATS CARDS ===== */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { icon: 'mdi:cog', label: 'Total Konfigurasi', value: String(stats.totalConfig), sub: `${stats.totalConfig} aktif`, accent: '#3b82f6' },
+            { icon: 'mdi:arrow-expand-horizontal', label: 'Rata-rata Panjang', value: `${formatNumber(stats.avgPanjang)} cm`, sub: `Min ${formatNumber(stats.minPanjang)} · Max ${formatNumber(stats.maxPanjang)} cm`, accent: '#3b82f6' },
+            { icon: 'mdi:arrow-expand-vertical', label: 'Rata-rata Lebar', value: `${formatNumber(stats.avgLebar)} cm`, sub: `Min ${formatNumber(stats.minLebar)} · Max ${formatNumber(stats.maxLebar)} cm`, accent: '#f59e0b' },
+            { icon: 'mdi:arrow-expand-up', label: 'Rata-rata Tinggi', value: `${formatNumber(stats.avgTinggi)} cm`, sub: `Min ${formatNumber(stats.minTinggi)} · Max ${formatNumber(stats.maxTinggi)} cm`, accent: '#f59e0b' },
+          ].map((s, i) => (
+            <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm text-slate-500">{s.label}</p>
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
+                  <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
+                </div>
+              </div>
+              <p className="text-2xl font-bold text-slate-800 truncate">{s.value}</p>
+              <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
+              <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+            </div>
+          ))}
+        </div>
+
+        {/* ===== MAIN TABLE CARD ===== */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+          {/* Card header with blue→gold gradient line */}
+          <div className="relative">
+            <div className="absolute top-0 left-0 right-0 h-[3px]"
+              style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}
+            />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">Daftar Konfigurasi Pisau</h3>
+                <p className="text-sm text-slate-400 mt-0.5">Total {stats.totalConfig} konfigurasi pisau pond</p>
+              </div>
+              <div className="w-full sm:w-64">
+                <Input
+                  placeholder="Cari config key atau keterangan..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  leftIcon="mdi:magnify"
+                />
               </div>
             </div>
-            <p className="text-2xl font-bold text-slate-800 truncate">{s.value}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
-        ))}
-      </div>
-
-      {/* ===== MAIN TABLE CARD ===== */}
-      <Card shadow="md" padding="none">
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Konfigurasi Pisau</h3>
-            <p className="text-sm text-gray-400 mt-0.5">Total {stats.totalConfig} konfigurasi pisau pond</p>
           </div>
-          {/* Search */}
-          <div className="relative w-full sm:w-64">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Cari config key"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              leftIcon="mdi:magnify"
-            />
-          </div>
-        </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+          {/* Table — only scrolls horizontally when content is wide */}
           {configs.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:knife-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data konfigurasi</p>
+            <div className="flex flex-col items-center gap-3 py-20">
+              <Icon icon="mdi:knife-off" className="w-16 h-16 text-slate-300" />
+              <p className="text-slate-500 font-medium text-lg">Belum ada data konfigurasi</p>
               <Button variant="primary" size="sm" onClick={() => { setAddFormData(BASE_ADD_FORM); setShowAddModal(true) }} icon="mdi:plus">
                 Tambah Konfigurasi
               </Button>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['Config Key', 'Ukuran Minimal', 'Keterangan', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {filteredConfigs.length === 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-100">
+                <thead className="bg-slate-50">
                   <tr>
-                    <td colSpan={4} className="px-6 py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <Icon icon="mdi:knife-off" className="w-16 h-16 text-gray-300" />
-                        <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
-                        <p className="text-sm text-gray-400">
-                          Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;
-                        </p>
-                        <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">
-                          Hapus Pencarian
-                        </Button>
-                      </div>
-                    </td>
+                    {['Config Key', 'Ukuran Minimal', 'Keterangan', 'Aksi'].map(h => (
+                      <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
+                    ))}
                   </tr>
-                ) : (
-                  filteredConfigs.map((item) => (
-                    <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                      {/* Config Key */}
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-50">
-                            <Icon icon="mdi:cog" className="w-5 h-5 text-indigo-500" />
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium font-mono text-slate-800">{item.config_key}</p>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Ukuran Minimal */}
-                      <td className="px-6 py-4">
-                        <div className="space-y-1.5">
-                          {DIMENSION_TYPES.map((dim) => (
-                            <div key={dim.id} className="flex items-center gap-2">
-                              <Icon icon={dim.icon} className="w-3.5 h-3.5" style={{ color: dim.color }} />
-                              <span className="text-xs text-gray-500 w-24">{dim.label}:</span>
-                              <span className="text-xs font-semibold" style={{ color: dim.color }}>
-                                {formatNumber(item[dim.field as keyof PisauConfig] as string)} cm
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-
-                      {/* Keterangan */}
-                      <td className="px-6 py-4">
-                        <p className="text-sm text-gray-600 max-w-xs truncate" title={item.keterangan}>
-                          {item.keterangan || '-'}
-                        </p>
-
-                      </td>
-
-                      {/* Aksi */}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => handleViewClick(item)}
-                            title="Lihat Detail"
-                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:eye-outline" className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleEditClick(item)}
-                            title="Edit"
-                            className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item.id, item.config_key)}
-                            title="Hapus"
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Icon icon="mdi:delete-outline" className="w-5 h-5" />
-                          </button>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-100">
+                  {filteredConfigs.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-6 py-16 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <Icon icon="mdi:knife-off" className="w-14 h-14 text-slate-300" />
+                          <p className="text-slate-500 font-medium">Tidak ada hasil</p>
+                          <p className="text-sm text-slate-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+                          <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Pencarian</Button>
                         </div>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredConfigs.map((item) => (
+                      <tr key={item.id} className="hover:bg-blue-50/40 transition-colors">
+
+                        {/* Config Key */}
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-50">
+                              <Icon icon="mdi:cog" className="w-5 h-5 text-blue-500" />
+                            </div>
+                            <p className="text-sm font-semibold font-mono text-slate-700">{item.config_key}</p>
+                          </div>
+                        </td>
+
+                        {/* Ukuran Minimal */}
+                        <td className="px-6 py-4">
+                          <div className="space-y-1.5">
+                            {DIMENSION_TYPES.map((dim) => (
+                              <div key={dim.id} className="flex items-center gap-2">
+                                <Icon icon={dim.icon} className="w-3.5 h-3.5" style={{ color: dim.color }} />
+                                <span className="text-xs text-slate-400 w-24">{dim.label}:</span>
+                                <span className="text-xs font-semibold" style={{ color: dim.color }}>
+                                  {formatNumber(item[dim.field as keyof PisauConfig] as string)} cm
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
+                        {/* Keterangan */}
+                        <td className="px-6 py-4">
+                          <p className="text-sm text-slate-500 max-w-xs truncate" title={item.keterangan}>
+                            {item.keterangan || '-'}
+                          </p>
+                        </td>
+
+                        {/* Aksi */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => handleViewClick(item)} title="Lihat Detail"
+                              className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                              <Icon icon="mdi:eye-outline" className="w-5 h-5" />
+                            </button>
+                            <button onClick={() => handleEditClick(item)} title="Edit"
+                              className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
+                              <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
+                            </button>
+                            <button onClick={() => handleDelete(item.id, item.config_key)} title="Hapus"
+                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                              <Icon icon="mdi:delete-outline" className="w-5 h-5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Table footer */}
+          {filteredConfigs.length > 0 && (
+            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+              <p className="text-sm text-slate-400">
+                Menampilkan <span className="font-semibold text-slate-600">{filteredConfigs.length}</span> dari{' '}
+                <span className="font-semibold text-slate-600">{configs.length}</span> konfigurasi
+              </p>
+            </div>
           )}
         </div>
 
-        {/* Footer */}
-        {filteredConfigs.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{filteredConfigs.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{configs.length}</span> konfigurasi
-            </p>
-          </div>
-        )}
-      </Card>
+      </div>{/* end flex col */}
 
       {/* ===== VIEW MODAL ===== */}
       <Modal
@@ -498,64 +467,64 @@ export default function PisauConfigPage() {
         footer={
           <>
             <Button variant="outline" onClick={handleCloseModal}>Tutup</Button>
-            <Button
-              variant="primary"
-              onClick={() => selectedItem && handleEditClick(selectedItem)}
-              icon="mdi:pencil-outline"
-            >
+            <Button variant="primary" onClick={() => selectedItem && handleEditClick(selectedItem)} icon="mdi:pencil-outline">
               Edit Konfigurasi
             </Button>
           </>
         }
       >
-        {selectedItem && (() => (
+        {selectedItem && (
           <div className="space-y-4">
             {/* Identity */}
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-indigo-50/60">
-              <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-100">
-                <Icon icon="mdi:cog" className="w-7 h-7 text-indigo-500" />
+            <div className="flex items-center gap-4 p-4 rounded-xl border border-blue-100 bg-blue-50/50">
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-blue-100 shadow-sm">
+                <Icon icon="mdi:cog" className="w-7 h-7 text-blue-600" />
               </div>
               <div>
-                <p className="text-base font-semibold font-mono text-slate-800">{selectedItem.config_key}</p>
+                <p className="text-base font-bold font-mono text-slate-800">{selectedItem.config_key}</p>
+                <p className="text-xs text-slate-400 mt-0.5">Config Key</p>
               </div>
             </div>
 
             {/* Dimensions */}
-            <Card shadow="none" padding="sm" bordered>
-              <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
                 <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5" />
                 Ukuran Minimal
               </p>
               <div className="grid grid-cols-3 gap-3">
                 {DIMENSION_TYPES.map((dim) => (
-                  <div key={dim.id} className="text-center p-2 rounded-lg" style={{ background: `${dim.color}10` }}>
-                    <p className="text-xs text-gray-500 mb-1">{dim.label.replace(' Minimal', '')}</p>
+                  <div key={dim.id} className="text-center p-3 rounded-xl bg-white border border-slate-100 shadow-sm">
+                    <div className="w-7 h-7 rounded-lg mx-auto mb-2 flex items-center justify-center" style={{ background: `${dim.color}15` }}>
+                      <Icon icon={dim.icon} className="w-3.5 h-3.5" style={{ color: dim.color }} />
+                    </div>
+                    <p className="text-[10px] text-slate-400 mb-1">{dim.label.replace(' Minimal', '')}</p>
                     <p className="text-sm font-bold" style={{ color: dim.color }}>
                       {formatNumber(selectedItem[dim.field as keyof PisauConfig] as string)} cm
                     </p>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-gray-400 mt-3 flex items-center gap-1">
-                <Icon icon="mdi:package-variant" className="w-3.5 h-3.5" />
-                {formatSize(selectedItem.min_panjang_cm, selectedItem.min_lebar_cm, selectedItem.min_tinggi_cm)}
+              <p className="text-xs text-slate-400 mt-3 flex items-center gap-1.5">
+                <Icon icon="mdi:package-variant" className="w-3.5 h-3.5 text-amber-500" />
+                <span className="font-medium text-amber-600">
+                  {formatSize(selectedItem.min_panjang_cm, selectedItem.min_lebar_cm, selectedItem.min_tinggi_cm)}
+                </span>
               </p>
-            </Card>
+            </div>
 
             {/* Keterangan */}
-            <Card shadow="none" padding="sm" bordered>
-              <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
                 <Icon icon="mdi:format-text" className="w-3.5 h-3.5" />
                 Keterangan
               </p>
-              <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-slate-700 leading-relaxed">
                 {selectedItem.keterangan || '-'}
               </p>
-            </Card>
-
-            
+            </div>
           </div>
-        ))()}
+        )}
       </Modal>
 
       {/* ===== ADD MODAL ===== */}
@@ -574,14 +543,14 @@ export default function PisauConfigPage() {
         }
       >
         <div className="space-y-5">
-          {/* Info box */}
-          <div className="flex items-center gap-3 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
-              <Icon icon="mdi:information-outline" className="w-5 h-5 text-indigo-600" />
+          {/* Info banner */}
+          <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+            <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+              <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <p className="text-sm font-medium text-indigo-800">Konfigurasi Baru</p>
-              <p className="text-xs text-indigo-600 mt-1">Config key harus unik. Gunakan format snake_case.</p>
+              <p className="text-sm font-semibold text-blue-800">Konfigurasi Baru</p>
+              <p className="text-xs text-blue-600 mt-0.5">Config key harus unik. Gunakan format snake_case.</p>
             </div>
           </div>
 
@@ -595,10 +564,10 @@ export default function PisauConfigPage() {
           />
 
           {/* Dimensions */}
-          <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
             <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-              <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5 text-indigo-600" />
+              <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5 text-blue-600" />
               </div>
               Ukuran Minimal (cm)
             </h4>
@@ -621,9 +590,9 @@ export default function PisauConfigPage() {
           </div>
 
           {/* Keterangan */}
-          <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+          <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
             <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-              <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+              <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
                 <Icon icon="mdi:text" className="w-3.5 h-3.5 text-amber-600" />
               </div>
               Keterangan
@@ -633,7 +602,7 @@ export default function PisauConfigPage() {
               onChange={(e) => setAddFormData({ ...addFormData, keterangan: e.target.value })}
               rows={3}
               placeholder="Masukkan keterangan atau aturan penggunaan konfigurasi ini..."
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none"
+              className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 bg-white resize-none transition-all"
               required
             />
           </div>
@@ -668,10 +637,10 @@ export default function PisauConfigPage() {
             />
 
             {/* Dimensions */}
-            <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                <div className="w-6 h-6 bg-indigo-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5 text-indigo-600" />
+                <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5 text-blue-600" />
                 </div>
                 Ukuran Minimal (cm)
               </h4>
@@ -694,9 +663,9 @@ export default function PisauConfigPage() {
             </div>
 
             {/* Keterangan */}
-            <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-                <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
+                <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
                   <Icon icon="mdi:text" className="w-3.5 h-3.5 text-amber-600" />
                 </div>
                 Keterangan
@@ -707,12 +676,10 @@ export default function PisauConfigPage() {
                 rows={3}
                 placeholder="Masukkan keterangan atau aturan penggunaan..."
                 disabled={isPosting}
-                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none disabled:opacity-60"
+                className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-200 focus:border-blue-300 bg-white resize-none transition-all disabled:opacity-60"
                 required
               />
             </div>
-
-            
           </div>
         )}
       </Modal>

@@ -3,12 +3,12 @@
 
 import { useState, useMemo } from 'react'
 import { Icon } from '@iconify/react'
-import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
 import ErrorState from '@/components/UI/ErrorState'
+import { Table, TableRow, TableCell } from '@/components/UI/Table' // ✅ Gunakan komponen tabel global
 
 import { useIndexLainnya } from './hooks/useIndexLainnya'
 import { useIndexLainnyaActions } from './hooks/useIndexLainnyaActions'
@@ -74,36 +74,40 @@ function ValueCell({ value, accentBg }: { value: string | null; accentBg: string
 }
 
 // ============================================================
-// STATS CARDS
+// STATS CARDS (gaya baru: rounded-2xl, hover, garis gradien)
 // ============================================================
 
 function StatsCards({ stats }: { stats: IndexStats }) {
   const items = [
-    { icon: 'mdi:database',         label: 'Total Data',        value: stats.totalItems,        sub: `dalam ${stats.totalConfigKeys} config key` },
-    { icon: 'mdi:key-variant',       label: 'Config Keys',       value: stats.totalConfigKeys,   sub: 'tipe konfigurasi unik' },
-    { icon: 'mdi:package-variant',   label: 'Dengan Qty Range',  value: stats.withQuantityRange, sub: `dari ${stats.totalItems} total data` },
-    { icon: 'mdi:check-circle',      label: 'Dengan Value',      value: stats.withValue,         sub: 'memiliki nilai konfigurasi' },
+    { icon: 'mdi:database',         label: 'Total Data',        value: stats.totalItems,        sub: `dalam ${stats.totalConfigKeys} config key`, accent: '#3b82f6' },
+    { icon: 'mdi:key-variant',       label: 'Config Keys',       value: stats.totalConfigKeys,   sub: 'tipe konfigurasi unik', accent: '#3b82f6' },
+    { icon: 'mdi:package-variant',   label: 'Dengan Qty Range',  value: stats.withQuantityRange, sub: `dari ${stats.totalItems} total data`, accent: '#f59e0b' },
+    { icon: 'mdi:check-circle',      label: 'Dengan Value',      value: stats.withValue,         sub: 'memiliki nilai konfigurasi', accent: '#3b82f6' },
   ]
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {items.map((s, i) => (
-        <Card key={i} shadow="sm" padding="md" hoverable>
+        <div
+          key={i}
+          className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
+        >
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">{s.label}</p>
-            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
+              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-800">{s.value}</p>
-          <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-        </Card>
+          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+        </div>
       ))}
     </div>
   )
 }
 
 // ============================================================
-// FILTER TABS
+// FILTER TABS (dengan warna biru untuk aktif)
 // ============================================================
 
 function FilterTabs({ groups, allConfigKeys, selected, total, onSelect }: {
@@ -111,7 +115,7 @@ function FilterTabs({ groups, allConfigKeys, selected, total, onSelect }: {
   onSelect: (key: string) => void
 }) {
   return (
-    <Card shadow="sm" padding="md">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
         <div className="flex items-center gap-2 flex-shrink-0">
           <Icon icon="mdi:filter-outline" className="w-4 h-4 text-gray-500" />
@@ -121,7 +125,7 @@ function FilterTabs({ groups, allConfigKeys, selected, total, onSelect }: {
           <button
             onClick={() => onSelect('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              selected === 'all' ? 'bg-slate-800 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              selected === 'all' ? 'bg-blue-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
             Semua ({total})
@@ -130,87 +134,27 @@ function FilterTabs({ groups, allConfigKeys, selected, total, onSelect }: {
             const accent = getAccent(group.config_key, allConfigKeys)
             const isActive = selected === group.config_key
             return (
-              <button key={group.config_key}
+              <button
+                key={group.config_key}
                 onClick={() => onSelect(group.config_key)}
                 className="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                 style={isActive
                   ? { background: accent.bg, color: '#fff' }
                   : { background: `${accent.bg}12`, color: accent.text }
-                }>
+                }
+              >
                 {formatConfigKeyLabel(group.config_key)} ({group.items.length})
               </button>
             )
           })}
         </div>
       </div>
-    </Card>
+    </div>
   )
 }
 
 // ============================================================
-// TABLE ROW
-// ============================================================
-
-function IndexRow({ item, allConfigKeys, withConfigKey, onDetail, onEdit, onDelete }: {
-  item: IndexLainnya; allConfigKeys: string[]; withConfigKey: boolean
-  onDetail: () => void; onEdit: () => void; onDelete: () => void
-}) {
-  const accent = getAccent(item.config_key, allConfigKeys)
-  return (
-    <tr className="hover:bg-slate-50/80 transition-colors">
-      {withConfigKey && (
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: `${accent.bg}15` }}>
-              <Icon icon={getValueIcon(item.value)} className="w-3.5 h-3.5" style={{ color: accent.bg }} />
-            </div>
-            <span className="text-xs font-mono font-medium" style={{ color: accent.text }}>
-              {item.config_key}
-            </span>
-          </div>
-        </td>
-      )}
-      <td className="px-6 py-4">
-        <p className="text-sm text-gray-700 max-w-xs">{item.keterangan || '-'}</p>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <Badge color={qtyRangeBadgeColor(item.qty_max)}>
-          {formatQtyRange(item.qty_min, item.qty_max)}
-        </Badge>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <ValueCell value={item.value} accentBg={accent.bg} />
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex items-center gap-1">
-          <ActionButton onClick={onDetail} icon="mdi:eye-outline" hoverColor="blue" title="Detail" />
-          <ActionButton onClick={onEdit} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
-          <ActionButton onClick={onDelete} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
-        </div>
-      </td>
-    </tr>
-  )
-}
-
-function TableHead({ withConfigKey }: { withConfigKey: boolean }) {
-  const headers = [
-    ...(withConfigKey ? ['Config Key'] : []),
-    'Keterangan', 'Range Qty', 'Nilai', 'Aksi',
-  ]
-  return (
-    <thead className="bg-gray-50">
-      <tr>
-        {headers.map(h => (
-          <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-        ))}
-      </tr>
-    </thead>
-  )
-}
-
-// ============================================================
-// GROUPED VIEW
+// GROUPED VIEW (menggunakan komponen Table global)
 // ============================================================
 
 function GroupedView({ groups, allConfigKeys, onDetail, onEdit, onDelete }: {
@@ -223,12 +167,12 @@ function GroupedView({ groups, allConfigKeys, onDetail, onEdit, onDelete }: {
       {groups.map(group => {
         const accent = getAccent(group.config_key, allConfigKeys)
         return (
-          <Card key={group.config_key} shadow="md" padding="none">
+          <div key={group.config_key} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             {/* Group header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between"
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between"
               style={{ background: `${accent.bg}08` }}>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ background: `${accent.bg}18` }}>
                   <Icon icon={getValueIcon(group.items[0]?.value)} className="w-5 h-5" style={{ color: accent.bg }} />
                 </div>
@@ -242,18 +186,30 @@ function GroupedView({ groups, allConfigKeys, onDetail, onEdit, onDelete }: {
               <Badge color={accent.bg}>{group.items.length} item</Badge>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-100">
-                <TableHead withConfigKey={false} />
-                <tbody className="bg-white divide-y divide-gray-100">
-                  {group.items.map(item => (
-                    <IndexRow key={item.id} item={item} allConfigKeys={allConfigKeys} withConfigKey={false}
-                      onDetail={() => onDetail(item)} onEdit={() => onEdit(item)} onDelete={() => onDelete(item)} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+            {/* ✅ Menggunakan Table global */}
+            <Table headers={['Keterangan', 'Range Qty', 'Nilai', 'Aksi']}>
+              {group.items.map(item => (
+                <TableRow key={item.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+                  <TableCell>{item.keterangan || '-'}</TableCell>
+                  <TableCell>
+                    <Badge color={qtyRangeBadgeColor(item.qty_max)}>
+                      {formatQtyRange(item.qty_min, item.qty_max)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <ValueCell value={item.value} accentBg={getAccent(item.config_key, allConfigKeys).bg} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <ActionButton onClick={() => onDetail(item)} icon="mdi:eye-outline" hoverColor="blue" title="Detail" />
+                      <ActionButton onClick={() => onEdit(item)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
+                      <ActionButton onClick={() => onDelete(item)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </Table>
+          </div>
         )
       })}
     </div>
@@ -261,7 +217,7 @@ function GroupedView({ groups, allConfigKeys, onDetail, onEdit, onDelete }: {
 }
 
 // ============================================================
-// FORM FIELDS — reused in Add & Edit modals
+// FORM FIELDS — reused in Add & Edit modals (dengan fokus biru)
 // ============================================================
 
 function QtyRangeSection({ qtyMin, qtyMax, isPosting, onMinChange, onMaxChange }: {
@@ -269,8 +225,8 @@ function QtyRangeSection({ qtyMin, qtyMax, isPosting, onMinChange, onMaxChange }
   onMinChange: (v: string) => void; onMaxChange: (v: string) => void
 }) {
   return (
-    <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
-      <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+    <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4">
+      <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
         <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center">
           <Icon icon="mdi:package-variant" className="w-3.5 h-3.5 text-blue-600" />
         </div>
@@ -284,7 +240,6 @@ function QtyRangeSection({ qtyMin, qtyMax, isPosting, onMinChange, onMaxChange }
           onChange={e => onMaxChange(e.target.value)}
           placeholder="kosongkan = ∞" helperText="Kosongkan = tidak ada batas atas" disabled={isPosting} />
       </div>
-      {/* Live preview of range */}
       {(qtyMin || qtyMax) && (
         <p className="text-xs text-blue-600 mt-2 font-medium">
           → {formatQtyRange(qtyMin || null, qtyMax || null)}
@@ -300,8 +255,8 @@ function ValueSection({ value, keterangan, isPosting, onValueChange, onKetChange
 }) {
   const preview = value ? formatValue(value) : null
   return (
-    <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
-      <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+    <div className="bg-white p-4 rounded-xl border border-slate-200 space-y-4">
+      <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
         <div className="w-6 h-6 bg-amber-100 rounded-full flex items-center justify-center">
           <Icon icon="mdi:cash" className="w-3.5 h-3.5 text-amber-600" />
         </div>
@@ -324,7 +279,7 @@ function ValueSection({ value, keterangan, isPosting, onValueChange, onKetChange
 }
 
 // ============================================================
-// MODALS
+// MODALS (dengan info box biru untuk add)
 // ============================================================
 
 function AddModal({ isOpen, form, isPosting, allConfigKeys, onChange, onClose, onSubmit }: {
@@ -344,19 +299,19 @@ function AddModal({ isOpen, form, isPosting, allConfigKeys, onChange, onClose, o
       }
     >
       <div className="space-y-5">
-        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+        <div className="flex items-center gap-3 p-4 rounded-xl border bg-blue-50 border-blue-100">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-blue-800">Data Baru</p>
+            <p className="text-sm font-semibold text-blue-800">Data Baru</p>
             <p className="text-xs text-blue-600 mt-1"><strong>Config Key</strong> dan <strong>Value</strong> wajib diisi.</p>
           </div>
         </div>
 
         {/* Config Key with datalist suggestions */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+        <div className="space-y-1.5">
+          <label className="block text-sm font-medium text-gray-700">
             Config Key <span className="text-red-500">*</span>
           </label>
           <input
@@ -410,15 +365,16 @@ function EditModal({ isOpen, item, isPosting, allConfigKeys, onChange, onClose, 
       }
     >
       <div className="space-y-5">
-        {/* Banner */}
-        <div className="flex items-center gap-3 p-4 rounded-lg border"
+        {/* Banner dengan warna sesuai config key */}
+        <div className="flex items-center gap-3 p-4 rounded-xl border"
           style={{ background: `${accent.bg}08`, borderColor: `${accent.bg}30` }}>
-          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
             style={{ background: `${accent.bg}18` }}>
             <Icon icon="mdi:pencil-outline" className="w-5 h-5" style={{ color: accent.bg }} />
           </div>
           <div>
-            <p className="text-sm font-medium text-slate-800">Mode Edit</p>
+            <p className="text-sm font-semibold text-slate-800">Mode Edit</p>
+            <p className="text-xs text-slate-500 mt-0.5">{item.config_key}</p>
           </div>
         </div>
 
@@ -472,7 +428,7 @@ function DetailModal({ isOpen, item, allConfigKeys, onClose, onEdit }: {
         </div>
 
         {/* Value card */}
-        <Card shadow="none" padding="sm" bordered>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
             <Icon icon="mdi:cash-multiple" className="w-3.5 h-3.5" /> Nilai
           </p>
@@ -489,10 +445,10 @@ function DetailModal({ isOpen, item, allConfigKeys, onClose, onEdit }: {
               <p className="font-bold text-lg" style={{ color: accent.bg }}>{formatValue(item.value)}</p>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Qty range */}
-        <Card shadow="none" padding="sm" bordered>
+        <div className="bg-white rounded-xl border border-slate-200 p-4">
           <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
             <Icon icon="mdi:package-variant" className="w-3.5 h-3.5" /> Range Quantity
           </p>
@@ -517,14 +473,14 @@ function DetailModal({ isOpen, item, allConfigKeys, onClose, onEdit }: {
               {formatQtyRange(item.qty_min, item.qty_max)}
             </Badge>
           </div>
-        </Card>
+        </div>
       </div>
     </Modal>
   )
 }
 
 // ============================================================
-// MAIN PAGE
+// MAIN PAGE (dengan header biru dan dot amber)
 // ============================================================
 
 export default function IndexLainnyaPage() {
@@ -560,20 +516,26 @@ export default function IndexLainnyaPage() {
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
 
-      {/* Header */}
+      {/* Header (gaya Box Models) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:database-settings" className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:database-settings" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Index Lainnya</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola data index, margin, dan biaya produksi</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola data index, margin, dan biaya produksi</p>
           </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
           <Button variant="outline" size="md" onClick={() => handleRefresh(refetch)} icon="mdi:refresh">
             Refresh Data
+          </Button>
+          <Button variant="primary" size="md" onClick={() => setShowAddModal(true)} icon="mdi:plus">
+            Tambah Data
           </Button>
         </div>
       </div>
@@ -588,12 +550,15 @@ export default function IndexLainnyaPage() {
 
       {/* Content */}
       {indexData.length === 0 ? (
-        <Card shadow="md" padding="none">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex flex-col items-center gap-3 py-16">
             <Icon icon="mdi:database-off" className="w-16 h-16 text-gray-300" />
             <p className="text-gray-500 font-medium text-lg">Belum ada data</p>
+            <Button variant="primary" size="sm" onClick={() => setShowAddModal(true)} icon="mdi:plus">
+              Tambah Data
+            </Button>
           </div>
-        </Card>
+        </div>
       ) : selectedKey === 'all' ? (
         <GroupedView
           groups={configKeyGroups} allConfigKeys={allConfigKeys}
@@ -601,42 +566,60 @@ export default function IndexLainnyaPage() {
           onDelete={item => handleDelete(item.id, item.keterangan || item.config_key)}
         />
       ) : (
-        <Card shadow="md" padding="none">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-100">
-            <div>
-              <h3 className="text-base font-semibold text-slate-800">{formatConfigKeyLabel(selectedKey)}</h3>
-              <p className="text-xs font-mono text-gray-400 mt-0.5">{selectedKey} · {filteredData.length} item</p>
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="relative">
+            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-base font-semibold text-slate-800">{formatConfigKeyLabel(selectedKey)}</h3>
+                <p className="text-xs font-mono text-gray-400 mt-0.5">{selectedKey} · {filteredData.length} item</p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setSelectedKey('all')} icon="mdi:arrow-left">
+                Lihat Semua
+              </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setSelectedKey('all')} icon="mdi:arrow-left">
-              Lihat Semua
-            </Button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <TableHead withConfigKey={false} />
-              <tbody className="bg-white divide-y divide-gray-100">
-                {filteredData.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-6 py-12 text-center">
-                      <p className="text-gray-500">Tidak ada data untuk filter ini</p>
-                    </td>
-                  </tr>
-                ) : filteredData.map(item => (
-                  <IndexRow key={item.id} item={item} allConfigKeys={allConfigKeys} withConfigKey={false}
-                    onDetail={() => openDetail(item)} onEdit={() => openEdit(item)}
-                    onDelete={() => handleDelete(item.id, item.keterangan || item.config_key)} />
-                ))}
-              </tbody>
-            </table>
-          </div>
+
+          {/* ✅ Menggunakan Table global untuk tampilan flat */}
+          <Table headers={['Keterangan', 'Range Qty', 'Nilai', 'Aksi']}>
+            {filteredData.length === 0 ? (
+              <TableRow hoverable={false}>
+                <TableCell colSpan={4} className="text-center py-12 text-gray-500">
+                  Tidak ada data untuk filter ini
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData.map(item => (
+                <TableRow key={item.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+                  <TableCell>{item.keterangan || '-'}</TableCell>
+                  <TableCell>
+                    <Badge color={qtyRangeBadgeColor(item.qty_max)}>
+                      {formatQtyRange(item.qty_min, item.qty_max)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <ValueCell value={item.value} accentBg={getAccent(item.config_key, allConfigKeys).bg} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <ActionButton onClick={() => openDetail(item)} icon="mdi:eye-outline" hoverColor="blue" title="Detail" />
+                      <ActionButton onClick={() => openEdit(item)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
+                      <ActionButton onClick={() => handleDelete(item.id, item.keterangan || item.config_key)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </Table>
+
           {filteredData.length > 0 && (
-            <div className="px-6 py-3 border-t border-gray-100 bg-gray-50">
-              <p className="text-sm text-gray-500">
-                Menampilkan <span className="font-medium text-slate-700">{filteredData.length}</span> item
+            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+              <p className="text-sm text-slate-400">
+                Menampilkan <span className="font-semibold text-slate-600">{filteredData.length}</span> item
               </p>
             </div>
           )}
-        </Card>
+        </div>
       )}
 
       {/* Modals */}

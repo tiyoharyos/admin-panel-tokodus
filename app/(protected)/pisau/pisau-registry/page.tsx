@@ -47,49 +47,55 @@ function ActionButton({ onClick, icon, hoverColor, title }: {
 }
 
 // ============================================================
-// STATS CARDS
+// STATS CARDS (dengan gaya gradient line seperti konfigurasi)
 // ============================================================
 
 function StatsCards({ stats }: { stats: PisauStats }) {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      {/* Total */}
-      <Card shadow="sm" padding="md" hoverable>
-        <div className="flex items-center justify-between mb-3">
-          <p className="text-sm text-gray-500">Total Registry</p>
-          <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center">
-            <Icon icon="mdi:knife" className="w-4 h-4 text-indigo-500" />
-          </div>
-        </div>
-        <p className="text-2xl font-bold text-slate-800">{stats.totalRegistry}</p>
-        {stats.shippingBoxCount > 0 && (
-          <div className="mt-1.5">
-            <Badge color="#3b82f6" bgColor="#dbeafe">
-              <Icon icon="mdi:package-variant" className="w-3 h-3 mr-1" />
-              {stats.shippingBoxCount} Shipping Box
-            </Badge>
-          </div>
-        )}
-      </Card>
+  const cards = [
+    {
+      icon: 'mdi:knife',
+      label: 'Total Registry',
+      value: String(stats.totalRegistry),
+      sub: stats.shippingBoxCount > 0 ? `${stats.shippingBoxCount} Shipping Box` : '',
+      accent: '#6366f1',
+    },
+    {
+      icon: 'mdi:arrow-expand-horizontal',
+      label: 'Rata-rata Panjang',
+      value: `${formatNumber(stats.avgPanjang)} cm`,
+      sub: `Min ${formatNumber(stats.minPanjang)} · Max ${formatNumber(stats.maxPanjang)} cm`,
+      accent: '#3b82f6',
+    },
+    {
+      icon: 'mdi:arrow-expand-vertical',
+      label: 'Rata-rata Lebar',
+      value: `${formatNumber(stats.avgLebar)} cm`,
+      sub: `Min ${formatNumber(stats.minLebar)} · Max ${formatNumber(stats.maxLebar)} cm`,
+      accent: '#10b981',
+    },
+    {
+      icon: 'mdi:arrow-expand-up',
+      label: 'Rata-rata Tinggi',
+      value: `${formatNumber(stats.avgTinggi)} cm`,
+      sub: `Min ${formatNumber(stats.minTinggi)} · Max ${formatNumber(stats.maxTinggi)} cm`,
+      accent: '#8b5cf6',
+    },
+  ]
 
-      {/* Dimension stats */}
-      {[
-        { icon: 'mdi:arrow-expand-horizontal', label: 'Rata-rata Panjang', avg: stats.avgPanjang, min: stats.minPanjang, max: stats.maxPanjang, color: '#3b82f6' },
-        { icon: 'mdi:arrow-expand-vertical',   label: 'Rata-rata Lebar',   avg: stats.avgLebar,   min: stats.minLebar,   max: stats.maxLebar,   color: '#10b981' },
-        { icon: 'mdi:arrow-expand-up',          label: 'Rata-rata Tinggi',  avg: stats.avgTinggi,  min: stats.minTinggi,  max: stats.maxTinggi,  color: '#8b5cf6' },
-      ].map((s, i) => (
-        <Card key={i} shadow="sm" padding="md" hoverable>
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {cards.map((card, idx) => (
+        <div key={idx} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">{s.label}</p>
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${s.color}20` }}>
-              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.color }} />
+            <p className="text-sm text-slate-500">{card.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${card.accent}15` }}>
+              <Icon icon={card.icon} className="w-4 h-4" style={{ color: card.accent }} />
             </div>
           </div>
-          <p className="text-2xl font-bold text-slate-800">{formatNumber(s.avg)} cm</p>
-          <p className="text-xs text-gray-400 mt-1.5">
-            Min {formatNumber(s.min)} · Max {formatNumber(s.max)} cm
-          </p>
-        </Card>
+          <p className="text-2xl font-bold text-slate-800 truncate">{card.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5">{card.sub || '—'}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${card.accent}60, transparent)` }} />
+        </div>
       ))}
     </div>
   )
@@ -148,9 +154,14 @@ function DimensionFields({ panjang, lebar, tinggi, isPosting, onChange }: {
 }) {
   const values: Record<string, string> = { panjang_cm: panjang, lebar_cm: lebar, tinggi_cm: tinggi }
   return (
-    <div>
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Ukuran (cm)</p>
-      <div className="grid grid-cols-3 gap-3">
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+        <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+          <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5 text-blue-600" />
+        </div>
+        Ukuran (cm)
+      </p>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {DIMENSION_TYPES.map(dim => (
           <Input key={dim.id} label={dim.label} type="number" step="0.1" min="0.1"
             value={values[dim.field]}
@@ -167,10 +178,15 @@ function CatatanField({ value, isPosting, onChange }: {
   value: string; isPosting: boolean; onChange: (v: string) => void
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Catatan</label>
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 flex items-center gap-2">
+        <div className="w-6 h-6 bg-amber-100 rounded-lg flex items-center justify-center">
+          <Icon icon="mdi:format-text" className="w-3.5 h-3.5 text-amber-600" />
+        </div>
+        Catatan (opsional)
+      </p>
       <textarea value={value} onChange={e => onChange(e.target.value)} rows={2}
-        placeholder="Keterangan tambahan (opsional)..." disabled={isPosting}
+        placeholder="Keterangan tambahan..." disabled={isPosting}
         className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white resize-none disabled:opacity-50" />
     </div>
   )
@@ -197,7 +213,18 @@ function AddModal({ isOpen, form, registries, boxModels, loadingBoxModels, isPos
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-5">
+        {/* Info banner */}
+        <div className="flex items-center gap-3 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+          <div className="w-9 h-9 bg-indigo-100 rounded-lg flex items-center justify-center">
+            <Icon icon="mdi:information-outline" className="w-5 h-5 text-indigo-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-indigo-800">Pisau baru</p>
+            <p className="text-xs text-indigo-600 mt-0.5">Kode pisau akan digenerate otomatis setelah memilih box model.</p>
+          </div>
+        </div>
+
         <BoxModelSelect
           value={form.box_model_id}
           onChange={val => onChange('box_model_id', val)}
@@ -255,7 +282,17 @@ function EditModal({ isOpen, item, boxModels, loadingBoxModels, isPosting, onCha
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-5">
+        <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+          <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center">
+            <Icon icon="mdi:pencil-outline" className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-amber-800">Edit data pisau</p>
+            <p className="text-xs text-amber-600 mt-0.5">Perubahan akan langsung tersimpan.</p>
+          </div>
+        </div>
+
         <BoxModelSelect
           value={item.box_model_id}
           onChange={val => onChange('box_model_id', val)}
@@ -263,7 +300,6 @@ function EditModal({ isOpen, item, boxModels, loadingBoxModels, isPosting, onCha
           disabled={isPosting} required
         />
 
-        {/* Kode pisau — readonly on edit */}
         <div className="flex flex-col gap-1">
           <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Kode Pisau</label>
           <input type="text" value={item.kode_pisau} readOnly
@@ -294,18 +330,21 @@ function ViewModal({ isOpen, item, onClose, onEdit }: {
         </>
       }
     >
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Identity */}
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-indigo-50/60">
+        <div className="flex items-center gap-4 p-4 rounded-xl border border-indigo-100 bg-indigo-50/60">
           <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-100">
             <Icon icon="mdi:knife" className="w-7 h-7 text-indigo-500" />
           </div>
-          <p className="text-base font-semibold font-mono text-slate-800">{item.kode_pisau}</p>
+          <div>
+            <p className="text-base font-semibold font-mono text-slate-800">{item.kode_pisau}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Kode Pisau</p>
+          </div>
         </div>
 
         {/* Box Model */}
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
             <Icon icon="mdi:package-variant" className="w-3.5 h-3.5" /> Informasi Box Model
           </p>
           <div className="grid grid-cols-2 gap-4">
@@ -322,12 +361,12 @@ function ViewModal({ isOpen, item, onClose, onEdit }: {
               <p className="text-sm text-slate-600">{item.description || '-'}</p>
             </div>
           </div>
-        </Card>
+        </div>
 
         {/* Dimensions */}
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
-            <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5" /> Ukuran
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <Icon icon="mdi:ruler-square" className="w-3.5 h-3.5" /> Ukuran Minimal
           </p>
           <div className="grid grid-cols-3 gap-3">
             {DIMENSION_TYPES.map(dim => (
@@ -339,19 +378,21 @@ function ViewModal({ isOpen, item, onClose, onEdit }: {
               </div>
             ))}
           </div>
-          <p className="text-xs text-gray-400 mt-3 flex items-center gap-1">
-            <Icon icon="mdi:package-variant" className="w-3.5 h-3.5" />
-            {formatSize(item.panjang_cm, item.lebar_cm, item.tinggi_cm)}
+          <p className="text-xs text-slate-400 mt-3 flex items-center gap-1">
+            <Icon icon="mdi:package-variant" className="w-3.5 h-3.5 text-amber-500" />
+            <span className="font-medium text-amber-600">
+              {formatSize(item.panjang_cm, item.lebar_cm, item.tinggi_cm)}
+            </span>
           </p>
-        </Card>
+        </div>
 
         {/* Catatan */}
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-2 flex items-center gap-1.5">
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <Icon icon="mdi:format-text" className="w-3.5 h-3.5" /> Catatan
           </p>
           <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{item.catatan || '-'}</p>
-        </Card>
+        </div>
 
         {/* Flags */}
         <div className="flex flex-wrap gap-2">
@@ -441,17 +482,21 @@ export default function PisauRegistryPage() {
   if (error)   return <ErrorState message={error} onRetry={refetch} />
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+    // ===== PERUBAHAN UTAMA: min-h-screen dihapus, diganti w-full =====
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 w-full">
 
-      {/* Header */}
+      {/* Header dengan aksen biru-emas (seperti konfigurasi) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:knife" className="w-6 h-6 text-indigo-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:knife" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Registry Pisau Pond</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola data pisau pond untuk box model</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola data pisau pond untuk box model</p>
           </div>
         </div>
         <div className="flex gap-2 w-full md:w-auto">
@@ -464,83 +509,88 @@ export default function PisauRegistryPage() {
 
       <StatsCards stats={stats} />
 
-      {/* Table */}
-      <Card shadow="md" padding="none">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Pisau Pond</h3>
-            <p className="text-sm text-gray-400 mt-0.5">Total {stats.totalRegistry} pisau terdaftar</p>
-          </div>
-          <div className="relative w-full sm:w-64">
-            <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input
-              placeholder="Cari kode, nama, catatan..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              leftIcon="mdi:magnify"
-            />
+      {/* Tabel dengan Card dan header gradient */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #6366f1, #f59e0b)' }} />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Pisau Pond</h3>
+              <p className="text-sm text-slate-400 mt-0.5">Total {stats.totalRegistry} pisau terdaftar</p>
+            </div>
+            <div className="w-full sm:w-64">
+              <Input
+                placeholder="Cari kode, nama, catatan..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                leftIcon="mdi:magnify"
+              />
+            </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
           {registries.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:knife-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data pisau</p>
+            <div className="flex flex-col items-center gap-3 py-20">
+              <Icon icon="mdi:knife-off" className="w-16 h-16 text-slate-300" />
+              <p className="text-slate-500 font-medium text-lg">Belum ada data pisau</p>
               <Button variant="primary" size="sm" onClick={() => { resetAdd(); setShowAddModal(true) }} icon="mdi:plus">
                 Tambah Pisau
               </Button>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50">
                 <tr>
                   {['Kode Pisau', 'Box Model', 'Ukuran (P x L x T)', 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
+              <tbody className="bg-white divide-y divide-slate-100">
                 {filteredRegistries.length === 0 ? (
                   <tr>
                     <td colSpan={4} className="px-6 py-16 text-center">
                       <div className="flex flex-col items-center gap-3">
-                        <Icon icon="mdi:knife-off" className="w-16 h-16 text-gray-300" />
-                        <p className="text-gray-500 font-medium">Tidak ada hasil</p>
-                        <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Filter</Button>
+                        <Icon icon="mdi:knife-off" className="w-14 h-14 text-slate-300" />
+                        <p className="text-slate-500 font-medium">Tidak ada hasil</p>
+                        <p className="text-sm text-slate-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+                        <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Pencarian</Button>
                       </div>
                     </td>
                   </tr>
                 ) : filteredRegistries.map(item => (
-                  <tr key={item.id} className="hover:bg-slate-50/80 transition-colors">
-                    {/* Kode Pisau */}
+                  <tr key={item.id} className="hover:bg-indigo-50/40 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-50">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-indigo-50">
                           <Icon icon="mdi:knife" className="w-5 h-5 text-indigo-500" />
                         </div>
                         <div>
                           <p className="text-sm font-medium font-mono text-slate-800">{item.kode_pisau}</p>
-                          {item.is_shipping_box === '1' && (
-                            <Badge color="#3b82f6" bgColor="#dbeafe">Shipping Box</Badge>
-                          )}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {item.is_shipping_box === '1' && (
+                              <Badge color="#3b82f6" bgColor="#dbeafe">Shipping Box</Badge>
+                            )}
+                            {item.is_paperbag === '1' && (
+                              <Badge color="#d97706" bgColor="#fef3c7">Paper Bag</Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </td>
 
-                    {/* Box Model */}
                     <td className="px-6 py-4">
                       <p className="text-sm font-medium text-slate-800">{item.name}</p>
-                      <p className="text-xs text-gray-400 font-mono">{item.code}</p>
+                      <p className="text-xs text-slate-400 font-mono">{item.code}</p>
                     </td>
 
-                    {/* Dimensions */}
                     <td className="px-6 py-4">
                       <div className="space-y-1.5">
                         {DIMENSION_TYPES.map(dim => (
                           <div key={dim.id} className="flex items-center gap-2">
                             <Icon icon={dim.icon} className="w-3.5 h-3.5" style={{ color: dim.color }} />
-                            <span className="text-xs text-gray-500 w-16">{dim.label}:</span>
+                            <span className="text-xs text-slate-400 w-16">{dim.label}:</span>
                             <span className="text-xs font-semibold" style={{ color: dim.color }}>
                               {formatNumber(item[dim.field as keyof PisauRegistry] as string)} cm
                             </span>
@@ -549,7 +599,6 @@ export default function PisauRegistryPage() {
                       </div>
                     </td>
 
-                    {/* Actions */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-1">
                         <ActionButton onClick={() => { setSelectedItem(item); setShowViewModal(true) }}
@@ -568,14 +617,14 @@ export default function PisauRegistryPage() {
         </div>
 
         {filteredRegistries.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{filteredRegistries.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{registries.length}</span> data
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+            <p className="text-sm text-slate-400">
+              Menampilkan <span className="font-semibold text-slate-600">{filteredRegistries.length}</span> dari{' '}
+              <span className="font-semibold text-slate-600">{registries.length}</span> data
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Modals */}
       <ViewModal

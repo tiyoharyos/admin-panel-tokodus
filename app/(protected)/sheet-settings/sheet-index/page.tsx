@@ -5,7 +5,6 @@ import { useState, useEffect, useMemo, ChangeEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@iconify/react'
 import Swal from 'sweetalert2'
-import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Modal from '@/components/UI/Modal'
 import Input from '@/components/UI/Input'
@@ -56,46 +55,38 @@ function ActionButton({ onClick, icon, hoverColor, title, disabled }: {
 }
 
 // ============================================================
-// STATS CARDS
+// STATS CARDS (custom dengan gradient line)
 // ============================================================
 
 function StatsCards({ stats, flutes, sheetSubstances }: {
   stats: SheetStats; flutes: Flute[]; sheetSubstances: SheetSubstance[]
 }) {
-  const items = [
-    { icon: 'mdi:layers-triple',       label: 'Total Substances', value: stats.totalSubstances, sub: `${stats.activeSubstances} aktif` },
-    { icon: 'mdi:currency-usd-circle', label: 'Complete Pricing', value: stats.withAllFlutes,
-      sub: `${stats.totalSubstances - stats.withAllFlutes} belum lengkap`,
-      bar: (stats.withAllFlutes / (stats.totalSubstances || 1)) * 100 },
-    { icon: 'mdi:waveform',            label: 'Flute Types',      value: flutes.length, sub: flutes.map(f => f.code).join(' · ') || '-' },
-    { icon: 'mdi:database',            label: 'Total Indices',    value: stats.totalIndices,
-      sub: `${sheetSubstances.length} substance × ${flutes.length} flute` },
+  const cards = [
+    { icon: 'mdi:layers-triple', label: 'Total Substances', value: stats.totalSubstances, sub: `${stats.activeSubstances} aktif`, accent: '#3b82f6' },
+    { icon: 'mdi:waveform',      label: 'Flute Types',      value: flutes.length, sub: flutes.map(f => f.code).join(' · ') || '-', accent: '#8b5cf6' },
+    { icon: 'mdi:database',      label: 'Total Indices',    value: stats.totalIndices, sub: `${sheetSubstances.length} substance × ${flutes.length} flute`, accent: '#10b981' },
   ]
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-      {items.map((s, i) => (
-        <Card key={i} shadow="sm" padding="md" hoverable>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {cards.map((card, idx) => (
+        <div key={idx} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">{s.label}</p>
-            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
+            <p className="text-sm text-slate-500">{card.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${card.accent}15` }}>
+              <Icon icon={card.icon} className="w-4 h-4" style={{ color: card.accent }} />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-          {s.bar !== undefined && (
-            <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-              <div className="bg-blue-500 h-1.5 rounded-full transition-all" style={{ width: `${Math.min(s.bar, 100)}%` }} />
-            </div>
-          )}
-          <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-        </Card>
+          <p className="text-2xl font-bold text-slate-800 truncate">{card.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5">{card.sub}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${card.accent}60, transparent)` }} />
+        </div>
       ))}
     </div>
   )
 }
 
 // ============================================================
-// LAYER CONFIG SECTION — reused in Add & Edit modals
+// LAYER CONFIG SECTION (dengan gaya konsisten)
 // ============================================================
 
 function LayerSection({ form, isPosting, formErrors, onChange, onTypeChange }: {
@@ -104,15 +95,20 @@ function LayerSection({ form, isPosting, formErrors, onChange, onTypeChange }: {
   onTypeChange: (field: string) => (e: ChangeEvent<HTMLSelectElement>) => void
 }) {
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-        <Icon icon="mdi:layers-triple" className="w-4 h-4 text-blue-500" />
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+        <div className="w-6 h-6 bg-blue-100 rounded-lg flex items-center justify-center">
+          <Icon icon="mdi:layers-triple" className="w-3.5 h-3.5 text-blue-600" />
+        </div>
         Konfigurasi Layer
       </h3>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {([1, 2, 3] as const).map(num => (
-          <Card key={num} shadow="sm" padding="md" className="border-l-4 border-l-blue-500">
-            <h4 className="font-medium text-slate-800 mb-3">Layer {num}</h4>
+          <div key={num} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
+            <h4 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs flex items-center justify-center">{num}</span>
+              Layer {num}
+            </h4>
             <div className="space-y-3">
               <Input
                 label="Gramasi *" type="number"
@@ -131,7 +127,7 @@ function LayerSection({ form, isPosting, formErrors, onChange, onTypeChange }: {
                 leftIcon="mdi:palette"
               />
             </div>
-          </Card>
+          </div>
         ))}
       </div>
     </div>
@@ -139,7 +135,7 @@ function LayerSection({ form, isPosting, formErrors, onChange, onTypeChange }: {
 }
 
 // ============================================================
-// FLUTE PRICING SECTION — reused in Add & Edit modals
+// FLUTE PRICING SECTION (gaya konsisten)
 // ============================================================
 
 function FlutePricingSection({ form, flutes, isPosting, formErrors, warningText, onPriceChange }: {
@@ -149,16 +145,18 @@ function FlutePricingSection({ form, flutes, isPosting, formErrors, warningText,
 }) {
   if (flutes.length === 0) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-2">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-2">
         <Icon icon="mdi:alert" className="w-5 h-5 text-yellow-600" />
         <p className="text-yellow-800 text-sm">Tidak ada flute tersedia. Tambahkan flute terlebih dahulu.</p>
       </div>
     )
   }
   return (
-    <div>
-      <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
-        <Icon icon="mdi:currency-usd" className="w-4 h-4 text-green-500" />
+    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4 flex items-center gap-2">
+        <div className="w-6 h-6 bg-green-100 rounded-lg flex items-center justify-center">
+          <Icon icon="mdi:currency-usd" className="w-3.5 h-3.5 text-green-600" />
+        </div>
         Harga per Flute
       </h3>
       {warningText && (
@@ -171,9 +169,9 @@ function FlutePricingSection({ form, flutes, isPosting, formErrors, warningText,
         {flutes.map((flute, idx) => {
           const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
           return (
-            <Card key={flute.code} shadow="sm" padding="md" className="border-l-4">
+            <div key={flute.code} className="bg-white rounded-xl p-4 border border-slate-200 shadow-sm">
               <div className="flex items-center gap-2 mb-3">
-                <span className="font-medium text-slate-800">{flute.name}</span>
+                <span className="text-sm font-semibold text-slate-700">{flute.name}</span>
                 <Badge color={color.bg} light={color.light}>{flute.code}</Badge>
               </div>
               <Input
@@ -184,7 +182,7 @@ function FlutePricingSection({ form, flutes, isPosting, formErrors, warningText,
                 error={formErrors[`price_${flute.code}`]}
                 leftIcon="mdi:currency-usd"
               />
-            </Card>
+            </div>
           )
         })}
       </div>
@@ -193,15 +191,15 @@ function FlutePricingSection({ form, flutes, isPosting, formErrors, warningText,
 }
 
 // ============================================================
-// PAGINATION
+// PAGINATION (dengan gaya lebih rapi)
 // ============================================================
 
 function Pagination({ pagination, onChange }: {
   pagination: PaginationConfig; onChange: (page: number) => void
 }) {
   return (
-    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-3 border-b border-gray-200 bg-gray-50/50">
-      <p className="text-sm text-gray-500">
+    <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50/50">
+      <p className="text-sm text-slate-500">
         Menampilkan{' '}
         <span className="font-medium text-slate-700">
           {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}
@@ -218,7 +216,7 @@ function Pagination({ pagination, onChange }: {
           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
           <Icon icon="mdi:chevron-left" className="w-5 h-5" />
         </button>
-        <span className="text-sm text-gray-500">
+        <span className="text-sm text-slate-500">
           Halaman {pagination.currentPage} dari {pagination.totalPages}
         </span>
         <button onClick={() => onChange(pagination.currentPage + 1)}
@@ -232,7 +230,7 @@ function Pagination({ pagination, onChange }: {
 }
 
 // ============================================================
-// MODALS
+// MODALS (gaya konsisten dengan info banner)
 // ============================================================
 
 function AddModal({ isOpen, form, flutes, isPosting, formErrors, onChange, onTypeChange, onPriceChange, onClose, onSubmit }: {
@@ -244,12 +242,12 @@ function AddModal({ isOpen, form, flutes, isPosting, formErrors, onChange, onTyp
   onClose: () => void; onSubmit: () => void
 }) {
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="➕ Tambah Sheet Substance Baru" size="xl"
+    <Modal isOpen={isOpen} onClose={onClose} title="Tambah Sheet Substance Baru" size="xl"
       closeOnOverlayClick={!isPosting}
       footer={
         <>
-          <Button variant="outline" size="md" onClick={onClose} disabled={isPosting}>Batal</Button>
-          <Button variant="primary" size="md" onClick={onSubmit} loading={isPosting}
+          <Button variant="outline" onClick={onClose} disabled={isPosting}>Batal</Button>
+          <Button variant="primary" onClick={onSubmit} loading={isPosting}
             disabled={isPosting || flutes.length === 0} icon="mdi:check">
             Simpan Sheet
           </Button>
@@ -257,9 +255,14 @@ function AddModal({ isOpen, form, flutes, isPosting, formErrors, onChange, onTyp
       }
     >
       <div className="space-y-6">
-        <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
-          <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
-          <p className="text-sm text-blue-700">Isi gramasi dan jenis kertas untuk setiap layer. Harga per flute wajib diisi semua.</p>
+        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+          <div className="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center">
+            <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-blue-800">Tambah Sheet Baru</p>
+            <p className="text-xs text-blue-600 mt-0.5">Isi gramasi dan jenis kertas untuk setiap layer. Harga per flute wajib diisi semua.</p>
+          </div>
         </div>
         <LayerSection form={form} isPosting={isPosting} formErrors={formErrors}
           onChange={onChange} onTypeChange={onTypeChange} />
@@ -280,12 +283,12 @@ function EditModal({ isOpen, editingItem, form, flutes, isPosting, formErrors, o
 }) {
   if (!editingItem) return null
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="✏️ Edit Sheet Substance" size="xl"
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Sheet Substance" size="xl"
       closeOnOverlayClick={!isPosting}
       footer={
         <>
-          <Button variant="outline" size="md" onClick={onClose} disabled={isPosting}>Batal</Button>
-          <Button variant="primary" size="md" onClick={onSubmit} loading={isPosting}
+          <Button variant="outline" onClick={onClose} disabled={isPosting}>Batal</Button>
+          <Button variant="primary" onClick={onSubmit} loading={isPosting}
             disabled={isPosting || flutes.length === 0} icon="mdi:check">
             Simpan Perubahan
           </Button>
@@ -293,13 +296,13 @@ function EditModal({ isOpen, editingItem, form, flutes, isPosting, formErrors, o
       }
     >
       <div className="space-y-6">
-        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
+        <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-100 rounded-xl">
+          <div className="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center">
+            <Icon icon="mdi:pencil-outline" className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-blue-800">Mengedit Sheet Substance</p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-sm font-semibold text-amber-800">Edit Sheet Substance</p>
+            <p className="text-xs text-amber-600 mt-0.5">
               ID: <span className="font-mono">#{editingItem.id}</span> · Kode:{' '}
               <span className="font-semibold">{formatSubstanceDisplay(editingItem)}</span>
             </p>
@@ -327,14 +330,13 @@ function ViewModal({ isOpen, item, flutes, onClose, onEdit }: {
     <Modal isOpen={isOpen} onClose={onClose} title="Detail Sheet Substance" size="md"
       footer={
         <>
-          <Button variant="outline" size="md" onClick={onClose}>Tutup</Button>
-          <Button variant="primary" size="md" icon="mdi:pencil-outline" onClick={onEdit}>Edit Sheet</Button>
+          <Button variant="outline" onClick={onClose}>Tutup</Button>
+          <Button variant="primary" icon="mdi:pencil-outline" onClick={onEdit}>Edit Sheet</Button>
         </>
       }
     >
-      <div className="space-y-4">
-        {/* Identity */}
-        <div className="flex items-center gap-4 p-4 rounded-xl bg-blue-50">
+      <div className="space-y-5">
+        <div className="flex items-center gap-4 p-4 rounded-xl border border-blue-100 bg-blue-50/60">
           <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-blue-100">
             <Icon icon="mdi:layers-triple" className="w-7 h-7 text-blue-600" />
           </div>
@@ -350,46 +352,48 @@ function ViewModal({ isOpen, item, flutes, onClose, onEdit }: {
                   )
                 })}
               </div>
-              <span className="text-xs text-gray-400 font-mono">{item.substance_code}</span>
+              <span className="text-xs text-slate-400 font-mono">{item.substance_code}</span>
             </div>
           </div>
         </div>
 
-        {/* Layer Details */}
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-2">Komposisi Layer</p>
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <Icon icon="mdi:layers-triple" className="w-3.5 h-3.5" /> Komposisi Layer
+          </p>
           <div className="space-y-2">
             {[1, 2, 3].map(num => {
               const code = item[`layer_${num}_gsm`] as string
               const gram = item[`layer_${num}`] as string
               const meta = getLayerMeta(code)
               return (
-                <div key={num} className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                <div key={num} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-semibold text-gray-500 w-16">Layer {num}:</span>
+                    <span className="text-xs font-semibold text-slate-500 w-16">Layer {num}:</span>
                     <Badge color={meta.bg} light={meta.light}>{gram}{code}</Badge>
                   </div>
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-slate-400">
                     {LAYER_TYPE_OPTIONS.find(o => o.value === code)?.label || code}
                   </span>
                 </div>
               )
             })}
           </div>
-        </Card>
+        </div>
 
-        {/* Flute Prices */}
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-2">Harga per Flute</p>
+        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+            <Icon icon="mdi:currency-usd" className="w-3.5 h-3.5" /> Harga per Flute
+          </p>
           <div className="grid grid-cols-2 gap-2">
             {flutes.map((flute, idx) => {
               const price = getFlutePrice(item, flute.code)
               const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
               return (
-                <div key={flute.code} className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                <div key={flute.code} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100">
                   <div className="flex items-center gap-2">
                     <Badge color={color.bg} light={color.light}>{flute.code}</Badge>
-                    <span className="text-xs text-gray-600">{flute.name}</span>
+                    <span className="text-xs text-slate-600">{flute.name}</span>
                   </div>
                   <span className="text-sm font-medium" style={{ color: color.bg }}>
                     {price > 0 ? formatCurrency(price) : '—'}
@@ -398,12 +402,17 @@ function ViewModal({ isOpen, item, flutes, onClose, onEdit }: {
               )
             })}
           </div>
-        </Card>
+        </div>
 
-        {/* Timestamps */}
         <div className="grid grid-cols-2 gap-3">
-          <div><p className="text-xs text-gray-400">Dibuat</p><p className="text-sm text-slate-700">{formatDate(item.created_at)}</p></div>
-          <div><p className="text-xs text-gray-400">Diperbarui</p><p className="text-sm text-slate-700">{formatDate(item.updated_at)}</p></div>
+          <div className="p-3 bg-slate-50 rounded-lg">
+            <p className="text-xs text-slate-400">Dibuat</p>
+            <p className="text-sm font-medium text-slate-700">{formatDate(item.created_at)}</p>
+          </div>
+          <div className="p-3 bg-slate-50 rounded-lg">
+            <p className="text-xs text-slate-400">Diperbarui</p>
+            <p className="text-sm font-medium text-slate-700">{formatDate(item.updated_at)}</p>
+          </div>
         </div>
       </div>
     </Modal>
@@ -464,15 +473,6 @@ export default function SheetSettingsPage() {
       currentPage: prev.currentPage > totalPages ? 1 : prev.currentPage,
     }))
   }, [filteredSubstances.length, pagination.itemsPerPage, setPagination])
-
-  // Auto-init prices on modal open
-  useEffect(() => {
-    if (!showAddModal || flutes.length === 0) return
-  }, [showAddModal, flutes])
-
-  useEffect(() => {
-    if (!showEditModal || !editingItem || flutes.length === 0) return
-  }, [showEditModal, editingItem, flutes])
 
   // ===== HELPERS =====
   const openEdit = (item: SheetSubstance) => {
@@ -536,17 +536,21 @@ export default function SheetSettingsPage() {
   if (error && sheetSubstances.length === 0) return <ErrorState message={error} onRetry={refetch} />
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+    // HAPUS min-h-screen, ganti w-full
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 w-full">
 
-      {/* Header */}
+      {/* Header dengan badge emas */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:layers-triple" className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:layers-triple" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Sheet Settings</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola harga bahan sheet berdasarkan flute type</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola harga bahan sheet berdasarkan flute type</p>
           </div>
         </div>
         <Button onClick={() => setShowAddModal(true)} variant="primary" size="md" icon="mdi:plus"
@@ -557,7 +561,7 @@ export default function SheetSettingsPage() {
 
       <StatsCards stats={stats} flutes={flutes} sheetSubstances={sheetSubstances} />
 
-      {/* Error banner */}
+      {/* Error banner (jika error tapi data ada) */}
       {error && sheetSubstances.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
           <Icon icon="mdi:alert" className="w-5 h-5 text-amber-600 flex-shrink-0" />
@@ -566,40 +570,42 @@ export default function SheetSettingsPage() {
         </div>
       )}
 
-      {/* Table */}
-      <Card shadow="md" padding="none">
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Sheet Substances</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.totalSubstances} kombinasi ({stats.withAllFlutes} dengan harga lengkap)
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input type="text" value={search} onChange={e => setSearch(e.target.value)}
-                placeholder="Cari substance..."
-                className="pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-64" />
+      {/* Table Card dengan gradient header */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Sheet Substances</h3>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Total {stats.totalSubstances} kombinasi ({stats.withAllFlutes} dengan harga lengkap)
+              </p>
             </div>
-            <div className="flex items-center gap-1 text-xs text-gray-400">
-              Per hal:
-              <Select
-                value={pagination.itemsPerPage.toString()}
-                onChange={(e: ChangeEvent<HTMLSelectElement>) => {
-                  const n = parseInt(e.target.value)
-                  setPagination(prev => ({
-                    ...prev, itemsPerPage: n, currentPage: 1,
-                    totalPages: Math.max(1, Math.ceil(filteredSubstances.length / n)),
-                  }))
-                }}
-                options={ITEMS_PER_PAGE_OPTIONS}
-                className="w-20"
-              />
+            <div className="flex items-center gap-3">
+              <div className="relative w-64">
+                <Icon icon="mdi:magnify" className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Cari substance..."
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-300" />
+              </div>
+              <div className="flex items-center gap-1 text-xs text-slate-400">
+                Per hal:
+                <Select
+                  value={pagination.itemsPerPage.toString()}
+                  onChange={(e: ChangeEvent<HTMLSelectElement>) => {
+                    const n = parseInt(e.target.value)
+                    setPagination(prev => ({
+                      ...prev, itemsPerPage: n, currentPage: 1,
+                      totalPages: Math.max(1, Math.ceil(filteredSubstances.length / n)),
+                    }))
+                  }}
+                  options={ITEMS_PER_PAGE_OPTIONS}
+                  className="w-20"
+                />
+              </div>
+              <ActionButton onClick={handleRefresh} icon="mdi:refresh" hoverColor="blue" title="Refresh" />
+              <ActionButton onClick={() => router.push('/flute-settings')} icon="mdi:cog" hoverColor="green" title="Kelola Flutes" />
             </div>
-            <ActionButton onClick={handleRefresh} icon="mdi:refresh" hoverColor="blue" title="Refresh" />
-            <ActionButton onClick={() => router.push('/flute-settings')} icon="mdi:cog" hoverColor="green" title="Kelola Flutes" />
           </div>
         </div>
 
@@ -609,36 +615,36 @@ export default function SheetSettingsPage() {
 
         <div className="overflow-x-auto">
           {sheetSubstances.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:layers-triple-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data sheet substance</p>
+            <div className="flex flex-col items-center gap-3 py-20">
+              <Icon icon="mdi:layers-triple-off" className="w-16 h-16 text-slate-300" />
+              <p className="text-slate-500 font-medium text-lg">Belum ada data sheet substance</p>
               <Button onClick={() => setShowAddModal(true)} variant="primary" icon="mdi:plus"
                 disabled={flutes.length === 0}>
                 {flutes.length === 0 ? 'Tambah Flute Dulu' : 'Tambah Sheet Baru'}
               </Button>
             </div>
           ) : filteredSubstances.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:layers-triple-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
-              <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+            <div className="flex flex-col items-center gap-3 py-20">
+              <Icon icon="mdi:layers-triple-off" className="w-16 h-16 text-slate-300" />
+              <p className="text-slate-500 font-medium text-lg">Tidak ada hasil</p>
+              <p className="text-sm text-slate-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
               <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Pencarian</Button>
             </div>
           ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-slate-100">
+              <thead className="bg-slate-50">
                 <tr>
                   {['No', 'Substance', 'Layer 1', 'Layer 2', 'Layer 3',
                     ...flutes.map(f => `${f.code}-Flute`), 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
+              <tbody className="bg-white divide-y divide-slate-100">
                 {paginatedData.map((substance, index) => {
                   const rowNum = (pagination.currentPage - 1) * pagination.itemsPerPage + index + 1
                   return (
-                    <tr key={substance.id} className="hover:bg-slate-50/80 transition-colors">
+                    <tr key={substance.id} className="hover:bg-blue-50/40 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800">{rowNum}</td>
 
                       {/* Substance */}
@@ -653,7 +659,7 @@ export default function SheetSettingsPage() {
                               )
                             })}
                           </div>
-                          <p className="text-xs font-mono text-gray-400">{substance.substance_code}</p>
+                          <p className="text-xs font-mono text-slate-400">{substance.substance_code}</p>
                         </div>
                       </td>
 
@@ -678,7 +684,7 @@ export default function SheetSettingsPage() {
                           <td key={flute.code} className="px-6 py-4 whitespace-nowrap">
                             {price > 0
                               ? <span className="text-sm font-medium" style={{ color: color.bg }}>{formatCurrency(price)}</span>
-                              : <span className="text-xs text-gray-300">—</span>}
+                              : <span className="text-xs text-slate-300">—</span>}
                           </td>
                         )
                       })}
@@ -704,14 +710,14 @@ export default function SheetSettingsPage() {
         </div>
 
         {filteredSubstances.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{paginatedData.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{filteredSubstances.length}</span> substance
+          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+            <p className="text-sm text-slate-400">
+              Menampilkan <span className="font-semibold text-slate-600">{paginatedData.length}</span> dari{' '}
+              <span className="font-semibold text-slate-600">{filteredSubstances.length}</span> substance
             </p>
           </div>
         )}
-      </Card>
+      </div>
 
       {/* Modals */}
       <ViewModal

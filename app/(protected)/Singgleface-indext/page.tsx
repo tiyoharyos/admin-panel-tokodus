@@ -10,27 +10,20 @@ import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
 import ErrorState from '@/components/UI/ErrorState'
 import Input from '@/components/UI/Input'
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 
-// ── logic imports ────────────────────────────────────────────
+
 import { useSingleface } from './hooks/useSingleface'
 import { useSinglefaceActions } from './hooks/useSinglefaceActions'
 import { LAYER_TYPE_OPTIONS, FLUTE_COLORS, BASE_FORM } from './constants/constants'
-import { getLayerMeta, formatCurrency, formatSubstanceDisplay } from './lib/utils'
+import { getLayerMeta, formatCurrency, formatSubstanceDisplay } from './lib/utils' // ✅ import fungsi yang hilang
 import type { SinglefaceSubstance, SinglefaceFormData, FluteSelection } from './types/types'
 
 // ============================================================
 // BADGE
 // ============================================================
 
-function Badge({
-  color,
-  light,
-  children,
-}: {
-  color: string
-  light?: string
-  children: React.ReactNode
-}) {
+function Badge({ color, light, children }: { color: string; light?: string; children: React.ReactNode }) {
   return (
     <span
       className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold uppercase tracking-wide"
@@ -38,6 +31,56 @@ function Badge({
     >
       {children}
     </span>
+  )
+}
+
+// ============================================================
+// ACTION BUTTON
+// ============================================================
+
+function ActionButton({ onClick, icon, hoverClass, title }: {
+  onClick: () => void; icon: string; hoverClass: string; title: string
+}) {
+  return (
+    <button onClick={onClick} title={title}
+      className={`p-2 text-slate-400 rounded-lg transition-colors ${hoverClass}`}
+    >
+      <Icon icon={icon} className="w-5 h-5" />
+    </button>
+  )
+}
+
+// ============================================================
+// STATS CARDS
+// ============================================================
+
+function StatsCards({ stats, flutes, substances }: {
+  stats: { totalSubstances: number; activeSubstances: number; totalIndices: number }
+  flutes: { id: string; code: string; name: string }[]
+  substances: SinglefaceSubstance[]
+}) {
+  const items = [
+    { icon: 'mdi:layers',   label: 'Total Substances', value: stats.totalSubstances, sub: `${stats.activeSubstances} aktif`,                                              accent: '#3b82f6' },
+    { icon: 'mdi:waveform', label: 'Flute Types',      value: flutes.length,          sub: flutes.map(f => f.code).join(' · ') || '-',                                    accent: '#8b5cf6' },
+    { icon: 'mdi:database', label: 'Total Indices',    value: stats.totalIndices,     sub: `${substances.length} substance × ${flutes.length} flute`,                     accent: '#10b981' },
+  ]
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {items.map((s, i) => (
+        <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
+              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+        </div>
+      ))}
+    </div>
   )
 }
 
@@ -74,7 +117,7 @@ function FlutePricingGrid({ formData, setFormData, errors, setErrors, disabled }
 
   if (formData.flutes.length === 0) {
     return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-2">
+      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-center gap-2">
         <Icon icon="mdi:alert" className="w-5 h-5 text-yellow-600" />
         <p className="text-yellow-800 text-sm">Tidak ada flute tersedia. Tambahkan flute terlebih dahulu.</p>
       </div>
@@ -96,13 +139,13 @@ function FlutePricingGrid({ formData, setFormData, errors, setErrors, disabled }
       </div>
 
       <div className="space-y-3">
-        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl">
           <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500" />
           <p className="text-xs text-blue-700">Centang flute yang ingin digunakan. Minimal satu flute harus dipilih.</p>
         </div>
 
         {errors.flutes && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
             <p className="text-sm text-red-600 flex items-center gap-2">
               <Icon icon="mdi:alert-circle" className="w-4 h-4" />
               {errors.flutes}
@@ -118,9 +161,7 @@ function FlutePricingGrid({ formData, setFormData, errors, setErrors, disabled }
                 key={flute.code}
                 shadow="sm"
                 padding="md"
-                className={`border-l-4 transition-all ${
-                  flute.selected ? 'border-l-green-500 bg-green-50/30' : 'border-l-gray-300 opacity-70'
-                }`}
+                className={`border-l-4 transition-all ${flute.selected ? 'border-l-green-500 bg-green-50/30' : 'border-l-gray-300 opacity-70'}`}
               >
                 <div className="flex items-start gap-3">
                   <div className="pt-1">
@@ -170,7 +211,7 @@ function FlutePricingGrid({ formData, setFormData, errors, setErrors, disabled }
 }
 
 // ============================================================
-// LAYER CONFIG SECTION — reusable di Add & Edit modal
+// LAYER CONFIG SECTION
 // ============================================================
 
 interface LayerConfigProps {
@@ -259,36 +300,32 @@ export default function SinglefaceSettingsPage() {
   const [editFormData, setEditFormData] = useState<SinglefaceFormData>({ ...BASE_FORM })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  const {
-    isPosting,
-    openEditModal,
-    handleAdd,
-    handleEdit,
-    handleDelete,
-    handleRefresh,
-  } = useSinglefaceActions({
-    substances,
-    fetchAll,
-    addItem,
-    updateItem,
-    deleteItem,
-    setShowAddModal,
-    setShowEditModal,
-    setAddFormData,
-    setEditFormData,
-    setEditingItem,
-    setFormErrors,
-  })
+  const { isPosting, openEditModal, handleAdd, handleEdit, handleDelete, handleRefresh } =
+    useSinglefaceActions({
+      substances, fetchAll, addItem, updateItem, deleteItem,
+      setShowAddModal, setShowEditModal, setAddFormData, setEditFormData,
+      setEditingItem, setFormErrors,
+    })
+
+  // ===== HITUNG JUMLAH SUBSTANCE DENGAN HARGA LENGKAP (semua flute terisi) =====
+  const withAllFlutes = useMemo(() => {
+    if (flutes.length === 0) return 0
+    return substances.filter(sub =>
+      flutes.every(flute => {
+        const price = sub[`${flute.code.toLowerCase()}_flute_price`]
+        return price !== undefined && price !== null && parseFloat(price as string) > 0
+      })
+    ).length
+  }, [substances, flutes])
 
   // ===== FILTERED + PAGINATED =====
   const filteredSubstances = useMemo(() => {
     if (!search.trim()) return substances
     const q = search.toLowerCase()
-    return substances.filter(
-      s =>
-        s.substance_code.toLowerCase().includes(q) ||
-        `${s.layer_1}${s.layer_1_type}`.toLowerCase().includes(q) ||
-        `${s.layer_2}${s.layer_2_type}`.toLowerCase().includes(q)
+    return substances.filter(s =>
+      s.substance_code.toLowerCase().includes(q) ||
+      `${s.layer_1}${s.layer_1_type}`.toLowerCase().includes(q) ||
+      `${s.layer_2}${s.layer_2_type}`.toLowerCase().includes(q)
     )
   }, [substances, search])
 
@@ -301,14 +338,11 @@ export default function SinglefaceSettingsPage() {
     const totalItems = filteredSubstances.length
     const totalPages = Math.max(1, Math.ceil(totalItems / pagination.itemsPerPage))
     setPagination(prev => ({
-      ...prev,
-      totalItems,
-      totalPages,
+      ...prev, totalItems, totalPages,
       currentPage: prev.currentPage > totalPages ? 1 : prev.currentPage,
     }))
   }, [filteredSubstances.length, pagination.itemsPerPage, setPagination])
 
-  // ===== INIT FLUTE SELECTIONS for Add Modal =====
   useEffect(() => {
     if (!showAddModal || flutes.length === 0) return
     setAddFormData(prev => ({
@@ -317,24 +351,16 @@ export default function SinglefaceSettingsPage() {
     }))
   }, [showAddModal, flutes])
 
-  // ===== INIT FLUTE SELECTIONS for Edit Modal =====
   useEffect(() => {
     if (!showEditModal || !editingItem || flutes.length === 0) return
     const fluteSelections: FluteSelection[] = flutes.map(f => {
       const price = editingItem[`${f.code.toLowerCase()}_flute_price`]
       const hasPrice = price !== undefined && price !== null && parseFloat(price as string) > 0
-      return {
-        id: f.id,
-        code: f.code,
-        name: f.name,
-        selected: hasPrice,
-        price: hasPrice ? price!.toString() : '',
-      }
+      return { id: f.id, code: f.code, name: f.name, selected: hasPrice, price: hasPrice ? price!.toString() : '' }
     })
     setEditFormData(prev => ({ ...prev, flutes: fluteSelections }))
   }, [showEditModal, editingItem, flutes])
 
-  // ===== MODAL CLOSE HANDLERS =====
   const handleCloseAddModal = () => {
     if (isPosting) return
     setShowAddModal(false)
@@ -350,7 +376,6 @@ export default function SinglefaceSettingsPage() {
     setFormErrors({})
   }
 
-  // ===== LOADING / ERROR =====
   if (loading && substances.length === 0 && !error) {
     return <LoadingState message="Memuat Data Singleface..." submessage="Harap tunggu sebentar" icon="mdi:layers" />
   }
@@ -358,21 +383,24 @@ export default function SinglefaceSettingsPage() {
     return <ErrorState message={error} onRetry={fetchAll} />
   }
 
-  // ============================================================
-  // RENDER
-  // ============================================================
+  // Dynamic headers: No, Substance, Layer 1, Layer 2, ...fluteHeaders, Aksi
+  const tableHeaders = ['No', 'Substance', 'Layer 1', 'Layer 2', ...flutes.map(f => `${f.code}-Flute`), 'Aksi']
+
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
 
       {/* ===== HEADER ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:layers" className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:layers" className="w-6 h-6 text-blue-400" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-blue-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Singleface Settings</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola harga bahan singleface berdasarkan flute type</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola harga bahan singleface berdasarkan flute type</p>
           </div>
         </div>
         <Button onClick={() => setShowAddModal(true)} variant="primary" size="md" icon="mdi:plus" disabled={flutes.length === 0}>
@@ -381,24 +409,7 @@ export default function SinglefaceSettingsPage() {
       </div>
 
       {/* ===== STATS CARDS ===== */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {[
-          { icon: 'mdi:layers', label: 'Total Substances', value: stats.totalSubstances, sub: `${stats.activeSubstances} aktif` },
-          { icon: 'mdi:waveform', label: 'Flute Types', value: flutes.length, sub: flutes.map(f => f.code).join(' · ') || '-' },
-          { icon: 'mdi:database', label: 'Total Indices', value: stats.totalIndices, sub: `${substances.length} substance × ${flutes.length} flute` },
-        ].map((s, i) => (
-          <Card key={i} shadow="sm" padding="md" hoverable>
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-gray-500">{s.label}</p>
-              <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-            <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>
-          </Card>
-        ))}
-      </div>
+      <StatsCards stats={stats} flutes={flutes} substances={substances} />
 
       {/* ===== ERROR BANNER ===== */}
       {error && substances.length > 0 && (
@@ -410,38 +421,46 @@ export default function SinglefaceSettingsPage() {
       )}
 
       {/* ===== TABLE CARD ===== */}
-      <Card shadow="md" padding="none">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          {/* Gradient top line */}
+          <div className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: 'linear-gradient(90deg, #3b82f6, #8b5cf6)' }}
+          />
 
-        {/* Toolbar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Singleface Substances</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.totalSubstances} kombinasi ({stats.withAllFlutes} dengan harga lengkap)
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Input
-              placeholder="Cari substance..."
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              leftIcon="mdi:magnify"
-            />
-            <button onClick={handleRefresh} title="Refresh" className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-              <Icon icon="mdi:refresh" className="w-5 h-5" />
-            </button>
-            <button onClick={() => router.push('/flute-settings')} title="Kelola Flutes" className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
-              <Icon icon="mdi:cog" className="w-5 h-5" />
-            </button>
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Singleface Substances</h3>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Total {stats.totalSubstances} kombinasi ({withAllFlutes} dengan harga lengkap)
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                placeholder="Cari substance..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                leftIcon="mdi:magnify"
+              />
+              <button onClick={handleRefresh} title="Refresh"
+                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                <Icon icon="mdi:refresh" className="w-5 h-5" />
+              </button>
+              <button onClick={() => router.push('/flute-settings')} title="Kelola Flutes"
+                className="p-2 text-slate-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors">
+                <Icon icon="mdi:cog" className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Pagination Top */}
         {filteredSubstances.length > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-3 border-b border-gray-200 bg-gray-50/50">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50/50">
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-500">Per halaman:</span>
+                <span className="text-sm text-slate-500">Per halaman:</span>
                 <Select
                   value={pagination.itemsPerPage.toString()}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) =>
@@ -456,33 +475,33 @@ export default function SinglefaceSettingsPage() {
                   className="w-20"
                 />
               </div>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-slate-500">
                 Menampilkan{' '}
-                <span className="font-medium text-slate-700">
+                <span className="font-semibold text-slate-600">
                   {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}
                 </span>{' '}
                 -{' '}
-                <span className="font-medium text-slate-700">
+                <span className="font-semibold text-slate-600">
                   {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
                 </span>{' '}
-                dari <span className="font-medium text-slate-700">{pagination.totalItems}</span>
+                dari <span className="font-semibold text-slate-600">{pagination.totalItems}</span>
               </p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => handlePageChange(pagination.currentPage - 1, pagination.totalPages)}
                 disabled={pagination.currentPage === 1}
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon icon="mdi:chevron-left" className="w-5 h-5" />
               </button>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-slate-500">
                 Halaman {pagination.currentPage} dari {pagination.totalPages}
               </span>
               <button
                 onClick={() => handlePageChange(pagination.currentPage + 1, pagination.totalPages)}
                 disabled={pagination.currentPage === pagination.totalPages}
-                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Icon icon="mdi:chevron-right" className="w-5 h-5" />
               </button>
@@ -491,110 +510,122 @@ export default function SinglefaceSettingsPage() {
         )}
 
         {/* Table */}
-        <div className="overflow-x-auto">
-          {substances.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:layers-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Belum ada data singleface</p>
-              <p className="text-sm text-gray-400">Tambahkan singleface substance baru untuk memulai</p>
-              <Button onClick={() => setShowAddModal(true)} variant="primary" icon="mdi:plus" disabled={flutes.length === 0}>
-                {flutes.length === 0 ? 'Tambah Flute Dulu' : 'Tambah Data Pertama'}
-              </Button>
-            </div>
-          ) : filteredSubstances.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-16">
-              <Icon icon="mdi:layers-off" className="w-16 h-16 text-gray-300" />
-              <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
-              <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
-              <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Pencarian</Button>
-            </div>
-          ) : (
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  {['No', 'Substance', 'Layer 1', 'Layer 2', ...flutes.map(f => `${f.code}-Flute`), 'Aksi'].map(h => (
-                    <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {paginatedData.map((substance, index) => {
-                  const rowNum = (pagination.currentPage - 1) * pagination.itemsPerPage + index + 1
-                  const l1Meta = getLayerMeta(substance.layer_1_type)
-                  const l2Meta = getLayerMeta(substance.layer_2_type)
-                  return (
-                    <tr key={substance.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-slate-800">{rowNum}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1">
-                              {[substance.layer_1_type, substance.layer_2_type].map((code, idx) => {
-                                const meta = getLayerMeta(code)
-                                return (
-                                  <span key={idx} className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white" style={{ background: meta.bg }}>
-                                    {code}
-                                  </span>
-                                )
-                              })}
-                            </div>
-                            <p className="text-xs font-mono text-gray-400">{substance.substance_code}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge color={l1Meta.bg} light={l1Meta.light}>{substance.layer_1}{substance.layer_1_type}</Badge>
-                      </td>
-                      <td className="px-6 py-4">
-                        <Badge color={l2Meta.bg} light={l2Meta.light}>{substance.layer_2}{substance.layer_2_type}</Badge>
-                      </td>
-                      {flutes.map((flute, idx) => {
-                        const price = substance[`${flute.code.toLowerCase()}_flute_price`]
-                        const hasPrice = price !== undefined && price !== null && parseFloat(price as string) > 0
-                        const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
-                        return (
-                          <td key={flute.id} className="px-6 py-4">
-                            {hasPrice ? (
-                              <span className="text-sm font-medium" style={{ color: color.bg }}>
-                                {formatCurrency(price as string)}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-gray-300">—</span>
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-1">
-                          <button onClick={() => { setSelectedItem(substance); setShowViewModal(true) }} title="Lihat Detail" className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
-                            <Icon icon="mdi:eye-outline" className="w-5 h-5" />
-                          </button>
-                          <button onClick={() => openEditModal(substance)} title="Edit" className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors">
-                            <Icon icon="mdi:pencil-outline" className="w-5 h-5" />
-                          </button>
-                          <button onClick={() => handleDelete(substance.id, substance.substance_code)} title="Hapus" className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                            <Icon icon="mdi:delete-outline" className="w-5 h-5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          )}
-        </div>
-
-        {/* Footer */}
-        {filteredSubstances.length > 0 && (
-          <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-            <p className="text-sm text-gray-500">
-              Menampilkan <span className="font-medium text-slate-700">{paginatedData.length}</span> dari{' '}
-              <span className="font-medium text-slate-700">{filteredSubstances.length}</span> substance
-            </p>
+        {substances.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-16">
+            <Icon icon="mdi:layers-off" className="w-16 h-16 text-slate-300" />
+            <p className="text-slate-500 font-medium text-lg">Belum ada data singleface</p>
+            <p className="text-sm text-slate-400">Tambahkan singleface substance baru untuk memulai</p>
+            <Button onClick={() => setShowAddModal(true)} variant="primary" icon="mdi:plus" disabled={flutes.length === 0}>
+              {flutes.length === 0 ? 'Tambah Flute Dulu' : 'Tambah Data Pertama'}
+            </Button>
           </div>
+        ) : filteredSubstances.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-16">
+            <Icon icon="mdi:layers-off" className="w-16 h-16 text-slate-300" />
+            <p className="text-slate-500 font-medium text-lg">Tidak ada hasil</p>
+            <p className="text-sm text-slate-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
+            <Button variant="ghost" size="sm" onClick={() => setSearch('')} icon="mdi:close">Hapus Pencarian</Button>
+          </div>
+        ) : (
+          <>
+            <Table headers={tableHeaders}>
+              {paginatedData.map((substance, index) => {
+                const rowNum = (pagination.currentPage - 1) * pagination.itemsPerPage + index + 1
+                const l1Meta = getLayerMeta(substance.layer_1_type)
+                const l2Meta = getLayerMeta(substance.layer_2_type)
+                return (
+                  <TableRow key={substance.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+
+                    {/* No */}
+                    <TableCell>
+                      <span className="text-sm font-medium text-slate-700">{rowNum}</span>
+                    </TableCell>
+
+                    {/* Substance */}
+                    <TableCell>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1">
+                          {[substance.layer_1_type, substance.layer_2_type].map((code, idx) => {
+                            const meta = getLayerMeta(code)
+                            return (
+                              <span key={idx} className="w-6 h-6 rounded-md flex items-center justify-center text-xs font-bold text-white"
+                                style={{ background: meta.bg }}>
+                                {code}
+                              </span>
+                            )
+                          })}
+                        </div>
+                        <p className="text-xs font-mono text-slate-400">{substance.substance_code}</p>
+                      </div>
+                    </TableCell>
+
+                    {/* Layer 1 */}
+                    <TableCell>
+                      <Badge color={l1Meta.bg} light={l1Meta.light}>{substance.layer_1}{substance.layer_1_type}</Badge>
+                    </TableCell>
+
+                    {/* Layer 2 */}
+                    <TableCell>
+                      <Badge color={l2Meta.bg} light={l2Meta.light}>{substance.layer_2}{substance.layer_2_type}</Badge>
+                    </TableCell>
+
+                    {/* Flute Prices (dynamic) */}
+                    {flutes.map((flute, idx) => {
+                      const price = substance[`${flute.code.toLowerCase()}_flute_price`]
+                      const hasPrice = price !== undefined && price !== null && parseFloat(price as string) > 0
+                      const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
+                      return (
+                        <TableCell key={flute.id}>
+                          {hasPrice ? (
+                            <span className="text-sm font-semibold" style={{ color: color.bg }}>
+                              {formatCurrency(price as string)}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-300">—</span>
+                          )}
+                        </TableCell>
+                      )
+                    })}
+
+                    {/* Aksi */}
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <ActionButton
+                          onClick={() => { setSelectedItem(substance); setShowViewModal(true) }}
+                          icon="mdi:eye-outline"
+                          hoverClass="hover:text-blue-600 hover:bg-blue-50"
+                          title="Lihat Detail"
+                        />
+                        <ActionButton
+                          onClick={() => openEditModal(substance)}
+                          icon="mdi:pencil-outline"
+                          hoverClass="hover:text-amber-600 hover:bg-amber-50"
+                          title="Edit"
+                        />
+                        <ActionButton
+                          onClick={() => handleDelete(substance.id, substance.substance_code)}
+                          icon="mdi:delete-outline"
+                          hoverClass="hover:text-red-500 hover:bg-red-50"
+                          title="Hapus"
+                        />
+                      </div>
+                    </TableCell>
+
+                  </TableRow>
+                )
+              })}
+            </Table>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+              <p className="text-sm text-slate-400">
+                Menampilkan <span className="font-semibold text-slate-600">{paginatedData.length}</span> dari{' '}
+                <span className="font-semibold text-slate-600">{filteredSubstances.length}</span> substance
+              </p>
+            </div>
+          </>
         )}
-      </Card>
+      </div>
 
       {/* ===== ADD MODAL ===== */}
       <Modal
@@ -606,12 +637,15 @@ export default function SinglefaceSettingsPage() {
         footer={
           <>
             <Button variant="outline" size="md" onClick={handleCloseAddModal} disabled={isPosting}>Batal</Button>
-            <Button variant="primary" size="md" onClick={() => handleAdd(addFormData)} loading={isPosting} disabled={isPosting || flutes.length === 0} icon="mdi:check">Simpan</Button>
+            <Button variant="primary" size="md" onClick={() => handleAdd(addFormData)} loading={isPosting}
+              disabled={isPosting || flutes.length === 0} icon="mdi:check">
+              Simpan
+            </Button>
           </>
         }
       >
         <div className="space-y-6">
-          <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
+          <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-xl">
             <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
             <p className="text-sm text-blue-700">Isi gramasi dan jenis kertas untuk setiap layer. Pilih flute yang ingin digunakan dan isi harganya.</p>
           </div>
@@ -630,19 +664,22 @@ export default function SinglefaceSettingsPage() {
         footer={
           <>
             <Button variant="outline" size="md" onClick={handleCloseEditModal} disabled={isPosting}>Batal</Button>
-            <Button variant="primary" size="md" onClick={() => editingItem && handleEdit(editingItem, editFormData)} loading={isPosting} disabled={isPosting || flutes.length === 0} icon="mdi:check">Simpan Perubahan</Button>
+            <Button variant="primary" size="md" onClick={() => editingItem && handleEdit(editingItem, editFormData)}
+              loading={isPosting} disabled={isPosting || flutes.length === 0} icon="mdi:check">
+              Simpan Perubahan
+            </Button>
           </>
         }
       >
         {editingItem && (
           <div className="space-y-6">
-            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+              <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-sm font-medium text-blue-800">Mengedit Singleface Substance</p>
-                <p className="text-xs text-blue-600 mt-1">
+                <p className="text-sm font-semibold text-blue-800">Mengedit Singleface Substance</p>
+                <p className="text-xs text-blue-600 mt-0.5">
                   ID: <span className="font-mono">#{editingItem.id}</span> · Kode:{' '}
                   <span className="font-semibold">{editingItem.substance_code}</span>
                 </p>
@@ -663,12 +700,8 @@ export default function SinglefaceSettingsPage() {
         footer={
           <>
             <Button variant="outline" size="md" onClick={() => setShowViewModal(false)}>Tutup</Button>
-            <Button
-              variant="primary"
-              size="md"
-              icon="mdi:pencil-outline"
-              onClick={() => { setShowViewModal(false); if (selectedItem) openEditModal(selectedItem) }}
-            >
+            <Button variant="primary" size="md" icon="mdi:pencil-outline"
+              onClick={() => { setShowViewModal(false); if (selectedItem) openEditModal(selectedItem) }}>
               Edit
             </Button>
           </>
@@ -679,8 +712,11 @@ export default function SinglefaceSettingsPage() {
           const l2Meta = getLayerMeta(selectedItem.layer_2_type)
           return (
             <div className="space-y-4">
-              <div className="flex items-center gap-4 p-4 rounded-xl bg-blue-50">
-                <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-blue-100">
+
+              {/* Identity */}
+              <div className="flex items-center gap-4 p-4 rounded-xl border border-blue-100"
+                style={{ background: '#3b82f608', borderColor: '#3b82f625' }}>
+                <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm bg-blue-100">
                   <Icon icon="mdi:layers" className="w-7 h-7 text-blue-600" />
                 </div>
                 <div>
@@ -690,75 +726,80 @@ export default function SinglefaceSettingsPage() {
                       {[selectedItem.layer_1_type, selectedItem.layer_2_type].map((code, idx) => {
                         const meta = getLayerMeta(code)
                         return (
-                          <span key={idx} className="w-5 h-5 rounded text-xs font-bold text-white flex items-center justify-center" style={{ background: meta.bg }}>
+                          <span key={idx} className="w-5 h-5 rounded text-xs font-bold text-white flex items-center justify-center"
+                            style={{ background: meta.bg }}>
                             {code}
                           </span>
                         )
                       })}
                     </div>
-                    <span className="text-xs text-gray-400 font-mono">{selectedItem.substance_code}</span>
+                    <span className="text-xs text-slate-400 font-mono">{selectedItem.substance_code}</span>
                   </div>
                 </div>
               </div>
 
-              <Card shadow="none" padding="sm" bordered>
-                <p className="text-xs text-gray-500 mb-2">Komposisi Layer</p>
+              {/* Komposisi Layer */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-xs text-slate-400 mb-2">Komposisi Layer</p>
                 <div className="space-y-2">
                   {[
                     { num: 1, gsm: selectedItem.layer_1, type: selectedItem.layer_1_type, meta: l1Meta },
                     { num: 2, gsm: selectedItem.layer_2, type: selectedItem.layer_2_type, meta: l2Meta },
                   ].map(({ num, gsm, type, meta }) => (
-                    <div key={num} className="flex items-center justify-between p-2 bg-slate-50 rounded">
+                    <div key={num} className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-gray-500 w-16">Layer {num}:</span>
+                        <span className="text-xs font-semibold text-slate-400 w-16">Layer {num}:</span>
                         <Badge color={meta.bg} light={meta.light}>{gsm}{type}</Badge>
                       </div>
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-slate-400">
                         {LAYER_TYPE_OPTIONS.find(o => o.value === type)?.label?.split(' - ')[1] || type}
                       </span>
                     </div>
                   ))}
                 </div>
-              </Card>
+              </div>
 
-              <Card shadow="none" padding="sm" bordered>
-                <p className="text-xs text-gray-500 mb-2">Harga per Flute</p>
+              {/* Harga per Flute */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                <p className="text-xs text-slate-400 mb-2">Harga per Flute</p>
                 <div className="grid grid-cols-2 gap-2">
                   {flutes.map((flute, idx) => {
                     const price = selectedItem[`${flute.code.toLowerCase()}_flute_price`] || 0
                     const hasPrice = parseFloat(price as string) > 0
                     const color = FLUTE_COLORS[idx % FLUTE_COLORS.length]
                     return (
-                      <div key={flute.code} className={`flex items-center justify-between p-2 bg-slate-50 rounded ${!hasPrice ? 'opacity-50' : ''}`}>
+                      <div key={flute.code}
+                        className={`flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100 ${!hasPrice ? 'opacity-50' : ''}`}>
                         <div className="flex items-center gap-2">
                           <Badge color={color.bg} light={color.light}>{flute.code}</Badge>
-                          <span className="text-xs text-gray-600">{flute.name}</span>
+                          <span className="text-xs text-slate-500">{flute.name}</span>
                         </div>
-                        <span className="text-sm font-medium" style={{ color: color.bg }}>
+                        <span className="text-sm font-semibold" style={{ color: color.bg }}>
                           {hasPrice ? formatCurrency(price as string) : '—'}
                         </span>
                       </div>
                     )
                   })}
                 </div>
-              </Card>
+              </div>
 
+              {/* Timestamps */}
               {(selectedItem.created_at || selectedItem.updated_at) && (
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-xs text-gray-400">Dibuat</p>
-                    <p className="text-sm text-slate-700">
-                      {selectedItem.created_at ? new Date(selectedItem.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-400">Diperbarui</p>
-                    <p className="text-sm text-slate-700">
-                      {selectedItem.updated_at ? new Date(selectedItem.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
-                    </p>
-                  </div>
+                  {[
+                    { label: 'Dibuat',     value: selectedItem.created_at },
+                    { label: 'Diperbarui', value: selectedItem.updated_at },
+                  ].map(({ label, value }) => (
+                    <div key={label} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-xs text-slate-400">{label}</p>
+                      <p className="text-sm font-medium text-slate-700 mt-0.5">
+                        {value ? new Date(value).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-'}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               )}
+
             </div>
           )
         })()}

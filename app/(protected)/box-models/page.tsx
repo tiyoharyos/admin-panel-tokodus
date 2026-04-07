@@ -1,13 +1,13 @@
 'use client'
 // app/(protected)/box-models/page.tsx  
 import { useState, useMemo } from 'react'
-import Card from '@/components/UI/Card'
 import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import TextArea from '@/components/UI/TextArea'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 import { Icon } from '@iconify/react'
 
 import { useBoxModels } from './hooks/useBoxModels'
@@ -43,13 +43,13 @@ function Badge({ color, children }: { color: string; children: React.ReactNode }
 
 function FormulaLegend() {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 bg-slate-50 rounded-lg border border-gray-200">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 bg-blue-50 rounded-lg border border-blue-100">
       {FORMULA_LEGEND_ITEMS.map(([code, label]) => (
         <div key={code} className="flex items-center gap-1.5">
           <span className="font-mono bg-white px-2 py-0.5 rounded text-xs font-bold text-blue-600 border border-blue-200">
             {code}
           </span>
-          <span className="text-xs text-gray-500">{label}</span>
+          <span className="text-xs text-slate-500">{label}</span>
         </div>
       ))}
     </div>
@@ -62,25 +62,28 @@ function FormulaLegend() {
 
 function StatsCards({ stats }: { stats: BoxModelStats }) {
   const items = [
-    { icon: 'mdi:package-variant-closed', label: 'Total Model', value: stats.totalModels, sub: undefined },
-    { icon: 'mdi:calculator', label: 'Dengan Formula', value: stats.withFormulas, sub: `${stats.withoutFormulas} belum memiliki formula` },
-    { icon: 'mdi:chart-pie', label: 'Kategori', value: stats.mailerBoxCount, sub: `Mailer: ${stats.mailerBoxCount} · Shoe: ${stats.shoeBoxCount}` },
-    { icon: 'mdi:format-list-numbered', label: 'Rata-rata Komponen', value: `${stats.avgComponents}/model`, sub: `Maks: ${stats.maxComponents} komponen` },
+    { icon: 'mdi:package-variant-closed', label: 'Total Model', value: stats.totalModels, sub: undefined, accent: '#3b82f6' },
+    { icon: 'mdi:calculator', label: 'Dengan Formula', value: stats.withFormulas, sub: `${stats.withoutFormulas} belum memiliki formula`, accent: '#f59e0b' },
+    { icon: 'mdi:chart-pie', label: 'Kategori', value: stats.mailerBoxCount, sub: `Mailer: ${stats.mailerBoxCount} · Shoe: ${stats.shoeBoxCount}`, accent: '#3b82f6' },
+    { icon: 'mdi:format-list-numbered', label: 'Rata-rata Komponen', value: `${stats.avgComponents}/model`, sub: `Maks: ${stats.maxComponents} komponen`, accent: '#f59e0b' },
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
       {items.map((s, i) => (
-        <Card key={i} shadow="sm" padding="md" hoverable>
+        <div key={i} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-sm text-gray-500">{s.label}</p>
-            <div className="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-              <Icon icon={s.icon} className="w-4 h-4 text-blue-500" />
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: `${s.accent}15` }}
+            >
+              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
             </div>
           </div>
           <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-          {s.sub && <p className="text-xs text-gray-400 mt-1.5">{s.sub}</p>}
-        </Card>
+          {s.sub && <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>}
+          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+        </div>
       ))}
     </div>
   )
@@ -100,10 +103,12 @@ interface FormulaComponentFormProps {
 
 function FormulaComponentForm({ component, index, disabled, onUpdate, onRemove }: FormulaComponentFormProps) {
   return (
-    <Card shadow="sm" padding="md" className="border-l-4 border-l-blue-500">
+    <div className="bg-white rounded-xl border border-slate-200 border-l-4 border-l-amber-400 p-4 shadow-sm">
       <div className="flex justify-between items-center mb-4">
-        <span className="text-xs font-semibold text-gray-500">Komponen #{index + 1}</span>
-        <Button onClick={onRemove} disabled={disabled} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+        <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Komponen #{index + 1}</span>
+        <Button onClick={onRemove} disabled={disabled}
+          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+        >
           <Icon icon="mdi:delete-outline" className="w-4 h-4" />
         </Button>
       </div>
@@ -116,21 +121,21 @@ function FormulaComponentForm({ component, index, disabled, onUpdate, onRemove }
         <Input label="Sort Order" type="number" value={component.sort_order || index + 1} onChange={e => onUpdate('sort_order', e.target.value)} min="1" disabled={disabled} />
       </div>
 
-      <div className="mt-3 p-2 bg-slate-50 rounded-lg">
-        <p className="text-xs text-gray-500">
+      <div className="mt-3 p-2.5 bg-amber-50 rounded-lg border border-amber-100">
+        <p className="text-xs text-slate-500">
           Formula:{' '}
-          <span className="font-mono font-medium text-blue-600">
+          <span className="font-mono font-semibold text-amber-600">
             {component.source} × {component.multiplier}
             {component.allowance_mm ? ` + ${component.allowance_mm}mm` : ''}
           </span>
         </p>
       </div>
-    </Card>
+    </div>
   )
 }
 
 // ============================================================
-// FORMULA SECTION — reusable di Edit & Formula modal
+// FORMULA SECTION
 // ============================================================
 
 interface FormulaSectionProps {
@@ -143,11 +148,11 @@ interface FormulaSectionProps {
 
 function FormulaSection({ components, disabled, onAdd, onUpdate, onRemove }: FormulaSectionProps) {
   return (
-    <div className="bg-white border border-green-200 rounded-lg p-4">
+    <div className="bg-white rounded-xl border border-emerald-200 p-4 shadow-sm">
       <div className="flex justify-between items-center mb-4">
         <div>
           <h4 className="text-sm font-semibold text-slate-700">Formula Components</h4>
-          <p className="text-xs text-gray-400 mt-0.5">Kelola rumus perhitungan dimensi box</p>
+          <p className="text-xs text-slate-400 mt-0.5">Kelola rumus perhitungan dimensi box</p>
         </div>
         <Button type="button" onClick={onAdd} variant="success" size="sm" disabled={disabled} icon="mdi:plus">
           Tambah
@@ -169,9 +174,9 @@ function FormulaSection({ components, disabled, onAdd, onUpdate, onRemove }: For
             />
           ))
         ) : (
-          <div className="text-center py-8 bg-slate-50 rounded-lg border border-dashed">
-            <Icon icon="mdi:calculator-off" className="w-12 h-12 text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-500 mb-3">Belum ada formula components</p>
+          <div className="text-center py-10 bg-slate-50 rounded-xl border border-dashed border-slate-200">
+            <Icon icon="mdi:calculator-off" className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+            <p className="text-sm text-slate-500 mb-3">Belum ada formula components</p>
             <Button variant="primary" onClick={onAdd} disabled={disabled} icon="mdi:plus" size="sm">
               Tambah Component Pertama
             </Button>
@@ -186,16 +191,13 @@ function FormulaSection({ components, disabled, onAdd, onUpdate, onRemove }: For
 // TABLE
 // ============================================================
 
-const HOVER_CLASSES: Record<string, string> = {
-  blue:  'hover:text-blue-600 hover:bg-blue-50',
-  green: 'hover:text-green-600 hover:bg-green-50',
-  amber: 'hover:text-amber-600 hover:bg-amber-50',
-  red:   'hover:text-red-600 hover:bg-red-50',
-}
-
-function ActionButton({ onClick, icon, hoverColor, title }: { onClick: () => void; icon: string; hoverColor: string; title: string }) {
+function ActionButton({ onClick, icon, hoverClass, title }: {
+  onClick: () => void; icon: string; hoverClass: string; title: string
+}) {
   return (
-    <button onClick={onClick} title={title} className={`p-2 text-gray-400 rounded-lg transition-colors ${HOVER_CLASSES[hoverColor]}`}>
+    <button onClick={onClick} title={title}
+      className={`p-2 text-slate-400 rounded-lg transition-colors ${hoverClass}`}
+    >
       <Icon icon={icon} className="w-5 h-5" />
     </button>
   )
@@ -216,89 +218,119 @@ function BoxModelTable({ models, totalCount, search, onSearchClear, onView, onEd
   if (totalCount === 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-16">
-        <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
-        <p className="text-gray-500 font-medium text-lg">Belum ada data box model</p>
+        <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-slate-300" />
+        <p className="text-slate-500 font-medium text-lg">Belum ada data box model</p>
       </div>
     )
   }
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-100">
-        <thead className="bg-gray-50">
-          <tr>
-            {['Model', 'Kategori', 'Formula', 'Aksi'].map(h => (
-              <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-100">
-          {models.length === 0 ? (
-            <tr>
-              <td colSpan={4} className="px-6 py-16 text-center">
-                <div className="flex flex-col items-center gap-3">
-                  <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-gray-300" />
-                  <p className="text-gray-500 font-medium text-lg">Tidak ada hasil</p>
-                  <p className="text-sm text-gray-400">Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;</p>
-                  <Button variant="ghost" size="sm" onClick={onSearchClear} icon="mdi:close">Hapus Pencarian</Button>
-                </div>
-              </td>
-            </tr>
-          ) : (
-            models.map(model => {
-              const meta = BOX_META[model.category] || DEFAULT_BOX_META
-              return (
-                <tr key={model.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${meta.accent}15` }}>
-                        <Icon icon={meta.icon} className="w-5 h-5" style={{ color: meta.accent }} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{model.namaModel}</p>
-                        <p className="text-xs text-gray-400 font-mono mt-0.5">{model.kode}</p>
-                      </div>
+    <>
+      <Table headers={['Model', 'Kategori', 'Formula', 'Aksi']}>
+        {models.length === 0 ? (
+          <TableRow hoverable={false}>
+            <TableCell colSpan={4} className="py-16 text-center whitespace-normal">
+              <div className="flex flex-col items-center gap-3">
+                <Icon icon="mdi:package-variant-closed-off" className="w-16 h-16 text-slate-300" />
+                <p className="text-slate-500 font-medium text-lg">Tidak ada hasil</p>
+                <p className="text-sm text-slate-400">
+                  Tidak ditemukan dengan kata kunci &ldquo;{search}&rdquo;
+                </p>
+                <Button variant="ghost" size="sm" onClick={onSearchClear} icon="mdi:close">
+                  Hapus Pencarian
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+        ) : (
+          models.map(model => {
+            const meta = BOX_META[model.category] || DEFAULT_BOX_META
+            return (
+              <TableRow key={model.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+
+                {/* Model */}
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+                      style={{ background: `${meta.accent}15` }}
+                    >
+                      <Icon icon={meta.icon} className="w-5 h-5" style={{ color: meta.accent }} />
                     </div>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge color={meta.accent}>{model.category}</Badge>
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge color={model.hasFormula ? '#10b981' : '#f59e0b'}>
-                      {model.hasFormula ? '✓ Ada Formula' : '✗ Tanpa Formula'}
-                    </Badge>
-                    {model.hasFormula && (
-                      <p className="text-xs text-gray-400 mt-1 truncate max-w-[200px]" title={formatFormula(model.formulaComponents)}>
-                        {formatFormula(model.formulaComponents)}
-                      </p>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">{model.namaModel}</p>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">{model.kode}</p>
+                    </div>
+                  </div>
+                </TableCell>
+
+                {/* Kategori */}
+                <TableCell>
+                  <Badge color={meta.accent}>{model.category}</Badge>
+                </TableCell>
+
+                {/* Formula */}
+                <TableCell className="whitespace-normal">
+                  <Badge color={model.hasFormula ? '#10b981' : '#f59e0b'}>
+                    {model.hasFormula ? '✓ Ada Formula' : '✗ Tanpa Formula'}
+                  </Badge>
+                  {model.hasFormula && (
+                    <p
+                      className="text-xs text-slate-400 mt-1 truncate max-w-[200px]"
+                      title={formatFormula(model.formulaComponents)}
+                    >
+                      {formatFormula(model.formulaComponents)}
+                    </p>
+                  )}
+                </TableCell>
+
+                {/* Aksi */}
+                <TableCell>
+                  <div className="flex items-center gap-1">
+                    <ActionButton
+                      onClick={() => onView(model)}
+                      icon="mdi:eye-outline"
+                      hoverClass="hover:text-blue-600 hover:bg-blue-50"
+                      title="Lihat Detail"
+                    />
+                    {!model.hasFormula && (
+                      <ActionButton
+                        onClick={() => onAddFormula(model)}
+                        icon="mdi:calculator"
+                        hoverClass="hover:text-emerald-600 hover:bg-emerald-50"
+                        title="Tambah Formula"
+                      />
                     )}
-                  </td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-1">
-                      <ActionButton onClick={() => onView(model)} icon="mdi:eye-outline" hoverColor="blue" title="Lihat Detail" />
-                      {!model.hasFormula && (
-                        <ActionButton onClick={() => onAddFormula(model)} icon="mdi:calculator" hoverColor="green" title="Tambah Formula" />
-                      )}
-                      <ActionButton onClick={() => onEdit(model)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
-                      <ActionButton onClick={() => onDelete(model.id, model.namaModel)} icon="mdi:delete-outline" hoverColor="red" title="Hapus" />
-                    </div>
-                  </td>
-                </tr>
-              )
-            })
-          )}
-        </tbody>
-      </table>
+                    <ActionButton
+                      onClick={() => onEdit(model)}
+                      icon="mdi:pencil-outline"
+                      hoverClass="hover:text-amber-600 hover:bg-amber-50"
+                      title="Edit"
+                    />
+                    <ActionButton
+                      onClick={() => onDelete(model.id, model.namaModel)}
+                      icon="mdi:delete-outline"
+                      hoverClass="hover:text-red-500 hover:bg-red-50"
+                      title="Hapus"
+                    />
+                  </div>
+                </TableCell>
+
+              </TableRow>
+            )
+          })
+        )}
+      </Table>
 
       {models.length > 0 && (
-        <div className="px-6 py-3 border-t border-gray-200 bg-gray-50">
-          <p className="text-sm text-gray-500">
-            Menampilkan <span className="font-medium text-slate-700">{models.length}</span> dari{' '}
-            <span className="font-medium text-slate-700">{totalCount}</span> box model
+        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+          <p className="text-sm text-slate-400">
+            Menampilkan <span className="font-semibold text-slate-600">{models.length}</span> dari{' '}
+            <span className="font-semibold text-slate-600">{totalCount}</span> box model
           </p>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -320,7 +352,7 @@ function AddModal({ isOpen, isLoading, formData, onChange, onClose, onSubmit }: 
       }
     >
       <div className="space-y-4">
-        <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-lg">
+        <div className="flex items-center gap-2 px-3 py-3 bg-blue-50 border border-blue-100 rounded-xl">
           <Icon icon="mdi:information-outline" className="w-4 h-4 text-blue-500 flex-shrink-0" />
           <p className="text-sm text-blue-700">Kode akan digenerate otomatis. Isi semua field yang diperlukan.</p>
         </div>
@@ -349,54 +381,59 @@ function ViewModal({ isOpen, item, onClose, onEdit }: {
       }
     >
       <div className="space-y-4">
-        <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: `${meta.accent}0d` }}>
-          <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${meta.accent}20` }}>
+        <div className="flex items-center gap-4 p-4 rounded-xl border"
+          style={{ background: `${meta.accent}08`, borderColor: `${meta.accent}25` }}
+        >
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+            style={{ background: `${meta.accent}18` }}
+          >
             <Icon icon={meta.icon} className="w-7 h-7" style={{ color: meta.accent }} />
           </div>
           <div>
             <p className="text-base font-semibold text-slate-800">{item.namaModel}</p>
             <div className="flex items-center gap-2 mt-1">
               <Badge color={meta.accent}>{item.category}</Badge>
-              <span className="text-xs text-gray-400 font-mono">{item.kode}</span>
+              <span className="text-xs text-slate-400 font-mono">{item.kode}</span>
             </div>
           </div>
         </div>
 
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-1">Deskripsi</p>
-          <p className="text-sm text-slate-700">{item.deskripsi || '—'}</p>
-        </Card>
-
-        <Card shadow="none" padding="sm" bordered>
-          <p className="text-xs text-gray-500 mb-1">Formula</p>
-          <Badge color={item.hasFormula ? '#10b981' : '#f59e0b'}>{item.hasFormula ? '✓ Ada' : '✗ Belum'}</Badge>
-        </Card>
+        {[
+          { label: 'Deskripsi', content: <p className="text-sm text-slate-700">{item.deskripsi || '—'}</p> },
+          { label: 'Formula', content: <Badge color={item.hasFormula ? '#10b981' : '#f59e0b'}>{item.hasFormula ? '✓ Ada' : '✗ Belum'}</Badge> },
+        ].map(({ label, content }) => (
+          <div key={label} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <p className="text-xs text-slate-400 mb-1.5">{label}</p>
+            {content}
+          </div>
+        ))}
 
         {item.hasFormula && (
-          <Card shadow="none" padding="sm" bordered>
-            <p className="text-xs text-gray-500 mb-2">Rumus Perhitungan</p>
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+            <p className="text-xs text-slate-400 mb-2">Rumus Perhitungan</p>
             <div className="space-y-2">
               {item.formulaComponents.map((comp, i) => (
-                <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded">
-                  <span className="text-xs font-semibold text-gray-500 w-16">{comp.target}:</span>
-                  <span className="text-xs font-mono text-blue-600">
+                <div key={i} className="flex items-center gap-2 p-2 bg-white rounded-lg border border-slate-100">
+                  <span className="text-xs font-semibold text-slate-400 w-16">{comp.target}:</span>
+                  <span className="text-xs font-mono font-semibold text-amber-600">
                     {comp.source} × {comp.multiplier}{comp.allowance_mm ? ` + ${comp.allowance_mm}mm` : ''}
                   </span>
                 </div>
               ))}
             </div>
-          </Card>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-gray-400">Dibuat</p>
-            <p className="text-sm text-slate-700">{new Date(item.createdAt).toLocaleDateString('id-ID')}</p>
-          </div>
-          <div>
-            <p className="text-xs text-gray-400">Diperbarui</p>
-            <p className="text-sm text-slate-700">{new Date(item.updatedAt).toLocaleDateString('id-ID')}</p>
-          </div>
+          {[
+            { label: 'Dibuat', value: new Date(item.createdAt).toLocaleDateString('id-ID') },
+            { label: 'Diperbarui', value: new Date(item.updatedAt).toLocaleDateString('id-ID') },
+          ].map(({ label, value }) => (
+            <div key={label} className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+              <p className="text-xs text-slate-400">{label}</p>
+              <p className="text-sm font-medium text-slate-700 mt-0.5">{value}</p>
+            </div>
+          ))}
         </div>
       </div>
     </Modal>
@@ -422,7 +459,7 @@ function EditModal({ isOpen, isLoading, item, onClose, onSubmit, onChange, onFor
       }
     >
       <div className="space-y-5">
-        <div className="bg-slate-50 p-4 rounded-lg border border-gray-200">
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
           <h4 className="text-sm font-semibold text-slate-700 mb-3">Informasi Dasar</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input label="Kode" value={item.kode} disabled leftIcon="mdi:tag" />
@@ -466,13 +503,13 @@ function FormulaModal({ isOpen, isLoading, item, components, onClose, onSubmit, 
       }
     >
       <div className="space-y-5">
-        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+        <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-100 rounded-xl">
+          <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
             <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
           </div>
           <div>
-            <p className="text-sm font-medium text-blue-800">Menambahkan Formula Baru</p>
-            <p className="text-xs text-blue-600 mt-1">
+            <p className="text-sm font-semibold text-blue-800">Menambahkan Formula Baru</p>
+            <p className="text-xs text-blue-600 mt-0.5">
               Box Model: <span className="font-semibold">{item.namaModel}</span> (Kode: {item.kode})
             </p>
           </div>
@@ -541,7 +578,7 @@ export default function BoxModelsPage() {
   if (loading) return <LoadingState message="Memuat data Box Models..." submessage="Harap tunggu sebentar" icon="mdi:package-variant-closed" />
 
   if (error) return (
-    <div className="flex flex-col items-center justify-center min-h-screen gap-4">
+    <div className="flex flex-col items-center justify-center min-h-screen gap-4 bg-slate-50">
       <Icon icon="mdi:alert-circle-outline" className="w-16 h-16 text-red-400" />
       <p className="text-red-500 font-medium">{error}</p>
       <Button variant="primary" onClick={refetch} icon="mdi:refresh">Coba Lagi</Button>
@@ -550,15 +587,19 @@ export default function BoxModelsPage() {
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
-      {/* Header */}
+
+      {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center shadow-md">
-            <Icon icon="mdi:package-variant-closed" className="w-6 h-6 text-blue-400" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:package-variant-closed" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Box Models</h1>
-            <p className="text-slate-500 mt-1 text-sm">Kelola model kotak dan rumus perhitungan dimensi</p>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola model kotak dan rumus perhitungan dimensi</p>
           </div>
         </div>
         <Button
@@ -577,21 +618,26 @@ export default function BoxModelsPage() {
       {/* Stats */}
       <StatsCards stats={stats} />
 
-      {/* Table */}
-      <Card shadow="md" padding="none">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 py-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-base font-semibold text-slate-800">Daftar Box Models</h3>
-            <p className="text-sm text-gray-400 mt-0.5">
-              Total {stats.totalModels} model ({stats.withFormulas} dengan formula, {stats.withoutFormulas} tanpa formula)
-            </p>
-          </div>
-          <Input
-            placeholder="Cari model, kode, kategori..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            leftIcon="mdi:magnify"
+      {/* Table Card */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}
           />
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Daftar Box Models</h3>
+              <p className="text-sm text-slate-400 mt-0.5">
+                Total {stats.totalModels} model ({stats.withFormulas} dengan formula, {stats.withoutFormulas} tanpa formula)
+              </p>
+            </div>
+            <Input
+              placeholder="Cari model, kode, kategori..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              leftIcon="mdi:magnify"
+            />
+          </div>
         </div>
 
         <BoxModelTable
@@ -604,29 +650,13 @@ export default function BoxModelsPage() {
           onAddFormula={openFormulaModal}
           onDelete={handleDelete}
         />
-      </Card>
+      </div>
 
       {/* Modals */}
-      <AddModal
-        isOpen={showAddModal}
-        isLoading={isPosting}
-        formData={addFormData}
-        onChange={setAddFormData}
-        onClose={() => setShowAddModal(false)}
-        onSubmit={() => handleAdd(addFormData)}
-      />
-
-      <ViewModal
-        isOpen={showViewModal}
-        item={selectedItem}
-        onClose={() => setShowViewModal(false)}
-        onEdit={openEditModal}
-      />
-
+      <AddModal isOpen={showAddModal} isLoading={isPosting} formData={addFormData} onChange={setAddFormData} onClose={() => setShowAddModal(false)} onSubmit={() => handleAdd(addFormData)} />
+      <ViewModal isOpen={showViewModal} item={selectedItem} onClose={() => setShowViewModal(false)} onEdit={openEditModal} />
       <EditModal
-        isOpen={showEditModal}
-        isLoading={isPosting}
-        item={editingItem}
+        isOpen={showEditModal} isLoading={isPosting} item={editingItem}
         onClose={() => { setShowEditModal(false); setEditingItem(null) }}
         onSubmit={() => editingItem && handleEdit(editingItem)}
         onChange={item => setEditingItem(item)}
@@ -634,12 +664,8 @@ export default function BoxModelsPage() {
         onFormulaUpdate={(i, field, value) => updateFormulaComponent('edit', i, field, value)}
         onFormulaRemove={i => removeFormulaComponent('edit', i)}
       />
-
       <FormulaModal
-        isOpen={showFormulaModal}
-        isLoading={isPosting}
-        item={editingItem}
-        components={editingFormulaComponents}
+        isOpen={showFormulaModal} isLoading={isPosting} item={editingItem} components={editingFormulaComponents}
         onClose={() => { setShowFormulaModal(false); setEditingItem(null) }}
         onSubmit={() => editingItem && handleFormulaSave(editingItem, editingFormulaComponents)}
         onAdd={() => addFormulaComponent('new')}
