@@ -30,7 +30,7 @@ export const useSingleface = () => {
     try {
       setLoading(true)
       setError(null)
-      const response = await axios.get<ApiResponse<ApiRawItem[]>>(`${API_BASE}/singelfaceIndex`)
+      const response = await axios.get<ApiResponse<ApiRawItem[]>>(`/Admin/Singelface/singelfaceIndex`)
       const rawItems: ApiRawItem[] =
         response.data?.data || (Array.isArray(response.data) ? response.data : [])
       if (!Array.isArray(rawItems)) throw new Error('Format respons tidak valid')

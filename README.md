@@ -1,171 +1,134 @@
-============================================================
-          TOKODUS ADMIN PANEL - README
-============================================================
+# Tokodus Admin Panel
 
-Versi       : 1.0.0
-Framework   : Next.js (App Router) + TypeScript
-Kategori    : Admin Panel / Dashboard Manajemen Produksi
+> Internal admin dashboard for managing production operations of a packaging & printing business (percetakan dan pengemasan).
 
+---
 
-------------------------------------------------------------
-DESKRIPSI PROYEK
-------------------------------------------------------------
+## Tech Stack
 
-Tokodus Admin Panel adalah aplikasi web berbasis Next.js yang
-dirancang untuk mengelola operasional bisnis percetakan dan
-pengemasan (packaging). Sistem ini menyediakan antarmuka
-admin yang lengkap untuk manajemen pesanan, material, model
-box, konfigurasi produksi, hingga perhitungan harga produk.
+| Layer | Technology | Version |
+|---|---|---|
+| Framework | Next.js (App Router) | ^16.1.6 |
+| Language | TypeScript | ^5 |
+| UI Library | React | 19.2.3 |
+| Styling | Tailwind CSS | ^4 |
+| HTTP Client | Axios | ^1.13.2 |
+| Charts | Recharts | ^3.8.1 |
+| Icons | @iconify/react | ^6.0.2 |
+| Alerts/Dialogs | SweetAlert2 | ^11.26.17 |
+| PostCSS | @tailwindcss/postcss | ^4 |
 
-Proyek ini menggunakan arsitektur App Router Next.js dengan
-pembagian rute yang dilindungi autentikasi (protected routes)
-dan halaman publik (auth).
+---
 
+## Prerequisites
 
-------------------------------------------------------------
-TEKNOLOGI YANG DIGUNAKAN
-------------------------------------------------------------
+- **Node.js** ≥ 18.x
+- **npm** ≥ 9.x
+- Backend API running (default: `http://192.168.18.14:8080/Api_TokoDus/`)
 
-Dependencies (Production):
+---
 
-  next              ^16.1.6   Framework React (App Router)
-  react             19.2.3    UI Library
-  react-dom         19.2.3    React DOM rendering
-  axios             ^1.13.2   HTTP client untuk API requests
-  sweetalert2       ^11.26.17 Dialog & notifikasi interaktif
-  canvas-confetti   ^1.9.4    Animasi confetti
+## Getting Started
 
-DevDependencies:
+```bash
+# 1. Clone & masuk direktori
+cd admin-panel-tokodus
 
-  typescript        ^5        Type safety & DX
-  tailwindcss       ^4        Utility-first CSS framework
-  @tailwindcss/postcss ^4     PostCSS plugin Tailwind
-  @iconify/react    ^6.0.2    Ikon Material Design (mdi:*)
-  eslint            ^9        Linter JavaScript/TypeScript
-  eslint-config-next 16.1.1   ESLint config untuk Next.js
-  @types/node       ^20       Type definitions Node.js
-  @types/react      ^19       Type definitions React
-  @types/react-dom  ^19       Type definitions React DOM
+# 2. Install dependencies
+npm install
 
+# 3. Buat environment file
+cp .env.local.example .env.local
+# Edit NEXT_PUBLIC_API_URL sesuai alamat backend
 
-------------------------------------------------------------
-FITUR UTAMA
-------------------------------------------------------------
+# 4. Jalankan dev server
+npm run dev
+# → http://localhost:3000
 
-1. AUTENTIKASI
-   - Login dengan email dan password
-   - JWT Token management via localStorage
-   - Protected routes (semua halaman membutuhkan login)
-   - Axios interceptor otomatis inject Bearer Token
+# 5. Build production
+npm run build
+npm start
+```
 
-2. DASHBOARD
-   - Ringkasan statistik produksi & pesanan
-   - Tabel recent orders dengan detail lengkap
-   - Overview produk & kepuasan pelanggan
-   - Filter rentang waktu: Minggu / Bulan / Tahun
+### Environment Variables
 
-3. MANAJEMEN PESANAN (Orders)
-   - Daftar semua pesanan dengan filter status
-   - CRUD pesanan (Tambah, Lihat, Edit, Hapus)
-   - Status: pending, processing, completed, shipped,
-     cancelled
-   - Status pembayaran: paid, unpaid, refunded
-   - Pagination pada tabel pesanan
+```env
+# .env.local
+NEXT_PUBLIC_API_URL="http://<backend-host>:<port>/Api_TokoDus/"
+```
 
-4. MANAJEMEN MATERIAL
-   - Daftar tipe material (Regular & Premium)
-   - CRUD tipe material dengan validasi kode
+> ⚠️ Variabel ini diekspos ke client-side (prefix `NEXT_PUBLIC_`). Pastikan tidak menyimpan secrets di sini.
 
-5. MODEL BOX (Box Models)
-   - Manajemen model box (mailer box, shoe box, dll.)
-   - Formula komponen untuk kalkulasi dimensi (P, L, T)
-   - Status aktif/nonaktif model
+---
 
-6. KONFIGURASI FLUTE
-   - Manajemen jenis flute (B, C, CB, EB, dll.)
-   - CRUD flute dengan kode unik
+## NPM Scripts
 
-7. KONFIGURASI PISAU (Die Cut)
-   - Pisau Config  : konfigurasi pisau potong
-   - Pisau Registry: registrasi pisau ke sistem
+| Script | Perintah | Keterangan |
+|---|---|---|
+| `dev` | `next dev` | Dev server dengan hot-reload |
+| `build` | `next build` | Compile & optimasi production |
+| `start` | `next start` | Jalankan hasil build production |
+| `lint` | `eslint` | Static analysis dengan ESLint |
 
-8. DUPLEX
-   - Rumus DK  : kalkulasi duplex dengan rumus DK
-   - Rumus DMD : kalkulasi duplex dengan rumus DMD
+---
 
-9. PAPER BAG
-   - Manajemen ukuran, harga & tali paper bag
+## Project Structure
 
-10. PENGATURAN LAINNYA
-    - Sheet Settings  : pengaturan lembar & flute
-    - Print Settings  : pengaturan cetak
-    - Lamitasi        : laminasi finishing
-    - Sablon          : pengaturan sablon
-    - Inner Box       : konfigurasi inner box
-    - Index Lain      : indeks tambahan
-    - Singleface      : konfigurasi singleface
-    - Other Min Order : minimum order lainnya
-    - Material Testing: pengujian material
-
-
-------------------------------------------------------------
-STRUKTUR FOLDER
-------------------------------------------------------------
-
+```
 admin-panel-tokodus/
+│
 ├── app/
 │   ├── (auth)/
-│   │   └── login/page.tsx          # Halaman login
-│   └── (protected)/
-│       ├── layout.tsx              # Layout utama (Sidebar + Header)
+│   │   └── login/
+│   │       └── page.tsx             # Halaman login (public)
+│   │
+│   └── (protected)/                 # Semua route memerlukan JWT
 │       ├── dashboard/page.tsx
 │       ├── orders/page.tsx
 │       ├── material/page.tsx
-│       ├── materialtesting/page.tsx
-│       ├── box-models/page.tsx
-│       ├── flute-settings/page.tsx
-│       ├── print-settings/page.tsx
-│       ├── sheet-settings/
-│       │   ├── sheet-index/page.tsx
-│       │   └── flute-settings/page.tsx
-│       ├── pisau-config/page.tsx
-│       ├── pisau-registry/page.tsx
+│       ├── box-models/
+│       │   ├── page.tsx
+│       │   ├── hooks/               # useBoxModelActions, useBoxModels, useFormulaState
+│       │   ├── lib/utils.ts
+│       │   ├── types/types.ts
+│       │   └── constants/
+│       ├── flute-settings/
 │       ├── Duplex/
-│       │   ├── Rumus_dk/page.tsx
-│       │   └── Rumus_dmd/page.tsx
+│       │   ├── Rumus_dk/
+│       │   └── Rumus_dmd/
+│       ├── lamitasi/
+│       │   ├── lamitasi/
+│       │   └── sablon/
+│       ├── Singgleface-indext/
+│       ├── index_lain/
+│       ├── print/
+│       │   ├── print-settings/
+│       │   └── other-minorder/
+│       ├── pisau/
+│       │   ├── pisau-config/
+│       │   └── pisau-registry/
 │       ├── paperbag/
-│       │   ├── price/page.tsx
-│       │   ├── size/page.tsx
-│       │   └── tali/page.tsx
-│       ├── lamitasi/page.tsx
-│       ├── sablon/page.tsx
-│       ├── inner-box/page.tsx
-│       ├── index_lain/page.tsx
-│       ├── Singgleface-indext/page.tsx
-│       └── other-minorder/page.tsx
+│       │   ├── tali/
+│       │   ├── size/
+│       │   └── price/
+│       └── sheet-settings/
 │
 ├── components/
 │   ├── layout/
-│   │   ├── Sidebar.tsx             # Navigasi samping
-│   │   └── Header.tsx              # Header & toggle sidebar
+│   │   ├── Header.tsx               # Top navigation bar
+│   │   └── Sidebar.tsx              # Sidebar navigasi dengan nested menu
 │   ├── UI/
-│   │   ├── Button.tsx              # Tombol dengan varian & icon
-│   │   ├── ButtonLink.tsx          # Tombol sebagai link
-│   │   ├── Card.tsx                # Container dengan shadow
-│   │   ├── Badge.tsx               # Label status berwarna
-│   │   ├── Input.tsx               # Input field dengan validasi
-│   │   ├── Select.tsx              # Dropdown selector
-│   │   ├── TextArea.tsx            # Input teks multi-baris
-│   │   ├── Modal.tsx               # Dialog popup
-│   │   ├── Table.tsx               # Tabel (Row & Cell)
-│   │   ├── Tabs.tsx                # Tab navigation
-│   │   ├── Skeleton.tsx            # Skeleton loading
-│   │   ├── LoadingState.tsx        # Indikator loading
-│   │   ├── ErrorState.tsx          # Tampilan error
-│   │   ├── EmptyState.tsx          # Tampilan data kosong
-│   │   ├── StatsCard.tsx           # Kartu statistik
-│   │   ├── Icon.tsx                # Wrapper Iconify
-│   │   └── SweetAlert.tsx          # Wrapper SweetAlert2
+│   │   ├── Button.tsx, Input.tsx, Select.tsx, TextArea.tsx
+│   │   ├── Modal.tsx, Table.tsx, Tabs.tsx
+│   │   ├── Badge.tsx, Card.tsx, StatsCard.tsx
+│   │   ├── LoadingState.tsx, EmptyState.tsx, ErrorState.tsx, Skeleton.tsx
+│   │   ├── SweetAlert.tsx           # Wrapper SweetAlert2
+│   │   ├── Chart.tsx                # Wrapper Recharts
+│   │   ├── Chat.tsx                 # Komponen chat/AI
+│   │   ├── PageContainer.tsx, PageHeader.tsx
+│   │   └── AuthLoadingScreen.tsx
+│   ├── AuthWrapper.tsx              # Client-side route guard
+│   ├── ErrorBoundary.tsx
 │   ├── MaterialForm.tsx
 │   ├── MaterialStockChart.tsx
 │   ├── OrderModal.tsx
@@ -173,145 +136,147 @@ admin-panel-tokodus/
 │   ├── RecentOrdersTable.tsx
 │   └── StatsCards.tsx
 │
-├── hooks/                          # Custom React Hooks
-│   ├── useBoxModels.ts
-│   ├── useDuplexDK.ts
-│   ├── useDuplexDMD.ts
-│   ├── useFlute.ts
-│   ├── useIndexLainnya.ts
-│   ├── useK200.ts
-│   ├── useMachineStats.ts
-│   ├── usePrintSettings.ts
-│   ├── useSheet.ts
-│   ├── useSheetSettings.ts
-│   └── useSingleface.ts
-│
-├── services/                       # Fungsi API call (Axios)
-│   ├── auth.service.ts
-│   ├── boxModelService.ts
-│   ├── duplexService.ts
-│   ├── fluteService.ts
-│   ├── indexLainnyaService.ts
-│   ├── k200Service.ts
-│   ├── printSettingsService.ts
-│   ├── sheetService.ts
-│   └── singlefaceService.ts
+├── hooks/
+│   └── useAuth.ts                   # Auth state + logout handler
 │
 ├── lib/
-│   ├── axios.ts                    # Instance Axios + interceptor
-│   ├── auth.ts                     # get/set/remove token
-│   └── token.ts                    # Utility token
+│   ├── axios.ts                     # Axios instance + request interceptor
+│   ├── auth.ts                      # Token helpers (set/get/remove)
+│   └── token.ts
 │
-├── types/                          # TypeScript type definitions
-├── utils/                          # Helper & utility functions
+├── services/
+│   └── auth.service.ts              # Login API call
+│
 ├── constants/
-│   └── menu.ts                     # Data menu navigasi sidebar
+│   └── menu.ts                      # NavItem type + navItems config
 │
-├── public/                         # Asset statis
-├── .env.local                      # Environment variable (lokal)
-├── next.config.ts                  # Konfigurasi Next.js
-├── postcss.config.mjs              # Konfigurasi PostCSS
-└── tsconfig.json                   # Konfigurasi TypeScript
+├── public/
+│   └── material/                    # Aset gambar & logo
+│
+├── .env.local                       # Environment variables (tidak di-commit)
+├── next.config.ts                   # Next.js config (allowedDevOrigins)
+├── tsconfig.json                    # TypeScript config (strict mode, path alias @/)
+├── postcss.config.mjs               # PostCSS + Tailwind setup
+└── eslint.config.mjs                # ESLint config
+```
 
+---
 
-------------------------------------------------------------
-PRASYARAT
-------------------------------------------------------------
+## Architecture & Patterns
 
-Pastikan sudah terinstall di komputer:
+### Route Groups (Next.js App Router)
 
-  Node.js    versi 18.x atau lebih baru
-  npm        versi 9.x  atau lebih baru (sudah include Node.js)
+Proyek menggunakan dua route groups:
 
+- `(auth)` — route publik, hanya berisi `/login`
+- `(protected)` — semua halaman admin; setiap halaman dibungkus `AuthWrapper` untuk redirect ke `/login` jika tidak ada token
 
-------------------------------------------------------------
-CARA MENJALANKAN PROYEK
-------------------------------------------------------------
+### Per-Feature Module Pattern
 
-1. Masuk ke folder project
-   > cd admin-panel-tokodus
+Setiap fitur kompleks (box-models, flute-settings, duplex, dll.) mengikuti struktur internal yang konsisten:
 
-2. Install semua dependensi
-   > npm install
+```
+feature/
+├── page.tsx           # UI entry point
+├── hooks/             # Custom hooks (data fetching, aksi CRUD)
+├── lib/utils.ts       # Utility & kalkulasi formula
+├── types/types.ts     # TypeScript interfaces
+└── constants/         # Konstanta lokal (API paths, opsi dropdown)
+```
 
-3. Buat file environment variable
-   Buat file .env.local di root folder, lalu isi:
+### Authentication Flow
 
-   NEXT_PUBLIC_API_URL="http://192.168.18.14:8080/Api_TokoDus/"
+```
+User → /login → POST /auth/login → JWT token
+                                      ↓
+                              localStorage.setItem('token', ...)
+                                      ↓
+                         axios.interceptors.request: Authorization: Bearer <token>
+                                      ↓
+                         AuthWrapper: getToken() → redirect jika null
+```
 
-   Sesuaikan IP dan port dengan server backend yang digunakan.
+Token disimpan di `localStorage` dan diinjeksi otomatis ke setiap request melalui Axios request interceptor di `lib/axios.ts`.
 
-4. Jalankan development server
-   > npm run dev
+### Axios Instance (`lib/axios.ts`)
 
-   Buka browser: http://localhost:3000
+```typescript
+const instance = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://192.168.18.14:8080/Api_TokoDus'
+})
 
-5. Build untuk production
-   > npm run build
-   > npm start
+instance.interceptors.request.use((config) => {
+  const token = getToken()
+  if (token) config.headers.Authorization = `Bearer ${token}`
+  return config
+})
+```
 
+### TypeScript Configuration
 
-------------------------------------------------------------
-DAFTAR SCRIPT
-------------------------------------------------------------
+- **Strict mode** aktif (`"strict": true`)
+- **Path alias**: `@/*` → root project (`./`)
+- **Target**: `ES2017`, module resolution: `bundler`
+- **JSX**: `react-jsx` (tidak perlu import React manual)
 
-  npm run dev      Jalankan server lokal dengan hot-reload
-  npm run build    Build project untuk production
-  npm run start    Jalankan versi production (setelah build)
-  npm run lint     Cek kode dengan ESLint
+### Navigation Config (`constants/menu.ts`)
 
+Sidebar di-render secara dinamis dari array `navItems` bertipe `NavItem[]`. Mendukung nested menu via field `subItems`.
 
-------------------------------------------------------------
-KONFIGURASI API & AUTENTIKASI
-------------------------------------------------------------
+---
 
-- Base URL API dikonfigurasi via NEXT_PUBLIC_API_URL di .env.local
-- Axios instance ada di @/lib/axios dengan request interceptor
-  yang otomatis menambahkan header:
+## Module Overview
 
-    Authorization: Bearer <token>
+| Module | Path | API Status |
+|---|---|---|
+| Dashboard | `/dashboard` | Mock data |
+| Orders | `/orders` | Mock data |
+| Material | `/material` | ✅ Terintegrasi API |
+| Box Models | `/box-models` | ✅ Terintegrasi API |
+| Flute Settings | `/flute-settings` | ✅ Terintegrasi API |
+| Duplex (DK) | `/Duplex/Rumus_dk` | ✅ Terintegrasi API |
+| Duplex (DMD) | `/Duplex/Rumus_dmd` | ✅ Terintegrasi API |
+| Laminasi | `/lamitasi/lamitasi` | ✅ Terintegrasi API |
+| Sablon | `/lamitasi/sablon` | ✅ Terintegrasi API |
+| Singleface | `/Singgleface-indext` | ✅ Terintegrasi API |
+| Index Lain | `/index_lain` | ✅ Terintegrasi API |
+| Sheet Settings | `/sheet-settings` | ✅ Terintegrasi API |
+| Print Settings | `/print` | ✅ Terintegrasi API |
+| Pisau Config/Registry | `/pisau` | ✅ Terintegrasi API |
+| Paperbag | `/paperbag` | ✅ Terintegrasi API |
 
-- Token JWT disimpan di localStorage (key: "token")
-- Fungsi helper token ada di @/lib/auth:
-    setToken(token)   : simpan token
-    getToken()        : ambil token
-    removeToken()     : hapus token (logout)
+---
 
+## Troubleshooting
 
-------------------------------------------------------------
-TROUBLESHOOTING
-------------------------------------------------------------
+**`Module not found` atau install error**
+```bash
+rm -rf node_modules .next
+npm install
+```
 
-Module not found / error saat install
-  > Hapus node_modules lalu install ulang:
-    rm -rf node_modules
-    npm install
+**API error / data tidak muncul**
+- Pastikan backend running dan dapat diakses dari mesin development
+- Cek nilai `NEXT_PUBLIC_API_URL` di `.env.local`
+- Buka DevTools → Network → lihat response error dari API
 
-API error / data tidak muncul
-  > Pastikan backend sudah berjalan dan URL di .env.local
-    sudah benar dan bisa diakses dari mesin ini.
+**Port 3000 sudah terpakai**
+```bash
+npm run dev -- -p 3001
+```
 
-Port 3000 sudah dipakai
-  > Jalankan di port lain:
-    npm run dev -- -p 3001
+**Dev server hanya bisa diakses dari `localhost`**
+```bash
+npm run dev -- -H 0.0.0.0
+```
+Pastikan `allowedDevOrigins` di `next.config.ts` mencakup IP yang ingin diakses.
 
+---
 
-------------------------------------------------------------
-CATATAN PENGEMBANGAN
-------------------------------------------------------------
+## Development Notes
 
-- Beberapa halaman (dashboard, orders) masih menggunakan
-  mock data dan belum terhubung ke API backend.
-
-- Halaman yang sudah terintegrasi API nyata:
-  material, flute-settings, box-models, duplex,
-  sheet-settings, dan beberapa konfigurasi lainnya.
-
-- Gunakan komponen SweetAlert di @/components/UI/SweetAlert
-  untuk semua notifikasi sukses/error agar konsisten.
-
-- Path alias "@/" sudah dikonfigurasi di tsconfig.json,
-  mengarah ke root folder project.
-
-
-============================================================
+- Gunakan `@/components/UI/SweetAlert` untuk semua notifikasi sukses/error — jangan `alert()` native
+- Semua custom hook untuk data fetching ada di dalam folder `hooks/` masing-masing feature
+- Kalkulasi harga & formula dimensi box ada di `lib/utils.ts` tiap feature (bukan di komponen UI)
+- `components/UI/Chart.tsx` adalah wrapper Recharts — gunakan ini agar konfigurasi chart konsisten
+- Path alias `@/` sudah dikonfigurasi; tidak perlu relative imports panjang seperti `../../components`

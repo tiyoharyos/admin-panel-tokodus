@@ -10,8 +10,13 @@ import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import { Table, TableRow, TableCell } from '@/components/UI/Table'
 import SweetAlert from '@/components/UI/SweetAlert'
+import LoadingState from '@/components/UI/LoadingState'
+import { SalesTrendChart, OrderStatusChart, CategoryBarChart } from '@/components/UI/Chart'
 
-// Mock data untuk Tokodus
+// ============================================================
+// MOCK DATA
+// ============================================================
+
 const mockData = {
   stats: {
     totalOrders: 1234,
@@ -24,41 +29,53 @@ const mockData = {
     productivity: 87
   },
   recentOrders: [
-    { 
-      id: 'TOK-001', 
+    {
+      id: 'TOK-001',
       order_code: 'TOK-2024-001',
-      customer_name: 'PT Sinar Jaya', 
+      customer_name: 'PT Sinar Jaya',
       brand: 'Brand A',
       category: 'Kardus Box 20x20',
-      status: 'completed', 
+      status: 'completed',
       quantity: 1000,
-      total_price: 12500000, 
+      total_price: 12500000,
       date: '2024-01-15',
       due_date: '2024-01-20'
     },
-    { 
-      id: 'TOK-002', 
+    {
+      id: 'TOK-002',
       order_code: 'TOK-2024-002',
-      customer_name: 'CV Maju Bersama', 
+      customer_name: 'CV Maju Bersama',
       brand: 'Brand B',
       category: 'Paper Bag Premium',
-      status: 'processing', 
+      status: 'processing',
       quantity: 500,
-      total_price: 8500000, 
+      total_price: 8500000,
       date: '2024-01-14',
       due_date: '2024-01-18'
     },
-    { 
-      id: 'TOK-003', 
+    {
+      id: 'TOK-003',
       order_code: 'TOK-2024-003',
-      customer_name: 'UD Berkah', 
+      customer_name: 'UD Berkah',
       brand: 'Brand C',
       category: 'Sticker Vinyl',
-      status: 'pending', 
+      status: 'pending',
       quantity: 2000,
-      total_price: 5500000, 
+      total_price: 5500000,
       date: '2024-01-14',
       due_date: '2024-01-17'
+    },
+    {
+      id: 'TOK-004',
+      order_code: 'TOK-2024-004',
+      customer_name: 'PT Maju Jaya',
+      brand: 'Brand D',
+      category: 'Duplek Medium',
+      status: 'shipped',
+      quantity: 300,
+      total_price: 2400000,
+      date: '2024-01-13',
+      due_date: '2024-01-19'
     }
   ],
   topProducts: [
@@ -69,12 +86,219 @@ const mockData = {
   lowStockMaterials: [
     { id: 1, name: 'Tinta Hitam CMYK', stock: 12, unit: 'liter', min: 20, supplier: 'CV Supplier B', type: 'Consumable' },
     { id: 2, name: 'Lem PVA Premium', stock: 8, unit: 'kg', min: 15, supplier: 'PT Supplier D', type: 'Consumable' }
-  ],
-  customerData: [
-    { id: 'CUST-001', name: 'PT Sinar Jaya', email: 'contact@sinarjaya.com', totalOrders: 24, totalSpent: 125000000, status: 'active' },
-    { id: 'CUST-002', name: 'CV Maju Bersama', email: 'info@majubersama.com', totalOrders: 18, totalSpent: 85000000, status: 'active' }
   ]
 }
+
+// ============================================================
+// CHART DATA
+// ============================================================
+
+const salesTrendData = [
+  { name: 'Jan', sales: 125000000, orders: 145 },
+  { name: 'Feb', sales: 142000000, orders: 162 },
+  { name: 'Mar', sales: 138000000, orders: 158 },
+  { name: 'Apr', sales: 165000000, orders: 189 },
+  { name: 'May', sales: 189000000, orders: 215 },
+  { name: 'Jun', sales: 210000000, orders: 238 },
+  { name: 'Jul', sales: 198000000, orders: 225 },
+  { name: 'Aug', sales: 225000000, orders: 256 },
+  { name: 'Sep', sales: 242000000, orders: 278 },
+  { name: 'Oct', sales: 268000000, orders: 305 },
+  { name: 'Nov', sales: 285000000, orders: 324 },
+  { name: 'Dec', sales: 310000000, orders: 352 }
+]
+
+const orderStatusData = [
+  { name: 'Completed', value: 32, color: '#10b981' },
+  { name: 'Processing', value: 8, color: '#3b82f6' },
+  { name: 'Pending', value: 5, color: '#f59e0b' },
+  { name: 'Shipped', value: 3, color: '#8b5cf6' }
+]
+
+const categorySalesData = [
+  { name: 'Kardus Box', value: 42500000 },
+  { name: 'Paper Bag', value: 28900000 },
+  { name: 'Sticker', value: 18500000 },
+  { name: 'Duplek', value: 9600000 },
+  { name: 'Karton Box', value: 15200000 }
+]
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+const formatCurrency = (amount: number) =>
+  new Intl.NumberFormat('id-ID', {
+    style: 'currency',
+    currency: 'IDR',
+    minimumFractionDigits: 0
+  }).format(amount)
+
+const getStatusVariant = (status: string) => {
+  switch (status) {
+    case 'completed': return 'success'
+    case 'processing': return 'primary'
+    case 'pending': return 'warning'
+    case 'shipped': return 'info'
+    case 'cancelled': return 'danger'
+    default: return 'gray'
+  }
+}
+
+const getStatusIcon = (status: string) => {
+  switch (status) {
+    case 'completed': return 'mdi:check-circle'
+    case 'processing': return 'mdi:progress-clock'
+    case 'pending': return 'mdi:clock-outline'
+    case 'shipped': return 'mdi:truck-delivery'
+    case 'cancelled': return 'mdi:cancel'
+    default: return 'mdi:circle'
+  }
+}
+
+const calculatePrice = (category: string, quantity: number) => {
+  const basePrices: Record<string, number> = {
+    'Kardus Box 20x20': 12500,
+    'Paper Bag Premium': 17000,
+    'Sticker Vinyl': 2750,
+    'Duplek Medium': 8000,
+    'Karton Box': 9500
+  }
+  return (basePrices[category] || 10000) * quantity
+}
+
+const getDueDate = () => {
+  const date = new Date()
+  date.setDate(date.getDate() + 7)
+  return date.toISOString().split('T')[0]
+}
+
+// ============================================================
+// STATS CARDS
+// ============================================================
+
+function StatsCards({ stats }: { stats: typeof mockData.stats }) {
+  const items = [
+    {
+      icon: 'mdi:package-variant-closed',
+      label: 'Total Orders',
+      value: stats.totalOrders.toLocaleString(),
+      sub: `+${stats.orderGrowth}% vs last month`,
+      accent: '#3b82f6',
+      accentBg: 'bg-blue-50'
+    },
+    {
+      icon: 'mdi:factory',
+      label: 'Active Production',
+      value: stats.activeProduction,
+      sub: 'currently running',
+      accent: '#f59e0b',
+      accentBg: 'bg-amber-50'
+    },
+    {
+      icon: 'mdi:alert-circle-outline',
+      label: 'Low Stock Items',
+      value: stats.lowStockMaterials,
+      sub: 'requires restocking',
+      accent: '#ef4444',
+      accentBg: 'bg-red-50'
+    }
+  ]
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {items.map((s, i) => (
+        <div
+          key={i}
+          className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+        >
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-sm text-slate-500">{s.label}</p>
+            <div
+              className={`w-9 h-9 rounded-xl flex items-center justify-center ${s.accentBg}`}
+            >
+              <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
+          <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+            <Icon icon="mdi:trending-up" className="w-3 h-3 text-green-500" />
+            {s.sub}
+          </p>
+          <div
+            className="mt-4 h-0.5 rounded-full"
+            style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }}
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ============================================================
+// BOTTOM STATS CARDS
+// ============================================================
+
+function BottomStats({ stats }: { stats: typeof mockData.stats }) {
+  const items = [
+    {
+      label: 'Customer Satisfaction',
+      value: `${stats.customerSatisfaction}%`,
+      trend: '+5.2% from last month',
+      trendColor: 'text-green-600',
+      icon: 'mdi:account-heart',
+      iconColor: 'text-blue-600',
+      iconBg: 'bg-blue-50'
+    },
+    {
+      label: 'Productivity',
+      value: `${stats.productivity}%`,
+      trend: '+3.8% from last month',
+      trendColor: 'text-green-600',
+      icon: 'mdi:progress-clock',
+      iconColor: 'text-green-600',
+      iconBg: 'bg-green-50'
+    },
+    {
+      label: 'Avg. Order Value',
+      value: formatCurrency(8500000),
+      trend: '+12.3% from last month',
+      trendColor: 'text-amber-600',
+      icon: 'mdi:chart-timeline',
+      iconColor: 'text-purple-600',
+      iconBg: 'bg-purple-50'
+    }
+  ]
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {items.map((s, i) => (
+        <div
+          key={i}
+          className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-slate-500">{s.label}</p>
+              <p className="text-2xl font-bold text-slate-800 mt-1">{s.value}</p>
+              <p className={`text-xs mt-2 flex items-center gap-1 ${s.trendColor}`}>
+                <Icon icon="mdi:trending-up" className="w-3 h-3" />
+                {s.trend}
+              </p>
+            </div>
+            <div className={`w-12 h-12 ${s.iconBg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <Icon icon={s.icon} className={`w-6 h-6 ${s.iconColor}`} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ============================================================
+// MAIN PAGE
+// ============================================================
 
 export default function DashboardPage() {
   const router = useRouter()
@@ -89,36 +313,11 @@ export default function DashboardPage() {
     quantity: 1,
     status: 'pending',
     notes: ''
+     
   })
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0
-    }).format(amount)
-  }
-
-  const getStatusVariant = (status: string) => {
-    switch(status) {
-      case 'completed': return 'success'
-      case 'processing': return 'primary'
-      case 'pending': return 'warning'
-      case 'shipped': return 'info'
-      case 'cancelled': return 'danger'
-      default: return 'gray'
-    }
-  }
-
-  const getStatusIcon = (status: string) => {
-    switch(status) {
-      case 'completed': return 'mdi:check-circle'
-      case 'processing': return 'mdi:progress-clock'
-      case 'pending': return 'mdi:clock-outline'
-      case 'shipped': return 'mdi:truck-delivery'
-      case 'cancelled': return 'mdi:cancel'
-      default: return 'mdi:circle'
-    }
+  const handleInputChange = (field: string, value: any) => {
+    setNewOrderData(prev => ({ ...prev, [field]: value }))
   }
 
   const handleViewOrder = (orderId: string) => {
@@ -155,7 +354,9 @@ export default function DashboardPage() {
         stats: {
           ...prev.stats,
           totalOrders: prev.stats.totalOrders + 1,
-          pendingOrders: newOrderData.status === 'pending' ? prev.stats.pendingOrders + 1 : prev.stats.pendingOrders
+          pendingOrders: newOrderData.status === 'pending'
+            ? prev.stats.pendingOrders + 1
+            : prev.stats.pendingOrders
         }
       }))
       setNewOrderData({ customer_name: '', brand: '', category: '', quantity: 1, status: 'pending', notes: '' })
@@ -169,27 +370,6 @@ export default function DashboardPage() {
     }
   }
 
-  const calculatePrice = (category: string, quantity: number) => {
-    const basePrices: Record<string, number> = {
-      'Kardus Box 20x20': 12500,
-      'Paper Bag Premium': 17000,
-      'Sticker Vinyl': 2750,
-      'Duplek Medium': 8000,
-      'Karton Box': 9500
-    }
-    return (basePrices[category] || 10000) * quantity
-  }
-
-  const getDueDate = () => {
-    const date = new Date()
-    date.setDate(date.getDate() + 7)
-    return date.toISOString().split('T')[0]
-  }
-
-  const handleInputChange = (field: string, value: any) => {
-    setNewOrderData(prev => ({ ...prev, [field]: value }))
-  }
-
   useEffect(() => {
     setLoading(true)
     setTimeout(() => setLoading(false), 1000)
@@ -197,44 +377,18 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-slate-50">
-        <div className="text-center">
-          <Icon icon="mdi:loading" className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading dashboard data...</p>
-        </div>
-      </div>
+      <LoadingState
+        message="Memuat data Dashboard..."
+        submessage="Harap tunggu sebentar"
+        icon="mdi:view-dashboard"
+      />
     )
   }
-
-  // Stats cards items untuk gaya baru
-  const statItems = [
-    {
-      icon: 'mdi:package-variant-closed',
-      label: 'Total Orders',
-      value: data.stats.totalOrders.toLocaleString(),
-      sub: `+${data.stats.orderGrowth}% vs last month`,
-      accent: '#3b82f6'
-    },
-    {
-      icon: 'mdi:factory',
-      label: 'Active Production',
-      value: data.stats.activeProduction,
-      sub: 'currently running',
-      accent: '#f59e0b'
-    },
-    {
-      icon: 'mdi:alert-circle-outline',
-      label: 'Low Stock Items',
-      value: data.stats.lowStockMaterials,
-      sub: 'requires restocking',
-      accent: '#ef4444'
-    }
-  ]
 
   return (
     <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
 
-      {/* Header dengan gaya biru dan dot amber */}
+      {/* Page Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -245,87 +399,88 @@ export default function DashboardPage() {
           </div>
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Dashboard Overview</h1>
-            <p className="text-slate-500 mt-0.5 text-sm">Selamat datang di Tokodus Admin Panel</p>
+            <p className="text-slate-500 mt-0.5 text-sm flex items-center gap-1">
+              <Icon icon="mdi:calendar-today" className="w-3 h-3" />
+              Selamat datang di Tokodus Admin Panel
+            </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button 
-            variant={timeRange === 'week' ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setTimeRange('week')}
-          >
-            Minggu Ini
-          </Button>
-          <Button 
-            variant={timeRange === 'month' ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setTimeRange('month')}
-          >
-            Bulan Ini
-          </Button>
-          <Button 
-            variant={timeRange === 'year' ? 'primary' : 'outline'}
-            size="sm"
-            onClick={() => setTimeRange('year')}
-          >
-            Tahun Ini
-          </Button>
+
+        {/* Time Range Toggle */}
+        <div className="flex border border-slate-200 rounded-xl overflow-hidden bg-white">
+          {(['week', 'month', 'year'] as const).map((range) => (
+            <button
+              key={range}
+              onClick={() => setTimeRange(range)}
+              className={`px-4 py-2 text-sm font-medium transition-colors border-r border-slate-200 last:border-r-0 ${
+                timeRange === range
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {range === 'week' ? 'Minggu Ini' : range === 'month' ? 'Bulan Ini' : 'Tahun Ini'}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Stats Cards dengan gaya baru */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {statItems.map((s, i) => (
-          <div
-            key={i}
-            className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-sm text-slate-500">{s.label}</p>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
-                <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
-              </div>
-            </div>
-            <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-            <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
-            <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
-          </div>
-        ))}
-      </div>
+      {/* Stats Cards */}
+      <StatsCards stats={data.stats} />
 
-      {/* Row: Recent Orders dan Top Products (sampingan) */}
+      {/* Charts — Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Orders Card (ringkasan) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <SalesTrendChart data={salesTrendData} title="Sales & Orders Trend" height={320} />
+        <OrderStatusChart data={orderStatusData} title="Order Status Distribution" height={320} />
+      </div>
+
+      {/* Charts — Row 2 */}
+      <CategoryBarChart data={categorySalesData} title="Sales by Product Category" height={320} />
+
+      {/* Recent Orders + Top Products */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Recent Orders Summary */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
           <div className="relative">
-            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+            <div
+              className="absolute top-0 left-0 right-0 h-[3px]"
+              style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}
+            />
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
               <div>
                 <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                  <Icon icon="mdi:clipboard-list-outline" className="text-blue-600" />
+                  <Icon icon="mdi:clipboard-list-outline" className="text-blue-600 text-xl" />
                   Recent Orders
                 </h3>
-                <p className="text-sm text-slate-400 mt-0.5">{data.stats.pendingOrders} pending, {data.stats.completedOrders} completed</p>
+                <p className="text-sm text-slate-400 mt-0.5">
+                  {data.stats.pendingOrders} pending, {data.stats.completedOrders} completed
+                </p>
               </div>
-              <Button variant="ghost" size="sm" onClick={() => router.push('/orders')}>
+              <Button variant="ghost" size="sm" onClick={() => router.push('/orders')} icon="mdi:arrow-right">
                 View All
               </Button>
             </div>
           </div>
-          <div className="divide-y divide-slate-100">
-            {data.recentOrders.slice(0, 3).map((order) => (
-              <div key={order.id} className="flex items-center justify-between p-4 hover:bg-blue-50/40 transition-colors">
+          <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+            {data.recentOrders.slice(0, 5).map((order) => (
+              <div
+                key={order.id}
+                className="flex items-center justify-between p-4 hover:bg-slate-50 transition-colors cursor-pointer"
+                onClick={() => handleViewOrder(order.id)}
+              >
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${
+                  <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
                     order.status === 'completed' ? 'bg-green-500' :
-                    order.status === 'processing' ? 'bg-blue-500' : 'bg-yellow-500'
+                    order.status === 'processing' ? 'bg-blue-500' :
+                    order.status === 'shipped' ? 'bg-purple-500' : 'bg-yellow-500'
                   }`} />
                   <div>
-                    <p className="font-medium text-slate-800">{order.customer_name}</p>
-                    <p className="text-sm text-slate-500">{order.order_code} - {order.category}</p>
+                    <p className="font-medium text-slate-800 text-sm">{order.customer_name}</p>
+                    <p className="text-xs text-slate-500">{order.order_code} · {order.category}</p>
                   </div>
                 </div>
-                <Badge variant={getStatusVariant(order.status)}>
+                <Badge variant={getStatusVariant(order.status)} className="capitalize">
+                  <Icon icon={getStatusIcon(order.status)} className="w-3 h-3 mr-1 inline" />
                   {order.status}
                 </Badge>
               </div>
@@ -333,50 +488,67 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Top Products Card */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Top Products */}
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
           <div className="relative">
-            <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #10b981, #f59e0b)' }} />
+            <div
+              className="absolute top-0 left-0 right-0 h-[3px]"
+              style={{ background: 'linear-gradient(90deg, #10b981, #f59e0b)' }}
+            />
             <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
               <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <Icon icon="mdi:chart-bar" className="text-green-600" />
-                Top Products
+                <Icon icon="mdi:chart-bar" className="text-green-600 text-xl" />
+                Top Products Performance
               </h3>
               <Button variant="ghost" size="sm">View All</Button>
             </div>
           </div>
           <div className="divide-y divide-slate-100">
-            {data.topProducts.map((product) => (
-              <div key={product.id} className="flex items-center justify-between p-4 hover:bg-blue-50/40 transition-colors">
-                <p className="font-medium text-slate-800">{product.name}</p>
-                <div className="text-right">
-                  <p className="text-sm text-green-600 flex items-center gap-1">
-                    <Icon icon="mdi:trending-up" className="w-3 h-3" />
-                    {product.growth}%
-                  </p>
+            {data.topProducts.map((product) => {
+              const maxSales = Math.max(...data.topProducts.map(p => p.sales))
+              const percentage = (product.sales / maxSales) * 100
+              return (
+                <div key={product.id} className="p-4 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-medium text-slate-800 text-sm">{product.name}</p>
+                    <p className="text-sm font-semibold text-green-600 flex items-center gap-1">
+                      <Icon icon="mdi:trending-up" className="w-3 h-3" />
+                      +{product.growth}%
+                    </p>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-2">{product.sales.toLocaleString()} sales</p>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      style={{ width: `${percentage}%` }}
+                      className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500"
+                    />
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
 
-      {/* Detailed Orders Table dengan komponen Table global */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Detailed Orders Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300">
         <div className="relative">
-          <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+          <div
+            className="absolute top-0 left-0 right-0 h-[3px]"
+            style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }}
+          />
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 px-6 pt-6 pb-4 border-b border-slate-100">
             <div>
               <h3 className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <Icon icon="mdi:clipboard-list-outline" className="text-blue-600" />
+                <Icon icon="mdi:clipboard-list-outline" className="text-blue-600 text-xl" />
                 Recent Orders (Detailed)
               </h3>
               <p className="text-sm text-slate-400 mt-0.5">
                 {data.stats.pendingOrders} pending, {data.stats.completedOrders} completed
               </p>
             </div>
-            <Button 
-              variant="primary" 
+            <Button
+              variant="primary"
               size="sm"
               icon="mdi:plus"
               onClick={() => setIsNewOrderModalOpen(true)}
@@ -386,11 +558,9 @@ export default function DashboardPage() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <Table
-            headers={['Order Code', 'Customer', 'Brand', 'Category', 'Quantity', 'Amount', 'Status', 'Actions']}
-          >
+          <Table headers={['Order Code', 'Customer', 'Brand', 'Category', 'Quantity', 'Amount', 'Status', 'Actions']}>
             {data.recentOrders.map((order) => (
-              <TableRow key={order.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+              <TableRow key={order.id} hoverable={false} className="hover:bg-slate-50 transition-colors">
                 <TableCell>
                   <div className="font-medium text-blue-600">{order.order_code}</div>
                   <div className="text-xs text-slate-400">{order.date}</div>
@@ -413,14 +583,13 @@ export default function DashboardPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  <Button 
-                    variant="ghost"
-                    icon="mdi:eye"
-                    size="sm"
+                  <button
                     onClick={() => handleViewOrder(order.id)}
+                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Lihat Detail"
                   >
-                    View
-                  </Button>
+                    <Icon icon="mdi:eye-outline" className="w-5 h-5" />
+                  </button>
                 </TableCell>
               </TableRow>
             ))}
@@ -433,38 +602,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Bottom stats dengan gradient cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl p-5 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Customer Satisfaction</p>
-              <p className="text-2xl font-bold text-slate-800">{data.stats.customerSatisfaction}%</p>
-            </div>
-            <Icon icon="mdi:account-heart" className="w-10 h-10 text-blue-400" />
-          </div>
-        </div>
-        <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-5 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Productivity</p>
-              <p className="text-2xl font-bold text-slate-800">{data.stats.productivity}%</p>
-            </div>
-            <Icon icon="mdi:progress-clock" className="w-10 h-10 text-green-400" />
-          </div>
-        </div>
-        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-5 border border-slate-100 shadow-sm">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-slate-500">Avg. Order Value</p>
-              <p className="text-2xl font-bold text-slate-800">{formatCurrency(8500000)}</p>
-            </div>
-            <Icon icon="mdi:chart-timeline" className="w-10 h-10 text-purple-400" />
-          </div>
-        </div>
-      </div>
+      {/* Bottom Stats */}
+      <BottomStats stats={data.stats} />
 
-      {/* Modal New Order (dengan styling konsisten) */}
+      {/* New Order Modal */}
       <Modal
         isOpen={isNewOrderModalOpen}
         onClose={() => setIsNewOrderModalOpen(false)}
@@ -483,7 +624,7 @@ export default function DashboardPage() {
         }
       >
         <div className="space-y-5">
-          <div className="flex items-center gap-3 p-4 rounded-xl border bg-blue-50 border-blue-100">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
             <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
               <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
             </div>
@@ -547,44 +688,46 @@ export default function DashboardPage() {
                 { value: 'shipped', label: 'Shipped' }
               ]}
             />
-            <div className="md:col-span-2">
-              <Input
-                label="Notes"
-                placeholder="Add any notes or special instructions..."
-                value={newOrderData.notes}
-                onChange={(e) => handleInputChange('notes', e.target.value)}
-                leftIcon="mdi:note-text"
-              />
-            </div>
+            <Input
+              label="Notes"
+              placeholder="Add any notes or special instructions..."
+              value={newOrderData.notes}
+              onChange={(e) => handleInputChange('notes', e.target.value)}
+              leftIcon="mdi:note-text"
+            />
           </div>
 
-          <div className="p-4 bg-blue-50 rounded-xl border border-blue-100">
-            <div className="flex items-center gap-2 text-blue-700 mb-2">
-              <Icon icon="mdi:information" className="w-5 h-5" />
-              <span className="font-medium">Order Information</span>
+          <div className="p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <div className="flex items-center gap-2 text-slate-700 mb-3">
+              <Icon icon="mdi:information" className="w-5 h-5 text-blue-600" />
+              <span className="font-semibold text-sm">Order Information</span>
             </div>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-slate-500">Order Code:</span>
-                <span className="ml-2 font-medium">TOK-2024-00{data.recentOrders.length + 1}</span>
+                <span className="ml-2 font-medium text-blue-600">
+                  TOK-2024-00{data.recentOrders.length + 1}
+                </span>
               </div>
               <div>
                 <span className="text-slate-500">Created Date:</span>
-                <span className="ml-2 font-medium">{new Date().toLocaleDateString('id-ID')}</span>
+                <span className="ml-2 font-medium text-slate-700">
+                  {new Date().toLocaleDateString('id-ID')}
+                </span>
               </div>
               <div>
                 <span className="text-slate-500">Estimated Price:</span>
                 <span className="ml-2 font-medium text-green-600">
-                  {newOrderData.category && newOrderData.quantity ? 
-                    formatCurrency(calculatePrice(newOrderData.category, newOrderData.quantity)) : 
-                    'IDR 0'
-                  }
+                  {newOrderData.category && newOrderData.quantity
+                    ? formatCurrency(calculatePrice(newOrderData.category, newOrderData.quantity))
+                    : 'IDR 0'}
                 </span>
               </div>
             </div>
           </div>
         </div>
       </Modal>
+
     </div>
   )
 }
