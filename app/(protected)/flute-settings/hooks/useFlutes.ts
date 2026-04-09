@@ -1,5 +1,3 @@
-// app/(protected)/flutes/hooks/useFlutes.ts
-
 import { useState, useEffect, useCallback } from 'react'
 import { AxiosError } from 'axios'
 import axios from '@/lib/axios'

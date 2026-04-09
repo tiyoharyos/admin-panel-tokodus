@@ -1,14 +1,13 @@
-// app/(protected)/orders/page.jsx
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Card from '@/components/UI/Card'
+import { Icon } from '@iconify/react'
 import Button from '@/components/UI/Button'
 import Badge from '@/components/UI/Badge'
 import Input from '@/components/UI/Input'
 import Select from '@/components/UI/Select'
 import Modal from '@/components/UI/Modal'
-import { Icon } from '@iconify/react'
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 import SweetAlert from '@/components/UI/SweetAlert'
 
 // ===== TYPE DEFINITIONS =====
@@ -71,7 +70,7 @@ const CATEGORY_OPTIONS = [
   { value: 'K200', label: 'K200' }
 ]
 
-const BASE_PRICES = {
+const BASE_PRICES: Record<string, number> = {
   'Kardus Box 20x20': 12500,
   'Paper Bag Premium': 17000,
   'Sticker Vinyl': 2750,
@@ -85,84 +84,37 @@ const BASE_PRICES = {
 // ===== MOCK DATA =====
 const mockOrders: Order[] = [
   {
-    id: 'TOK-001',
-    order_code: 'TOK-2024-001',
-    customer_name: 'PT Sinar Jaya',
-    brand: 'Brand A',
-    category: 'Kardus Box 20x20',
-    quantity: 1000,
-    total_price: 12500000,
-    status: 'completed',
-    created_at: '2024-01-15',
-    due_date: '2024-01-20',
-    payment_status: 'paid',
-    notes: 'Prioritas tinggi'
+    id: 'TOK-001', order_code: 'TOK-2024-001', customer_name: 'PT Sinar Jaya', brand: 'Brand A',
+    category: 'Kardus Box 20x20', quantity: 1000, total_price: 12500000, status: 'completed',
+    created_at: '2024-01-15', due_date: '2024-01-20', payment_status: 'paid', notes: 'Prioritas tinggi'
   },
   {
-    id: 'TOK-002',
-    order_code: 'TOK-2024-002',
-    customer_name: 'CV Maju Bersama',
-    brand: 'Brand B',
-    category: 'Paper Bag Premium',
-    quantity: 500,
-    total_price: 8500000,
-    status: 'processing',
-    created_at: '2024-01-14',
-    due_date: '2024-01-18',
-    payment_status: 'unpaid',
-    notes: 'Butuh desain khusus'
+    id: 'TOK-002', order_code: 'TOK-2024-002', customer_name: 'CV Maju Bersama', brand: 'Brand B',
+    category: 'Paper Bag Premium', quantity: 500, total_price: 8500000, status: 'processing',
+    created_at: '2024-01-14', due_date: '2024-01-18', payment_status: 'unpaid', notes: 'Butuh desain khusus'
   },
   {
-    id: 'TOK-003',
-    order_code: 'TOK-2024-003',
-    customer_name: 'UD Berkah',
-    brand: 'Brand C',
-    category: 'Sticker Vinyl',
-    quantity: 2000,
-    total_price: 5500000,
-    status: 'pending',
-    created_at: '2024-01-14',
-    due_date: '2024-01-17',
-    payment_status: 'unpaid',
-    notes: 'Bulk order'
+    id: 'TOK-003', order_code: 'TOK-2024-003', customer_name: 'UD Berkah', brand: 'Brand C',
+    category: 'Sticker Vinyl', quantity: 2000, total_price: 5500000, status: 'pending',
+    created_at: '2024-01-14', due_date: '2024-01-17', payment_status: 'unpaid', notes: 'Bulk order'
   },
   {
-    id: 'TOK-004',
-    order_code: 'TOK-2024-004',
-    customer_name: 'PT Maju Jaya',
-    brand: 'MJ',
-    category: 'Corrugated Box',
-    quantity: 1500,
-    total_price: 6250000,
-    status: 'shipped',
-    created_at: '2024-01-20',
-    due_date: '2024-01-30',
-    payment_status: 'paid',
-    notes: 'Sudah dikirim'
+    id: 'TOK-004', order_code: 'TOK-2024-004', customer_name: 'PT Maju Jaya', brand: 'MJ',
+    category: 'Corrugated Box', quantity: 1500, total_price: 6250000, status: 'shipped',
+    created_at: '2024-01-20', due_date: '2024-01-30', payment_status: 'paid', notes: 'Sudah dikirim'
   },
   {
-    id: 'TOK-005',
-    order_code: 'TOK-2024-005',
-    customer_name: 'CV Sentosa',
-    brand: 'SENTOSA',
-    category: 'Folding Carton',
-    quantity: 800,
-    total_price: 3200000,
-    status: 'cancelled',
-    created_at: '2024-01-18',
-    due_date: '2024-01-28',
-    payment_status: 'refunded',
-    notes: 'Dibatalkan customer'
+    id: 'TOK-005', order_code: 'TOK-2024-005', customer_name: 'CV Sentosa', brand: 'SENTOSA',
+    category: 'Folding Carton', quantity: 800, total_price: 3200000, status: 'cancelled',
+    created_at: '2024-01-18', due_date: '2024-01-28', payment_status: 'refunded', notes: 'Dibatalkan customer'
   }
 ]
 
 // ===== UTILITIES =====
 const formatCurrency = (amount: number): string => {
   return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0
+    style: 'currency', currency: 'IDR',
+    minimumFractionDigits: 0, maximumFractionDigits: 0
   }).format(amount)
 }
 
@@ -173,11 +125,7 @@ const formatNumber = (num: number): string => {
 const formatDate = (dateString: string): string => {
   try {
     const date = new Date(dateString)
-    return date.toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    })
+    return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
   } catch {
     return dateString
   }
@@ -229,18 +177,11 @@ const calculateStats = (orders: Order[]): Stats => {
   const completedOrders = orders.filter(o => o.status === 'completed').length
   const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'processing').length
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
-
-  return {
-    totalOrders,
-    totalRevenue,
-    completedOrders,
-    pendingOrders,
-    averageOrderValue
-  }
+  return { totalOrders, totalRevenue, completedOrders, pendingOrders, averageOrderValue }
 }
 
 const calculatePrice = (category: string, quantity: number): number => {
-  const basePrice = BASE_PRICES[category as keyof typeof BASE_PRICES] || 10000
+  const basePrice = BASE_PRICES[category] || 10000
   return basePrice * quantity
 }
 
@@ -250,91 +191,96 @@ const getDueDate = (): string => {
   return date.toISOString().split('T')[0]
 }
 
+// ===== ACTION BUTTON (konsisten dengan halaman lain) =====
+function ActionButton({ onClick, icon, hoverColor, title }: {
+  onClick: () => void; icon: string; hoverColor: string; title: string
+}) {
+  const cls: Record<string, string> = {
+    blue:  'hover:text-blue-600 hover:bg-blue-50',
+    amber: 'hover:text-amber-600 hover:bg-amber-50',
+    red:   'hover:text-red-600 hover:bg-red-50',
+    green: 'hover:text-green-600 hover:bg-green-50',
+  }
+  return (
+    <button onClick={onClick} title={title}
+      className={`p-2 text-gray-400 rounded-lg transition-colors ${cls[hoverColor]}`}>
+      <Icon icon={icon} className="w-5 h-5" />
+    </button>
+  )
+}
+
+// ===== STATS CARD (gaya seragam) =====
+function StatCard({ icon, label, value, sub, accent }: {
+  icon: string; label: string; value: string | number; sub: string; accent: string
+}) {
+  return (
+    <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm text-slate-500">{label}</p>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${accent}15` }}>
+          <Icon icon={icon} className="w-4 h-4" style={{ color: accent }} />
+        </div>
+      </div>
+      <p className="text-3xl font-bold text-slate-800">{value}</p>
+      <p className="text-xs text-slate-400 mt-1.5">{sub}</p>
+      <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${accent}60, transparent)` }} />
+    </div>
+  )
+}
+
 // ===== MAIN COMPONENT =====
 export default function OrdersPage() {
-  // ===== STATE =====
+  // State
   const [orders, setOrders] = useState<Order[]>(mockOrders)
   const [loading, setLoading] = useState(false)
   const [isPosting, setIsPosting] = useState(false)
-  
-  // Filter state
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [paymentFilter, setPaymentFilter] = useState('all')
-  
-  // Pagination state
   const [pagination, setPagination] = useState<PaginationConfig>({
-    currentPage: 1,
-    itemsPerPage: 10,
-    totalItems: 0,
-    totalPages: 0
+    currentPage: 1, itemsPerPage: 10, totalItems: 0, totalPages: 0
   })
-
-  // Modal states
   const [isViewModalOpen, setIsViewModalOpen] = useState(false)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
-
-  // Form states
   const [newOrderData, setNewOrderData] = useState({
-    customer_name: '',
-    brand: '',
-    category: '',
-    quantity: 1,
-    status: 'pending' as Order['status'],
-    notes: ''
+    customer_name: '', brand: '', category: '', quantity: 1, status: 'pending' as Order['status'], notes: ''
   })
-  
   const [editOrderData, setEditOrderData] = useState({
-    customer_name: '',
-    brand: '',
-    category: '',
-    quantity: 1,
-    status: 'pending' as Order['status'],
-    notes: '',
-    payment_status: 'unpaid' as Order['payment_status']
+    customer_name: '', brand: '', category: '', quantity: 1, status: 'pending' as Order['status'],
+    notes: '', payment_status: 'unpaid' as Order['payment_status']
   })
-
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
 
-  // ===== DERIVED STATE =====
+  // Derived
   const stats = useMemo(() => calculateStats(orders), [orders])
-
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
-      const matchesSearch = 
-        order.order_code?.toLowerCase().includes(search.toLowerCase()) ||
-        order.customer_name?.toLowerCase().includes(search.toLowerCase()) ||
-        order.brand?.toLowerCase().includes(search.toLowerCase())
-      
+      const matchesSearch = order.order_code.toLowerCase().includes(search.toLowerCase()) ||
+        order.customer_name.toLowerCase().includes(search.toLowerCase()) ||
+        order.brand.toLowerCase().includes(search.toLowerCase())
       const matchesStatus = statusFilter === 'all' || order.status === statusFilter
       const matchesPayment = paymentFilter === 'all' || order.payment_status === paymentFilter
-      
       return matchesSearch && matchesStatus && matchesPayment
     })
   }, [orders, search, statusFilter, paymentFilter])
 
   const paginatedData = useMemo(() => {
-    const startIndex = (pagination.currentPage - 1) * pagination.itemsPerPage
-    const endIndex = startIndex + pagination.itemsPerPage
-    return filteredOrders.slice(startIndex, endIndex)
+    const start = (pagination.currentPage - 1) * pagination.itemsPerPage
+    return filteredOrders.slice(start, start + pagination.itemsPerPage)
   }, [filteredOrders, pagination.currentPage, pagination.itemsPerPage])
 
-  // ===== UPDATE PAGINATION =====
   useEffect(() => {
     const totalItems = filteredOrders.length
     const totalPages = Math.ceil(totalItems / pagination.itemsPerPage)
-    
     setPagination(prev => ({
-      ...prev,
-      totalItems,
-      totalPages,
+      ...prev, totalItems, totalPages,
       currentPage: prev.currentPage > totalPages && totalPages > 0 ? 1 : prev.currentPage
     }))
   }, [filteredOrders, pagination.itemsPerPage])
 
-  // ===== HANDLERS =====
+  // Handlers
   const handlePageChange = (page: number) => {
     if (page < 1 || page > pagination.totalPages) return
     setPagination(prev => ({ ...prev, currentPage: page }))
@@ -342,12 +288,7 @@ export default function OrdersPage() {
   }
 
   const handleItemsPerPageChange = (value: number) => {
-    setPagination(prev => ({
-      ...prev,
-      itemsPerPage: value,
-      currentPage: 1,
-      totalPages: Math.ceil(filteredOrders.length / value)
-    }))
+    setPagination(prev => ({ ...prev, itemsPerPage: value, currentPage: 1 }))
   }
 
   const handleClearFilters = () => {
@@ -364,12 +305,8 @@ export default function OrdersPage() {
   const handleEditClick = (order: Order) => {
     setSelectedOrder(order)
     setEditOrderData({
-      customer_name: order.customer_name,
-      brand: order.brand,
-      category: order.category,
-      quantity: order.quantity,
-      status: order.status,
-      notes: order.notes || '',
+      customer_name: order.customer_name, brand: order.brand, category: order.category,
+      quantity: order.quantity, status: order.status, notes: order.notes || '',
       payment_status: order.payment_status
     })
     setFormErrors({})
@@ -377,19 +314,14 @@ export default function OrdersPage() {
   }
 
   const handleDeleteOrder = async (id: string, orderCode: string) => {
-    const result = await SweetAlert.confirmDelete(
-      `Hapus order ${orderCode}?`,
-    )
-    
+    const result = await SweetAlert.confirmDelete(`Hapus order ${orderCode}?`)
     if (result.isConfirmed) {
       try {
         setLoading(true)
-        // Simulasi API call
         await new Promise(resolve => setTimeout(resolve, 1000))
-        
         setOrders(orders.filter(order => order.id !== id))
         SweetAlert.success('Berhasil!', 'Order berhasil dihapus')
-      } catch (error) {
+      } catch {
         SweetAlert.error('Error!', 'Gagal menghapus order')
       } finally {
         setLoading(false)
@@ -397,42 +329,12 @@ export default function OrdersPage() {
     }
   }
 
-  const handleUpdateStatus = async (id: string, newStatus: Order['status']) => {
-    try {
-      setLoading(true)
-      await new Promise(resolve => setTimeout(resolve, 800))
-      
-      setOrders(orders.map(order => 
-        order.id === id ? { ...order, status: newStatus } : order
-      ))
-      
-      SweetAlert.success('Berhasil!', `Status order diubah menjadi ${newStatus}`)
-    } catch (error) {
-      SweetAlert.error('Error!', 'Gagal mengupdate status order')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   const validateForm = (data: any, isEdit: boolean = false): Record<string, string> => {
     const errors: Record<string, string> = {}
-
-    if (!data.customer_name?.trim()) {
-      errors.customer_name = 'Nama customer tidak boleh kosong'
-    }
-
-    if (!data.brand?.trim()) {
-      errors.brand = 'Brand tidak boleh kosong'
-    }
-
-    if (!data.category) {
-      errors.category = 'Kategori harus dipilih'
-    }
-
-    if (!data.quantity || data.quantity < 1) {
-      errors.quantity = 'Quantity minimal 1'
-    }
-
+    if (!data.customer_name?.trim()) errors.customer_name = 'Nama customer tidak boleh kosong'
+    if (!data.brand?.trim()) errors.brand = 'Brand tidak boleh kosong'
+    if (!data.category) errors.category = 'Kategori harus dipilih'
+    if (!data.quantity || data.quantity < 1) errors.quantity = 'Quantity minimal 1'
     return errors
   }
 
@@ -442,9 +344,7 @@ export default function OrdersPage() {
     } else {
       setNewOrderData(prev => ({ ...prev, [field]: value }))
     }
-    if (formErrors[field]) {
-      setFormErrors(prev => ({ ...prev, [field]: '' }))
-    }
+    if (formErrors[field]) setFormErrors(prev => ({ ...prev, [field]: '' }))
   }
 
   const handleNewOrderSubmit = async () => {
@@ -454,44 +354,23 @@ export default function OrdersPage() {
       SweetAlert.error('Validasi Error', 'Periksa kembali data yang diisi')
       return
     }
-
     try {
       setIsPosting(true)
       await new Promise(resolve => setTimeout(resolve, 1500))
-      
       const newId = `TOK-${String(orders.length + 1).padStart(3, '0')}`
       const newOrderCode = `TOK-2024-${String(orders.length + 1).padStart(3, '0')}`
-      
       const newOrder: Order = {
-        id: newId,
-        order_code: newOrderCode,
-        customer_name: newOrderData.customer_name,
-        brand: newOrderData.brand,
-        category: newOrderData.category,
-        quantity: parseInt(newOrderData.quantity.toString()),
-        status: newOrderData.status,
-        total_price: calculatePrice(newOrderData.category, newOrderData.quantity),
-        created_at: new Date().toISOString().split('T')[0],
-        due_date: getDueDate(),
-        payment_status: 'unpaid',
-        notes: newOrderData.notes
+        id: newId, order_code: newOrderCode, customer_name: newOrderData.customer_name,
+        brand: newOrderData.brand, category: newOrderData.category, quantity: newOrderData.quantity,
+        status: newOrderData.status, total_price: calculatePrice(newOrderData.category, newOrderData.quantity),
+        created_at: new Date().toISOString().split('T')[0], due_date: getDueDate(),
+        payment_status: 'unpaid', notes: newOrderData.notes
       }
-      
       setOrders([newOrder, ...orders])
-      setNewOrderData({
-        customer_name: '',
-        brand: '',
-        category: '',
-        quantity: 1,
-        status: 'pending',
-        notes: ''
-      })
-      
+      setNewOrderData({ customer_name: '', brand: '', category: '', quantity: 1, status: 'pending', notes: '' })
       setIsCreateModalOpen(false)
       SweetAlert.success('Berhasil!', `Order ${newOrderCode} berhasil dibuat`)
-      
-    } catch (error) {
-      console.error('Error creating order:', error)
+    } catch {
       SweetAlert.error('Error!', 'Gagal membuat order baru')
     } finally {
       setIsPosting(false)
@@ -500,40 +379,25 @@ export default function OrdersPage() {
 
   const handleEditSubmit = async () => {
     if (!selectedOrder) return
-
     const errors = validateForm(editOrderData, true)
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors)
       SweetAlert.error('Validasi Error', 'Periksa kembali data yang diisi')
       return
     }
-
     try {
       setIsPosting(true)
       await new Promise(resolve => setTimeout(resolve, 1500))
-      
-      setOrders(orders.map(order => 
-        order.id === selectedOrder.id 
-          ? { 
-              ...order, 
-              customer_name: editOrderData.customer_name,
-              brand: editOrderData.brand,
-              category: editOrderData.category,
-              quantity: parseInt(editOrderData.quantity.toString()),
-              status: editOrderData.status,
-              payment_status: editOrderData.payment_status,
-              notes: editOrderData.notes,
-              total_price: calculatePrice(editOrderData.category, editOrderData.quantity)
-            } 
-          : order
-      ))
-      
+      setOrders(orders.map(order => order.id === selectedOrder.id ? {
+        ...order, customer_name: editOrderData.customer_name, brand: editOrderData.brand,
+        category: editOrderData.category, quantity: editOrderData.quantity, status: editOrderData.status,
+        payment_status: editOrderData.payment_status, notes: editOrderData.notes,
+        total_price: calculatePrice(editOrderData.category, editOrderData.quantity)
+      } : order))
       setIsEditModalOpen(false)
       setSelectedOrder(null)
       SweetAlert.success('Berhasil!', 'Order berhasil diupdate')
-      
-    } catch (error) {
-      console.error('Error updating order:', error)
+    } catch {
       SweetAlert.error('Error!', 'Gagal mengupdate order')
     } finally {
       setIsPosting(false)
@@ -550,431 +414,256 @@ export default function OrdersPage() {
     }
   }
 
-  // ===== LOADING STATE =====
   if (loading && orders.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50">
+      <div className="flex items-center justify-center min-h-screen bg-slate-50">
         <div className="text-center">
-          <div className="relative">
-            <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div>
-            <Icon icon="mdi:clipboard-list" className="w-8 h-8 text-blue-600 absolute inset-0 m-auto animate-pulse" />
-          </div>
-          <p className="mt-6 text-lg font-medium text-gray-700">Memuat Data Orders...</p>
-          <p className="text-sm text-gray-500 mt-2">Harap tunggu sebentar</p>
+          <Icon icon="mdi:loading" className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Memuat data orders...</p>
         </div>
       </div>
     )
   }
 
-  // ===== MAIN RENDER =====
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-gradient-to-br from-gray-50 to-white min-h-screen">
-      {/* ===== HEADER ===== */}
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50 min-h-screen">
+
+      {/* ===== HEADER (gaya biru + dot amber) ===== */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-200">
-            <Icon icon="mdi:clipboard-list-outline" className="w-6 h-6 text-white" />
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-md">
+              <Icon icon="mdi:clipboard-list-outline" className="w-6 h-6 text-white" />
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-amber-400 rounded-full border-2 border-slate-50 shadow-sm" />
           </div>
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
-              Orders Management
-            </h1>
-            <p className="text-gray-600 mt-1">Kelola dan lacak pesanan pelanggan</p>
-            <div className="flex flex-wrap gap-4 mt-2 text-sm">
-              <span className="text-gray-600">
-                <span className="font-medium">Total Orders:</span> {stats.totalOrders}
-              </span>
-              <span className="text-gray-600">
-                <span className="font-medium">Revenue:</span> {formatCurrency(stats.totalRevenue)}
-              </span>
-              <span className="text-gray-600">
-                <span className="font-medium">Completed:</span> {stats.completedOrders}
-              </span>
-            </div>
+            <h1 className="text-2xl md:text-3xl font-bold text-slate-800">Orders Management</h1>
+            <p className="text-slate-500 mt-0.5 text-sm">Kelola dan lacak pesanan pelanggan</p>
           </div>
         </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            onClick={() => window.location.reload()}
-            className="border-gray-300 hover:bg-gray-50"
-            icon="mdi:refresh"
-            disabled={loading}
-          >
+        <div className="flex gap-2">
+          <Button variant="outline" size="md" onClick={() => window.location.reload()} icon="mdi:refresh">
             Refresh
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => alert('Export data')}
-            className="border-gray-300 hover:bg-gray-50"
-            icon="mdi:export"
-          >
+          <Button variant="outline" size="md" onClick={() => alert('Export data')} icon="mdi:export">
             Export
           </Button>
-          <Button
-            variant="primary"
-            onClick={() => setIsCreateModalOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 shadow-lg shadow-blue-200"
-            icon="mdi:plus"
-            disabled={loading}
-          >
+          <Button variant="primary" size="md" onClick={() => setIsCreateModalOpen(true)} icon="mdi:plus">
             New Order
           </Button>
         </div>
       </div>
 
-      {/* ===== STATS CARDS ===== */}
+      {/* ===== STATS CARDS (gaya seragam) ===== */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-bl-full group-hover:bg-blue-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:package-variant" className="w-4 h-4 text-blue-600" />
-              Total Orders
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{stats.totalOrders}</p>
-            <p className="text-xs text-gray-500">semua pesanan</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-green-50 rounded-bl-full group-hover:bg-green-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-green-600" />
-              Total Revenue
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{formatCurrency(stats.totalRevenue)}</p>
-            <p className="text-xs text-gray-500">total pendapatan</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-purple-50 rounded-bl-full group-hover:bg-purple-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:check-circle" className="w-4 h-4 text-purple-600" />
-              Completed
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{stats.completedOrders}</p>
-            <p className="text-xs text-gray-500">pesanan selesai</p>
-          </div>
-        </Card>
-
-        <Card className="relative overflow-hidden group hover:shadow-xl transition-all">
-          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-50 rounded-bl-full group-hover:bg-amber-100 transition-all"></div>
-          <div className="space-y-2 relative">
-            <p className="text-sm text-gray-600 flex items-center gap-2">
-              <Icon icon="mdi:trending-up" className="w-4 h-4 text-amber-600" />
-              Average Value
-            </p>
-            <p className="text-3xl font-bold text-gray-900">{formatCurrency(stats.averageOrderValue)}</p>
-            <p className="text-xs text-gray-500">rata-rata per order</p>
-          </div>
-        </Card>
+        <StatCard icon="mdi:package-variant" label="Total Orders" value={stats.totalOrders} sub="semua pesanan" accent="#3b82f6" />
+        <StatCard icon="mdi:cash-multiple" label="Total Revenue" value={formatCurrency(stats.totalRevenue)} sub="total pendapatan" accent="#10b981" />
+        <StatCard icon="mdi:check-circle" label="Completed" value={stats.completedOrders} sub="pesanan selesai" accent="#8b5cf6" />
+        <StatCard icon="mdi:trending-up" label="Average Value" value={formatCurrency(stats.averageOrderValue)} sub="rata-rata per order" accent="#f59e0b" />
       </div>
 
-      {/* ===== FILTERS ===== */}
-      <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-        <div className="flex flex-col md:flex-row gap-4 p-6">
-          <div className="flex-1">
-            <Input
-              leftIcon="mdi:magnify"
-              placeholder="Search by code, customer, or brand..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full"
+      {/* ===== FILTER & TABLE CARD ===== */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="relative">
+          <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: 'linear-gradient(90deg, #3b82f6, #f59e0b)' }} />
+          
+          {/* Filter bar */}
+          <div className="flex flex-col md:flex-row gap-4 p-6 border-b border-slate-100">
+            <div className="flex-1">
+              <Input
+                leftIcon="mdi:magnify"
+                placeholder="Search by code, customer, or brand..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              options={STATUS_OPTIONS}
+              className="w-full md:w-48"
             />
-          </div>
-          <Select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            options={STATUS_OPTIONS}
-            className="w-full md:w-48"
-          />
-          <Select
-            value={paymentFilter}
-            onChange={(e) => setPaymentFilter(e.target.value)}
-            options={PAYMENT_STATUS_OPTIONS}
-            className="w-full md:w-48"
-          />
-          <Button
-            variant="outline"
-            onClick={handleClearFilters}
-            icon="mdi:filter-remove"
-            className="border-gray-300"
-          >
-            Clear
-          </Button>
-        </div>
-
-        {/* ===== PAGINATION TOP ===== */}
-        {filteredOrders.length > 0 && (
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 pb-4 border-b border-gray-200">
-            <div className="text-sm text-gray-600">
-              Menampilkan <span className="font-semibold">{paginatedData.length}</span> dari{' '}
-              <span className="font-semibold">{filteredOrders.length}</span> orders
-            </div>
-            
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Per halaman:</span>
-                <Select
-                  value={pagination.itemsPerPage.toString()}
-                  onChange={(e: any) => handleItemsPerPageChange(parseInt(e.target.value))}
-                  options={[
-                    { value: '5', label: '5' },
-                    { value: '10', label: '10' },
-                    { value: '20', label: '20' },
-                    { value: '50', label: '50' }
-                  ]}
-                  className="w-20"
-                />
-              </div>
-              
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
-                  className="px-3 py-1"
-                >
-                  <Icon icon="mdi:chevron-left" className="w-4 h-4" />
-                </Button>
-                
-                <span className="text-sm text-gray-700">
-                  Halaman {pagination.currentPage} dari {pagination.totalPages}
-                </span>
-                
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === pagination.totalPages}
-                  className="px-3 py-1"
-                >
-                  <Icon icon="mdi:chevron-right" className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-      </Card>
-
-      {/* ===== ORDERS TABLE ===== */}
-      <Card className="border-0 shadow-xl bg-white/80 backdrop-blur-sm">
-        {filteredOrders.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Icon icon="mdi:package-variant-remove" className="w-10 h-10 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No Orders Found</h3>
-            <p className="text-gray-500 mb-6">Try adjusting your search or filter criteria</p>
-            <Button
-              onClick={() => setIsCreateModalOpen(true)}
-              variant="primary"
-              icon="mdi:plus"
-              className="bg-gradient-to-r from-blue-600 to-indigo-600"
-            >
-              Create New Order
+            <Select
+              value={paymentFilter}
+              onChange={(e) => setPaymentFilter(e.target.value)}
+              options={PAYMENT_STATUS_OPTIONS}
+              className="w-full md:w-48"
+            />
+            <Button variant="outline" onClick={handleClearFilters} icon="mdi:filter-remove">
+              Clear
             </Button>
           </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Order</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Customer</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Product</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Quantity</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Amount</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Payment</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Due Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-600 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {paginatedData.map((order) => {
-                    const isOverdue = new Date(order.due_date) < new Date() && order.status !== 'completed' && order.status !== 'cancelled'
-                    
-                    return (
-                      <tr key={order.id} className="hover:bg-blue-50/50 transition-colors duration-150">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center">
-                            <div className="w-8 h-8 bg-gradient-to-br from-blue-100 to-indigo-100 rounded-lg flex items-center justify-center mr-3">
-                              <Icon icon="mdi:receipt" className="w-4 h-4 text-blue-600" />
-                            </div>
-                            <div>
-                              <span className="font-medium text-gray-900">{order.order_code}</span>
-                              <div className="text-xs text-gray-500 mt-1">
-                                {formatDate(order.created_at)}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="font-medium text-gray-900">{order.customer_name}</div>
-                          <div className="text-xs text-gray-500 mt-1">{order.brand}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge className="bg-blue-100 text-blue-800 border border-blue-200">
-                            {order.category}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="font-medium text-gray-900">{formatNumber(order.quantity)}</span>
-                          <span className="text-xs text-gray-500 ml-1">pcs</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="font-bold text-green-600">{formatCurrency(order.total_price)}</div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge variant={getStatusVariant(order.status)}>
-                            <Icon icon={getStatusIcon(order.status)} className="w-3 h-3 mr-1" />
-                            {order.status}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4">
-                          <Badge variant={getPaymentStatusVariant(order.payment_status)} size="sm">
-                            <Icon icon={getPaymentStatusIcon(order.payment_status)} className="w-3 h-3 mr-1" />
-                            {order.payment_status}
-                          </Badge>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className={`font-medium ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
-                            {formatDate(order.due_date)}
-                            {isOverdue && (
-                              <Icon icon="mdi:alert-circle" className="w-4 h-4 text-red-500 inline ml-1" />
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleViewDetails(order)}
-                              className="p-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                              title="View Details"
-                            >
-                              <Icon icon="mdi:eye" className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => handleEditClick(order)}
-                              className="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Edit"
-                            >
-                              <Icon icon="mdi:pencil" className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteOrder(order.id, order.order_code)}
-                              className="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Delete"
-                            >
-                              <Icon icon="mdi:delete" className="w-5 h-5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
 
-            {/* ===== PAGINATION BOTTOM ===== */}
-            <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50/50">
-              <div className="text-sm text-gray-600">
-                Menampilkan <span className="font-semibold">{(pagination.currentPage - 1) * pagination.itemsPerPage + 1}</span> -{' '}
-                <span className="font-semibold">
-                  {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
-                </span> dari{' '}
-                <span className="font-semibold">{pagination.totalItems}</span> orders
+          {/* Pagination top (if any) */}
+          {filteredOrders.length > 0 && (
+            <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-3 border-b border-slate-100 bg-slate-50/50">
+              <div className="text-sm text-slate-500">
+                Menampilkan <span className="font-semibold text-slate-700">{paginatedData.length}</span> dari{' '}
+                <span className="font-semibold text-slate-700">{filteredOrders.length}</span> orders
               </div>
-              
               <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-500">Per halaman:</span>
+                  <Select
+                    value={pagination.itemsPerPage.toString()}
+                    onChange={(e) => handleItemsPerPageChange(parseInt(e.target.value))}
+                    options={[
+                      { value: '5', label: '5' },
+                      { value: '10', label: '10' },
+                      { value: '20', label: '20' },
+                      { value: '50', label: '50' }
+                    ]}
+                    className="w-20"
+                  />
+                </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => handlePageChange(1)}
                     disabled={pagination.currentPage === 1}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Halaman pertama"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
                   >
                     <Icon icon="mdi:skip-backward" className="w-4 h-4" />
                   </button>
-                  
                   <button
                     onClick={() => handlePageChange(pagination.currentPage - 1)}
                     disabled={pagination.currentPage === 1}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Halaman sebelumnya"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
                   >
                     <Icon icon="mdi:chevron-left" className="w-4 h-4" />
                   </button>
-                  
+                  <span className="px-3 py-2 text-sm text-slate-600">
+                    {pagination.currentPage} / {pagination.totalPages}
+                  </span>
                   <button
                     onClick={() => handlePageChange(pagination.currentPage + 1)}
                     disabled={pagination.currentPage === pagination.totalPages}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Halaman berikutnya"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
                   >
                     <Icon icon="mdi:chevron-right" className="w-4 h-4" />
                   </button>
-                  
                   <button
                     onClick={() => handlePageChange(pagination.totalPages)}
                     disabled={pagination.currentPage === pagination.totalPages}
-                    className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Halaman terakhir"
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg disabled:opacity-50"
                   >
                     <Icon icon="mdi:skip-forward" className="w-4 h-4" />
                   </button>
                 </div>
-                
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">Ke:</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max={pagination.totalPages}
-                    value={pagination.currentPage}
-                    onChange={(e) => {
-                      const page = parseInt(e.target.value)
-                      if (page >= 1 && page <= pagination.totalPages) {
-                        handlePageChange(page)
-                      }
-                    }}
-                    className="w-16 px-2 py-1 border border-gray-300 rounded-lg text-center text-sm"
-                  />
-                </div>
               </div>
             </div>
-          </>
-        )}
-      </Card>
+          )}
+        </div>
 
-      {/* ===== VIEW ORDER MODAL ===== */}
+        {/* Tabel menggunakan komponen global */}
+        <div className="overflow-x-auto">
+          {filteredOrders.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 py-16">
+              <Icon icon="mdi:package-variant-remove" className="w-16 h-16 text-gray-300" />
+              <p className="text-gray-500 font-medium text-lg">No Orders Found</p>
+              <p className="text-sm text-gray-400">Try adjusting your search or filter criteria</p>
+              <Button variant="primary" onClick={() => setIsCreateModalOpen(true)} icon="mdi:plus">
+                Create New Order
+              </Button>
+            </div>
+          ) : (
+            <Table headers={[
+              'Order', 'Customer', 'Product', 'Quantity', 'Amount', 'Status', 'Payment', 'Due Date', 'Actions'
+            ]}>
+              {paginatedData.map((order) => {
+                const isOverdue = new Date(order.due_date) < new Date() && order.status !== 'completed' && order.status !== 'cancelled'
+                return (
+                  <TableRow key={order.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                          <Icon icon="mdi:receipt" className="w-4 h-4 text-blue-600" />
+                        </div>
+                        <div>
+                          <div className="font-medium text-slate-800">{order.order_code}</div>
+                          <div className="text-xs text-slate-400">{formatDate(order.created_at)}</div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-slate-800">{order.customer_name}</div>
+                      <div className="text-xs text-slate-400">{order.brand}</div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="info" size="sm">{order.category}</Badge>
+                    </TableCell>
+                    <TableCell>{formatNumber(order.quantity)} pcs</TableCell>
+                    <TableCell className="font-bold text-green-600">{formatCurrency(order.total_price)}</TableCell>
+                    <TableCell>
+                      <Badge variant={getStatusVariant(order.status)} size="sm">
+                        <Icon icon={getStatusIcon(order.status)} className="w-3 h-3 mr-1 inline" />
+                        {order.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getPaymentStatusVariant(order.payment_status)} size="sm">
+                        <Icon icon={getPaymentStatusIcon(order.payment_status)} className="w-3 h-3 mr-1 inline" />
+                        {order.payment_status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className={`font-medium ${isOverdue ? 'text-red-600' : 'text-slate-700'}`}>
+                        {formatDate(order.due_date)}
+                        {isOverdue && <Icon icon="mdi:alert-circle" className="w-4 h-4 text-red-500 inline ml-1" />}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <ActionButton onClick={() => handleViewDetails(order)} icon="mdi:eye-outline" hoverColor="blue" title="View Details" />
+                        <ActionButton onClick={() => handleEditClick(order)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />
+                        <ActionButton onClick={() => handleDeleteOrder(order.id, order.order_code)} icon="mdi:delete-outline" hoverColor="red" title="Delete" />
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </Table>
+          )}
+        </div>
+
+        {/* Pagination bottom */}
+        {filteredOrders.length > 0 && (
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4 px-6 py-4 border-t border-slate-100 bg-slate-50">
+            <div className="text-sm text-slate-500">
+              Menampilkan <span className="font-semibold text-slate-700">
+                {(pagination.currentPage - 1) * pagination.itemsPerPage + 1}
+              </span> - <span className="font-semibold text-slate-700">
+                {Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)}
+              </span> dari <span className="font-semibold text-slate-700">{pagination.totalItems}</span> orders
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline" size="sm"
+                onClick={() => handlePageChange(pagination.currentPage - 1)}
+                disabled={pagination.currentPage === 1}
+              >
+                Previous
+              </Button>
+              <Button
+                variant="outline" size="sm"
+                onClick={() => handlePageChange(pagination.currentPage + 1)}
+                disabled={pagination.currentPage === pagination.totalPages}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ===== VIEW MODAL ===== */}
       <Modal
-        isOpen={isViewModalOpen}
-        onClose={handleCloseModals}
-        title="📋 Order Details"
-        size="lg"
+        isOpen={isViewModalOpen} onClose={handleCloseModals} title="Order Details" size="lg"
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={handleCloseModals}>
-              Close
-            </Button>
+            <Button variant="outline" onClick={handleCloseModals}>Close</Button>
             {selectedOrder && (
-              <Button 
-                variant="primary" 
-                onClick={() => {
-                  handleCloseModals()
-                  handleEditClick(selectedOrder)
-                }}
-              >
+              <Button variant="primary" onClick={() => { handleCloseModals(); handleEditClick(selectedOrder) }}>
                 Edit Order
               </Button>
             )}
@@ -982,100 +671,63 @@ export default function OrdersPage() {
         }
       >
         {selectedOrder && (
-          <div className="space-y-6">
-            {/* Status Badges */}
+          <div className="space-y-5">
             <div className="flex flex-wrap gap-3">
               <Badge variant={getStatusVariant(selectedOrder.status)} size="lg">
-                <Icon icon={getStatusIcon(selectedOrder.status)} className="w-4 h-4 mr-1" />
+                <Icon icon={getStatusIcon(selectedOrder.status)} className="w-4 h-4 mr-1 inline" />
                 Status: {selectedOrder.status}
               </Badge>
               <Badge variant={getPaymentStatusVariant(selectedOrder.payment_status)} size="lg">
-                <Icon icon={getPaymentStatusIcon(selectedOrder.payment_status)} className="w-4 h-4 mr-1" />
+                <Icon icon={getPaymentStatusIcon(selectedOrder.payment_status)} className="w-4 h-4 mr-1 inline" />
                 Payment: {selectedOrder.payment_status}
               </Badge>
             </div>
-
-            {/* Order Info Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <h4 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="text-sm font-medium text-slate-500 mb-3 flex items-center gap-2">
                   <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
                   Order Information
                 </h4>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Order Code</p>
-                    <p className="text-gray-900 font-semibold">{selectedOrder.order_code}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Created Date</p>
-                    <p className="text-gray-900">{formatDate(selectedOrder.created_at)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Due Date</p>
-                    <p className={`font-medium ${new Date(selectedOrder.due_date) < new Date() ? 'text-red-600' : 'text-gray-900'}`}>
-                      {formatDate(selectedOrder.due_date)}
-                    </p>
-                  </div>
+                <div className="space-y-2">
+                  <div><p className="text-xs text-slate-400">Order Code</p><p className="font-semibold">{selectedOrder.order_code}</p></div>
+                  <div><p className="text-xs text-slate-400">Created Date</p><p>{formatDate(selectedOrder.created_at)}</p></div>
+                  <div><p className="text-xs text-slate-400">Due Date</p><p className={new Date(selectedOrder.due_date) < new Date() ? 'text-red-600' : ''}>{formatDate(selectedOrder.due_date)}</p></div>
                 </div>
               </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <h4 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="text-sm font-medium text-slate-500 mb-3 flex items-center gap-2">
                   <Icon icon="mdi:account" className="w-4 h-4 text-blue-600" />
                   Customer Information
                 </h4>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Customer Name</p>
-                    <p className="text-gray-900 font-medium">{selectedOrder.customer_name}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Brand</p>
-                    <p className="text-gray-900">{selectedOrder.brand}</p>
-                  </div>
+                <div className="space-y-2">
+                  <div><p className="text-xs text-slate-400">Customer Name</p><p className="font-medium">{selectedOrder.customer_name}</p></div>
+                  <div><p className="text-xs text-slate-400">Brand</p><p>{selectedOrder.brand}</p></div>
                 </div>
               </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <h4 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="text-sm font-medium text-slate-500 mb-3 flex items-center gap-2">
                   <Icon icon="mdi:package-variant" className="w-4 h-4 text-blue-600" />
                   Product Information
                 </h4>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Category</p>
-                    <Badge className="bg-blue-100 text-blue-800 mt-1">
-                      {selectedOrder.category}
-                    </Badge>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500">Quantity</p>
-                    <p className="text-gray-900 font-medium">{formatNumber(selectedOrder.quantity)} pcs</p>
-                  </div>
+                <div className="space-y-2">
+                  <div><p className="text-xs text-slate-400">Category</p><Badge variant="info">{selectedOrder.category}</Badge></div>
+                  <div><p className="text-xs text-slate-400">Quantity</p><p className="font-medium">{formatNumber(selectedOrder.quantity)} pcs</p></div>
                 </div>
               </div>
-
-              <div className="bg-gray-50 p-4 rounded-xl">
-                <h4 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                <h4 className="text-sm font-medium text-slate-500 mb-3 flex items-center gap-2">
                   <Icon icon="mdi:cash-multiple" className="w-4 h-4 text-blue-600" />
                   Payment Information
                 </h4>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-xs text-gray-500">Total Price</p>
-                    <p className="text-2xl font-bold text-green-600">{formatCurrency(selectedOrder.total_price)}</p>
-                  </div>
+                <div className="space-y-2">
+                  <div><p className="text-xs text-slate-400">Total Price</p><p className="text-2xl font-bold text-green-600">{formatCurrency(selectedOrder.total_price)}</p></div>
                 </div>
               </div>
             </div>
-
-            {/* Notes */}
             {selectedOrder.notes && (
               <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
                 <h4 className="text-sm font-medium text-blue-900 mb-2 flex items-center gap-2">
-                  <Icon icon="mdi:note-text" className="w-4 h-4" />
-                  Notes
+                  <Icon icon="mdi:note-text" className="w-4 h-4" /> Notes
                 </h4>
                 <p className="text-blue-800">{selectedOrder.notes}</p>
               </div>
@@ -1084,165 +736,74 @@ export default function OrdersPage() {
         )}
       </Modal>
 
-      {/* ===== CREATE ORDER MODAL ===== */}
+      {/* ===== CREATE MODAL (konsisten) ===== */}
       <Modal
-        isOpen={isCreateModalOpen}
-        onClose={handleCloseModals}
-        title="➕ Create New Order"
-        size="lg"
+        isOpen={isCreateModalOpen} onClose={handleCloseModals} title="Create New Order" size="lg"
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={handleCloseModals} disabled={isPosting}>
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleNewOrderSubmit}
-              loading={isPosting}
-              disabled={isPosting}
-            >
+            <Button variant="outline" onClick={handleCloseModals} disabled={isPosting}>Cancel</Button>
+            <Button variant="primary" onClick={handleNewOrderSubmit} loading={isPosting} disabled={isPosting}>
               {isPosting ? 'Creating...' : 'Create Order'}
             </Button>
           </div>
         }
       >
         <div className="space-y-5">
-          {/* Info Box */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-blue-900 mb-1">Informasi</h4>
-                <p className="text-sm text-blue-700">
-                  Isi semua field yang bertanda * untuk membuat order baru
-                </p>
-              </div>
+          <div className="flex items-center gap-3 p-4 rounded-xl border bg-blue-50 border-blue-100">
+            <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+              <Icon icon="mdi:information-outline" className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-blue-800">Order Baru</p>
+              <p className="text-xs text-blue-600">Isi semua field yang bertanda * untuk membuat order baru</p>
             </div>
           </div>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              label="Customer Name *"
-              placeholder="Enter customer name"
-              value={newOrderData.customer_name}
-              onChange={(e) => handleInputChange('customer_name', e.target.value)}
-              leftIcon="mdi:account"
-              error={formErrors.customer_name}
-              className={formErrors.customer_name ? 'border-red-500' : ''}
-            />
-            
-            <Input
-              label="Brand *"
-              placeholder="Enter brand name"
-              value={newOrderData.brand}
-              onChange={(e) => handleInputChange('brand', e.target.value)}
-              leftIcon="mdi:tag"
-              error={formErrors.brand}
-              className={formErrors.brand ? 'border-red-500' : ''}
-            />
+            <Input label="Customer Name *" placeholder="Enter customer name" value={newOrderData.customer_name}
+              onChange={e => handleInputChange('customer_name', e.target.value)} leftIcon="mdi:account"
+              error={formErrors.customer_name} />
+            <Input label="Brand *" placeholder="Enter brand name" value={newOrderData.brand}
+              onChange={e => handleInputChange('brand', e.target.value)} leftIcon="mdi:tag"
+              error={formErrors.brand} />
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Category *"
-              value={newOrderData.category}
-              onChange={(e) => handleInputChange('category', e.target.value)}
-              options={CATEGORY_OPTIONS}
-              error={formErrors.category}
-              className={formErrors.category ? 'border-red-500' : ''}
-            />
-            
-            <Input
-              label="Quantity *"
-              type="number"
-              placeholder="Enter quantity"
-              value={newOrderData.quantity}
-              onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 1)}
-              leftIcon="mdi:numeric"
-              min="1"
-              error={formErrors.quantity}
-              className={formErrors.quantity ? 'border-red-500' : ''}
-            />
+            <Select label="Category *" value={newOrderData.category}
+              onChange={e => handleInputChange('category', e.target.value)} options={CATEGORY_OPTIONS}
+              error={formErrors.category} />
+            <Input label="Quantity *" type="number" placeholder="Enter quantity" value={newOrderData.quantity}
+              onChange={e => handleInputChange('quantity', parseInt(e.target.value) || 1)} leftIcon="mdi:numeric"
+              min="1" error={formErrors.quantity} />
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Select
-              label="Status *"
-              value={newOrderData.status}
-              onChange={(e) => handleInputChange('status', e.target.value)}
-              options={STATUS_OPTIONS.filter(opt => opt.value !== 'all')}
-            />
+            <Select label="Status *" value={newOrderData.status}
+              onChange={e => handleInputChange('status', e.target.value)}
+              options={STATUS_OPTIONS.filter(opt => opt.value !== 'all')} />
           </div>
-          
-          <Input
-            label="Notes"
-            placeholder="Add any notes or special instructions..."
-            value={newOrderData.notes}
-            onChange={(e) => handleInputChange('notes', e.target.value)}
-            leftIcon="mdi:note-text"
-            multiline
-            rows={3}
-          />
-
-          {/* Preview */}
+          <Input label="Notes" placeholder="Add any notes..." value={newOrderData.notes}
+            onChange={e => handleInputChange('notes', e.target.value)} leftIcon="mdi:note-text" multiline rows={3} />
           {newOrderData.category && newOrderData.quantity > 0 && (
             <div className="bg-green-50 p-4 rounded-xl border border-green-200">
               <h4 className="font-medium text-green-900 mb-3 flex items-center gap-2">
-                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                  <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
-                </div>
-                Preview Order
+                <Icon icon="mdi:check-circle" className="w-4 h-4" /> Preview Order
               </h4>
               <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-gray-600 mb-1">Order Code:</p>
-                  <p className="font-medium text-gray-900">
-                    TOK-2024-{String(orders.length + 1).padStart(3, '0')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600 mb-1">Created Date:</p>
-                  <p className="font-medium text-gray-900">
-                    {new Date().toLocaleDateString('id-ID')}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600 mb-1">Estimated Price:</p>
-                  <p className="font-medium text-green-600">
-                    {formatCurrency(calculatePrice(newOrderData.category, newOrderData.quantity))}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-600 mb-1">Due Date:</p>
-                  <p className="font-medium text-gray-900">
-                    {formatDate(getDueDate())}
-                  </p>
-                </div>
+                <div><p className="text-slate-500">Order Code:</p><p className="font-medium">TOK-2024-{String(orders.length + 1).padStart(3, '0')}</p></div>
+                <div><p className="text-slate-500">Created Date:</p><p className="font-medium">{new Date().toLocaleDateString('id-ID')}</p></div>
+                <div><p className="text-slate-500">Estimated Price:</p><p className="font-medium text-green-600">{formatCurrency(calculatePrice(newOrderData.category, newOrderData.quantity))}</p></div>
+                <div><p className="text-slate-500">Due Date:</p><p className="font-medium">{formatDate(getDueDate())}</p></div>
               </div>
             </div>
           )}
         </div>
       </Modal>
 
-      {/* ===== EDIT ORDER MODAL ===== */}
+      {/* ===== EDIT MODAL (konsisten) ===== */}
       <Modal
-        isOpen={isEditModalOpen}
-        onClose={handleCloseModals}
-        title="✏️ Edit Order"
-        size="lg"
+        isOpen={isEditModalOpen} onClose={handleCloseModals} title="Edit Order" size="lg"
         footer={
           <div className="flex justify-end gap-3">
-            <Button variant="outline" onClick={handleCloseModals} disabled={isPosting}>
-              Cancel
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleEditSubmit}
-              loading={isPosting}
-              disabled={isPosting}
-            >
+            <Button variant="outline" onClick={handleCloseModals} disabled={isPosting}>Cancel</Button>
+            <Button variant="primary" onClick={handleEditSubmit} loading={isPosting} disabled={isPosting}>
               {isPosting ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
@@ -1250,125 +811,47 @@ export default function OrdersPage() {
       >
         {selectedOrder && (
           <div className="space-y-5">
-            {/* Current Data Info */}
-            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-              <div className="flex items-start gap-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Icon icon="mdi:information" className="w-4 h-4 text-blue-600" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="font-semibold text-blue-900 mb-1">Editing Order</h4>
-                  <div className="grid grid-cols-2 gap-4 mt-2 text-sm">
-                    <div>
-                      <p className="text-blue-700 mb-1">Order Code:</p>
-                      <p className="font-medium text-blue-900">
-                        {selectedOrder.order_code}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-blue-700 mb-1">Current Status:</p>
-                      <Badge variant={getStatusVariant(selectedOrder.status)} size="sm">
-                        {selectedOrder.status}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
+            <div className="flex items-center gap-3 p-4 rounded-xl border" style={{ background: '#3b82f608', borderColor: '#3b82f630' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: '#3b82f618' }}>
+                <Icon icon="mdi:pencil-outline" className="w-5 h-5" style={{ color: '#3b82f6' }} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Mode Edit</p>
+                <p className="text-xs text-slate-500">Order Code: <span className="font-mono">{selectedOrder.order_code}</span></p>
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Customer Name *"
-                placeholder="Enter customer name"
-                value={editOrderData.customer_name}
-                onChange={(e) => handleInputChange('customer_name', e.target.value, true)}
-                leftIcon="mdi:account"
-                error={formErrors.customer_name}
-                className={formErrors.customer_name ? 'border-red-500' : ''}
-              />
-              
-              <Input
-                label="Brand *"
-                placeholder="Enter brand name"
-                value={editOrderData.brand}
-                onChange={(e) => handleInputChange('brand', e.target.value, true)}
-                leftIcon="mdi:tag"
-                error={formErrors.brand}
-                className={formErrors.brand ? 'border-red-500' : ''}
-              />
+              <Input label="Customer Name *" value={editOrderData.customer_name}
+                onChange={e => handleInputChange('customer_name', e.target.value, true)} leftIcon="mdi:account"
+                error={formErrors.customer_name} />
+              <Input label="Brand *" value={editOrderData.brand}
+                onChange={e => handleInputChange('brand', e.target.value, true)} leftIcon="mdi:tag"
+                error={formErrors.brand} />
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Category *"
-                value={editOrderData.category}
-                onChange={(e) => handleInputChange('category', e.target.value, true)}
-                options={CATEGORY_OPTIONS}
-                error={formErrors.category}
-                className={formErrors.category ? 'border-red-500' : ''}
-              />
-              
-              <Input
-                label="Quantity *"
-                type="number"
-                placeholder="Enter quantity"
-                value={editOrderData.quantity}
-                onChange={(e) => handleInputChange('quantity', parseInt(e.target.value) || 1, true)}
-                leftIcon="mdi:numeric"
-                min="1"
-                error={formErrors.quantity}
-                className={formErrors.quantity ? 'border-red-500' : ''}
-              />
+              <Select label="Category *" value={editOrderData.category}
+                onChange={e => handleInputChange('category', e.target.value, true)} options={CATEGORY_OPTIONS}
+                error={formErrors.category} />
+              <Input label="Quantity *" type="number" value={editOrderData.quantity}
+                onChange={e => handleInputChange('quantity', parseInt(e.target.value) || 1, true)} leftIcon="mdi:numeric"
+                min="1" error={formErrors.quantity} />
             </div>
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
-                label="Status *"
-                value={editOrderData.status}
-                onChange={(e) => handleInputChange('status', e.target.value, true)}
-                options={STATUS_OPTIONS.filter(opt => opt.value !== 'all')}
-              />
-              
-              <Select
-                label="Payment Status *"
-                value={editOrderData.payment_status}
-                onChange={(e) => handleInputChange('payment_status', e.target.value, true)}
-                options={PAYMENT_STATUS_OPTIONS.filter(opt => opt.value !== 'all')}
-              />
+              <Select label="Status *" value={editOrderData.status}
+                onChange={e => handleInputChange('status', e.target.value, true)} options={STATUS_OPTIONS.filter(opt => opt.value !== 'all')} />
+              <Select label="Payment Status *" value={editOrderData.payment_status}
+                onChange={e => handleInputChange('payment_status', e.target.value, true)} options={PAYMENT_STATUS_OPTIONS.filter(opt => opt.value !== 'all')} />
             </div>
-            
-            <Input
-              label="Notes"
-              placeholder="Add any notes or special instructions..."
-              value={editOrderData.notes}
-              onChange={(e) => handleInputChange('notes', e.target.value, true)}
-              leftIcon="mdi:note-text"
-              multiline
-              rows={3}
-            />
-
-            {/* Preview Update */}
+            <Input label="Notes" placeholder="Add any notes..." value={editOrderData.notes}
+              onChange={e => handleInputChange('notes', e.target.value, true)} leftIcon="mdi:note-text" multiline rows={3} />
             {editOrderData.category && editOrderData.quantity > 0 && (
               <div className="bg-green-50 p-4 rounded-xl border border-green-200">
                 <h4 className="font-medium text-green-900 mb-3 flex items-center gap-2">
-                  <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
-                    <Icon icon="mdi:check-circle" className="w-3 h-3 text-green-600" />
-                  </div>
-                  Preview Update
+                  <Icon icon="mdi:check-circle" className="w-4 h-4" /> Preview Update
                 </h4>
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-600 mb-1">New Total:</p>
-                    <p className="font-medium text-green-600">
-                      {formatCurrency(calculatePrice(editOrderData.category, editOrderData.quantity))}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-gray-600 mb-1">New Status:</p>
-                    <Badge variant={getStatusVariant(editOrderData.status)} size="sm">
-                      {editOrderData.status}
-                    </Badge>
-                  </div>
+                  <div><p className="text-slate-500">New Total:</p><p className="font-medium text-green-600">{formatCurrency(calculatePrice(editOrderData.category, editOrderData.quantity))}</p></div>
+                  <div><p className="text-slate-500">New Status:</p><Badge variant={getStatusVariant(editOrderData.status)} size="sm">{editOrderData.status}</Badge></div>
                 </div>
               </div>
             )}

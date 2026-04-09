@@ -1,5 +1,3 @@
-// app/(protected)/flutes/types.ts
-
 export interface Flute {
   id: string
   code: string
@@ -10,11 +8,8 @@ export interface Flute {
 
 export interface FluteStats {
   totalFlutes: number
-  bFlute: number
-  cFlute: number
-  cbFlute: number
-  ebFlute: number
-  others: number
+  latestAdded: { code: string; name: string; createdAt: string } | null
+  lastUpdated: { code: string; name: string; updatedAt: string } | null
 }
 
 export interface FormData {
@@ -22,7 +17,6 @@ export interface FormData {
   name: string
 }
 
-// ===== API =====
 export interface ApiResponse<T = unknown> {
   status: number
   message?: string

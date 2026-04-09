@@ -448,32 +448,7 @@ function DetailModal({ isOpen, item, allConfigKeys, onClose, onEdit }: {
         </div>
 
         {/* Qty range */}
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <p className="text-xs text-gray-500 mb-3 flex items-center gap-1.5">
-            <Icon icon="mdi:package-variant" className="w-3.5 h-3.5" /> Range Quantity
-          </p>
-          <div className="grid grid-cols-2 gap-3 mb-2">
-            <div className="bg-green-50 p-3 rounded-lg border border-green-100">
-              <p className="text-xs text-green-600 mb-1">Minimum</p>
-              <p className="font-bold text-green-800 text-sm">
-                {item.qty_min !== null ? `${parseInt(item.qty_min).toLocaleString()} pcs` : '0 pcs'}
-              </p>
-            </div>
-            <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
-              <p className="text-xs text-blue-600 mb-1">Maximum</p>
-              <p className="font-bold text-blue-800 text-sm">
-                {item.qty_max && item.qty_max !== '0'
-                  ? `${parseInt(item.qty_max).toLocaleString()} pcs`
-                  : '∞ (tanpa batas)'}
-              </p>
-            </div>
-          </div>
-          <div className="text-center">
-            <Badge color={qtyRangeBadgeColor(item.qty_max)}>
-              {formatQtyRange(item.qty_min, item.qty_max)}
-            </Badge>
-          </div>
-        </div>
+        
       </div>
     </Modal>
   )

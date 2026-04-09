@@ -7,7 +7,7 @@ import Button from '@/components/UI/Button'
 import Input from '@/components/UI/Input'
 import Modal from '@/components/UI/Modal'
 import LoadingState from '@/components/UI/LoadingState'
-import { Table, TableRow, TableCell } from '@/components/UI/Table' // ✅ Tabel global
+import { Table, TableRow, TableCell } from '@/components/UI/Table'
 
 import { useFlutes } from './hooks/useFlutes'
 import { useFluteActions } from './hooks/useFluteActions'
@@ -51,7 +51,7 @@ function ActionButton({ onClick, icon, hoverColor, title }: {
 }
 
 // ============================================================
-// FLUTE PREVIEW — reused in both Add & Edit modals
+// FLUTE PREVIEW
 // ============================================================
 
 function FlutePreview({ code, name, label }: { code: string; name: string; label: string }) {
@@ -78,20 +78,49 @@ function FlutePreview({ code, name, label }: { code: string; name: string; label
 }
 
 // ============================================================
-// STATS CARDS — gaya baru (rounded-2xl, hover, garis gradien)
+// STATS CARDS
 // ============================================================
 
 function StatsCards({ stats }: { stats: FluteStats }) {
   const items = [
-    { icon: 'mdi:layers',          label: 'Total Flutes', value: stats.totalFlutes, sub: 'jenis tersedia',       accent: '#3b82f6' },
-    { icon: 'mdi:alpha-b-box',     label: 'B-Flute',      value: stats.bFlute,      sub: 'ketebalan ~3mm',      accent: '#3b82f6' },
-    { icon: 'mdi:alpha-c-box',     label: 'C-Flute',      value: stats.cFlute,      sub: 'ketebalan ~4mm',      accent: '#10b981' },
-    { icon: 'mdi:layers-triple',   label: 'CB/BC-Flute',  value: stats.cbFlute,     sub: 'double wall',         accent: '#f59e0b' },
-    { icon: 'mdi:package-variant', label: 'Others',       value: stats.ebFlute + stats.others, sub: 'E, EB, A, F, dll', accent: '#8b5cf6' },
+    {
+      icon: 'mdi:layers',
+      label: 'Total Flutes',
+      accent: '#3b82f6',
+      content: (
+        <>
+          <p className="text-3xl font-bold text-slate-800">{stats.totalFlutes}</p>
+          <p className="text-xs text-slate-400 mt-1.5">jenis terdaftar</p>
+        </>
+      ),
+    },
+    {
+      icon: 'mdi:plus-circle-outline',
+      label: 'Terbaru Ditambah',
+      accent: '#10b981',
+      content: stats.latestAdded ? (
+        <>
+          <div className="flex items-center gap-2 mt-1">
+            <Badge color={getFluteAccent(stats.latestAdded.code)}>
+              {stats.latestAdded.code}
+            </Badge>
+            <p className="text-sm font-semibold text-slate-700 truncate">
+              {stats.latestAdded.name}
+            </p>
+          </div>
+          <p className="text-xs text-slate-400 mt-1.5 flex items-center gap-1">
+            <Icon icon="mdi:clock-outline" className="w-3 h-3" />
+            {formatDate(stats.latestAdded.createdAt)}
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-slate-400 mt-1">Belum ada data</p>
+      ),
+    },
   ]
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {items.map((s, i) => (
         <div
           key={i}
@@ -99,13 +128,14 @@ function StatsCards({ stats }: { stats: FluteStats }) {
         >
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm text-slate-500">{s.label}</p>
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `${s.accent}15` }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+              style={{ background: `${s.accent}15` }}>
               <Icon icon={s.icon} className="w-4 h-4" style={{ color: s.accent }} />
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-800">{s.value}</p>
-          <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
-          <div className="mt-4 h-0.5 rounded-full" style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
+          {s.content}
+          <div className="mt-4 h-0.5 rounded-full"
+            style={{ background: `linear-gradient(90deg, ${s.accent}60, transparent)` }} />
         </div>
       ))}
     </div>
@@ -113,7 +143,7 @@ function StatsCards({ stats }: { stats: FluteStats }) {
 }
 
 // ============================================================
-// FORM FIELDS — reused in Add & Edit modals
+// FORM FIELDS
 // ============================================================
 
 function FluteFormFields({ code, name, isPosting, accentColor, onCodeChange, onNameChange }: {
@@ -215,7 +245,6 @@ function EditModal({ isOpen, editingItem, isPosting, onCodeChange, onNameChange,
       }
     >
       <div className="space-y-5">
-        {/* Mode edit banner */}
         <div className="flex items-center gap-3 p-4 rounded-xl border"
           style={{ background: `${accent}08`, borderColor: `${accent}30` }}>
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
@@ -236,7 +265,6 @@ function EditModal({ isOpen, editingItem, isPosting, onCodeChange, onNameChange,
 
         <FlutePreview code={editingItem.code} name={editingItem.name} label="Preview Perubahan" />
 
-        {/* Timestamps */}
         <div className="flex items-center gap-4 text-xs text-gray-400 bg-gray-50 px-3 py-2.5 rounded-lg">
           <span className="flex items-center gap-1">
             <Icon icon="mdi:clock-outline" className="w-3 h-3" />
@@ -266,7 +294,7 @@ export default function FlutesPage() {
   const [addForm, setAddForm] = useState<FormData>({ ...BASE_FORM })
 
   const resetAdd = () => setAddForm({ ...BASE_FORM })
-  const resetEdit = () => { /* editingItem managed externally */ }
+  const resetEdit = () => {}
 
   const { isPosting, handleAdd, openEdit, handleEdit, handleDelete } = useFluteActions({
     flutes, refetch,
@@ -274,7 +302,6 @@ export default function FlutesPage() {
     setEditingItem, resetAdd, resetEdit,
   })
 
-  // ===== Code change handlers =====
   const handleAddCodeChange = (value: string) => {
     const upper = value.toUpperCase()
     setAddForm({ code: upper, name: resolveFluteName(upper) })
@@ -294,9 +321,9 @@ export default function FlutesPage() {
   )
 
   return (
-    <div className="space-y-6 p-4 md:p-6 bg-slate-50 ">
+    <div className="space-y-6 p-4 md:p-6 bg-slate-50">
 
-      {/* Header dengan gaya biru seperti box-models */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -318,10 +345,10 @@ export default function FlutesPage() {
         </div>
       </div>
 
-      {/* Stats Cards dengan gaya baru */}
+      {/* Stats Cards */}
       <StatsCards stats={stats} />
 
-      {/* Table Card dengan border dan shadow */}
+      {/* Table Card */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="relative">
           <div className="absolute top-0 left-0 right-0 h-[3px]"
@@ -344,7 +371,9 @@ export default function FlutesPage() {
             <div className="flex flex-col items-center gap-3 py-16">
               <Icon icon="mdi:layers-off" className="w-16 h-16 text-gray-300" />
               <p className="text-gray-500 font-medium text-lg">Belum ada data flute</p>
-              <Button variant="primary" size="sm" onClick={() => { resetAdd(); setShowAddModal(true) }} icon="mdi:plus">Tambah Flute</Button>
+              <Button variant="primary" size="sm" onClick={() => { resetAdd(); setShowAddModal(true) }} icon="mdi:plus">
+                Tambah Flute
+              </Button>
             </div>
           ) : (
             <Table headers={['Kode', 'Nama Flute', 'Tanggal Dibuat', 'Aksi']}>
@@ -352,7 +381,6 @@ export default function FlutesPage() {
                 const accent = getFluteAccent(flute.code)
                 return (
                   <TableRow key={flute.id} hoverable={false} className="hover:bg-blue-50/40 transition-colors">
-                    {/* Kode dengan icon dan badge */}
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
@@ -362,11 +390,9 @@ export default function FlutesPage() {
                         <Badge color={accent}>{flute.code}</Badge>
                       </div>
                     </TableCell>
-                    {/* Nama Flute */}
                     <TableCell>
                       <p className="text-sm font-medium text-slate-800">{flute.name}</p>
                     </TableCell>
-                    {/* Tanggal Dibuat (dengan update jika ada) */}
                     <TableCell>
                       <p className="text-sm text-gray-600">{formatDate(flute.createdAt)}</p>
                       {flute.updatedAt && flute.updatedAt !== flute.createdAt && (
@@ -376,7 +402,6 @@ export default function FlutesPage() {
                         </p>
                       )}
                     </TableCell>
-                    {/* Aksi */}
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <ActionButton onClick={() => openEdit(flute)} icon="mdi:pencil-outline" hoverColor="amber" title="Edit" />

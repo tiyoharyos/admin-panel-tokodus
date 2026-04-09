@@ -1,6 +1,4 @@
-// app/(protected)/flutes/constants.ts
-
-import type { FormData } from '../types/types'
+import type { FormData, FluteStats } from '../types/types'
 
 export const BASE_FORM: FormData = { code: '', name: '' }
 
@@ -15,6 +13,8 @@ export const FLUTE_TYPE_MAP: Record<string, string> = {
   F:  'F-Flute',
 }
 
-export const EMPTY_STATS = {
-  totalFlutes: 0, bFlute: 0, cFlute: 0, cbFlute: 0, ebFlute: 0, others: 0,
+export const EMPTY_STATS: FluteStats = {
+  totalFlutes: 0,
+  latestAdded: null,
+  lastUpdated: null,
 }

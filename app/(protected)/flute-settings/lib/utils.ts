@@ -1,10 +1,7 @@
-// app/(protected)/flutes/lib/utils.ts
-
 import { AxiosError } from 'axios'
 import type { Flute, FluteApiItem, FluteStats } from '../types/types'
 import { FLUTE_TYPE_MAP } from '../constants/constants'
 
-// ===== FORMAT =====
 export const formatDate = (dateStr: string): string => {
   if (!dateStr) return '-'
   try {
@@ -16,7 +13,6 @@ export const formatDate = (dateStr: string): string => {
   }
 }
 
-// ===== COLOR / ICON =====
 export const getFluteAccent = (code: string): string => {
   switch (code.toUpperCase()) {
     case 'B':         return '#3b82f6'
@@ -41,11 +37,9 @@ export const getFluteIcon = (code: string): string => {
   }
 }
 
-// ===== AUTO-NAME =====
 export const resolveFluteName = (upperCode: string): string =>
   FLUTE_TYPE_MAP[upperCode] || `${upperCode}-Flute`
 
-// ===== MAPPER =====
 export const mapFluteItem = (item: FluteApiItem): Flute => ({
   id: item.id_f?.toString() || '',
   code: item.code || '',
@@ -54,17 +48,25 @@ export const mapFluteItem = (item: FluteApiItem): Flute => ({
   updatedAt: item.updated_at || new Date().toISOString(),
 })
 
-// ===== STATS =====
-export const calculateStats = (data: Flute[]): FluteStats => ({
-  totalFlutes: data.length,
-  bFlute:  data.filter(f => f.code.toUpperCase() === 'B').length,
-  cFlute:  data.filter(f => f.code.toUpperCase() === 'C').length,
-  cbFlute: data.filter(f => ['CB', 'BC'].includes(f.code.toUpperCase())).length,
-  ebFlute: data.filter(f => ['EB', 'E'].includes(f.code.toUpperCase())).length,
-  others:  data.filter(f => !['B', 'C', 'CB', 'BC', 'EB', 'E'].includes(f.code.toUpperCase())).length,
-})
+export const calculateStats = (data: Flute[]): FluteStats => {
+  const sorted = [...data].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  )
+  const updated = data
+    .filter(f => f.updatedAt && f.updatedAt !== f.createdAt)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
 
-// ===== ERROR =====
+  return {
+    totalFlutes: data.length,
+    latestAdded: sorted[0]
+      ? { code: sorted[0].code, name: sorted[0].name, createdAt: sorted[0].createdAt }
+      : null,
+    lastUpdated: updated[0]
+      ? { code: updated[0].code, name: updated[0].name, updatedAt: updated[0].updatedAt }
+      : null,
+  }
+}
+
 export const extractErrorMessage = (err: unknown, fallback = 'Terjadi kesalahan'): string => {
   if (err instanceof AxiosError) {
     if (err.code === 'ECONNABORTED') return 'Koneksi timeout. Silakan coba lagi.'
